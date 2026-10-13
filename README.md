@@ -1,9 +1,8 @@
 # REDMINE — Dashboard + Gantt HEMOPI
 
-Dashboard executivo e Gantt interativo para Redmine (HEMOPI 2.0).
-
 - **Repo:** https://github.com/EngRocha1/REDMINE
-- **Pages:** https://engrocha1.github.io/REDMINE/ (só UI; API precisa de proxy local)
+- **Pages:** https://engrocha1.github.io/REDMINE/
+- **Local (recomendado para API):** `npm run proxy` → http://localhost:8787
 
 ## Uso local
 
@@ -19,42 +18,33 @@ npm run proxy
 | Dashboard | http://localhost:8787/ |
 | Gantt | http://localhost:8787/gantt.html |
 
-Login: e-mail + URL Redmine + API Key + ID projeto (ex. `414`). Credenciais **só em cookies**.
+Login: e-mail + URL Redmine + API Key + ID projeto (`414`). Credenciais só em cookies.
 
 ## Se o Gantt ficar em branco
-
-O `gantt.js` no `main` pode estar desatualizado. Restaure a última versão estável:
 
 ```bash
 cd REDMINE
 curl -sL "https://raw.githubusercontent.com/EngRocha1/REDMINE/ed365ee418e6ced65c319d0c0987ac4e7f508973/gantt.js" -o gantt.js
+head -n 3 gantt.js   # deve ser o IIFE completo, não placeholder
 npm run proxy
 ```
 
-Depois abra http://localhost:8787/gantt.html e use **Ctrl+Shift+R**.
+Hard refresh: Ctrl+Shift+R.
 
-## Arquitetura (sem gambiarra de DOM)
+**Importante:** GitHub Pages é só UI estática. A API do Redmine no browser exige o proxy local (`:8787`) por CORS. Falha de deploy do Pages **não** afeta o localhost.
+
+## CI / Pages
+
+Workflow em dois jobs (`build` sobe artefato `_site`, `deploy` publica). Source: Settings → Pages → GitHub Actions.
+
+## Arquitetura
 
 ```
-index.html + app.js + styles.css     → Dashboard
-gantt.html + gantt.js + gantt.css    → Gantt + Kanban
-proxy-server.js                      → CORS proxy :8787
+index.html + app.js + styles.css
+gantt.html + gantt.js + gantt.css
+proxy-server.js
 ```
 
-- Código-fonte versionado apenas nos arquivos acima.
-- Sem `eval`, sem `atob` de payload externo, sem injeção de script fora do `gantt.js`.
-- Proxy repassa `X-Redmine-API-Key` e `X-Redmine-Target` (não grava a key).
-
-## Gantt (versão estável)
-
-- Arrastar barra → datas + sprint no Redmine
-- Backlog remove versão
-- Menu ⋮ → status
-- 👁 → Kanban da sprint
-- Filtros colapsáveis (Escopo, Sprint, Módulo, Status, Menu ⋮)
-
-## Segurança
-
-Sem API key no Git. Cookies `SameSite=Strict`. Logout apaga cookies.
+Sem eval/atob de payload externo. API key só em cookie + header por request.
 
 MIT © EngRocha1
