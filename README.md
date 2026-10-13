@@ -1,45 +1,35 @@
-# REDMINE — Dashboard Executivo HEMOPI
+# REDMINE — Dashboard + Gantt HEMOPI
 
-Dashboard público HEMOPI 2.0 via Redmine REST API.
+**Repo:** https://github.com/EngRocha1/REDMINE  
+**Pages:** https://engrocha1.github.io/REDMINE/ (só UI; API precisa de proxy local por CORS)
 
-**Código:** https://github.com/EngRocha1/REDMINE  
-**Site:** https://engrocha1.github.io/REDMINE/
+## Uso local (recomendado)
 
----
+```bash
+cd /d/REDMINE
+git pull origin main
+npm install
+npm run proxy
+```
 
-## Ativar GitHub Pages (obrigatório — 1 vez, ~20 segundos)
+Abra:
+- Dashboard: http://localhost:8787/
+- **Gantt:** http://localhost:8787/gantt.html
 
-O Actions **não pode ligar o Pages sozinho** na primeira vez (limitação do `GITHUB_TOKEN`). Faça isto:
+Login: e-mail + URL Redmine + API key + ID projeto (ex. `414`). Credenciais só em cookies.
 
-1. Abra: **https://github.com/EngRocha1/REDMINE/settings/pages**
-2. Em **Build and deployment → Source**, selecione **GitHub Actions**
-3. Clique em **Save** (se aparecer)
-4. Vá em **Actions** → workflow **Deploy GitHub Pages** → **Re-run jobs** no último run (ou faça um commit vazio / push)
+## Gantt interativo
 
-Em 1–2 minutos o site sobe em:
-
-### https://engrocha1.github.io/REDMINE/
-
-Alternativa sem Actions: na mesma tela Pages, escolha **Deploy from a branch** → `main` → `/ (root)` → Save. O `index.html` da raiz já é o dashboard.
-
----
+- Coluna esquerda limpa: **#issue + nome**
+- Cabeçalho do calendário: **nome da sprint** + dias (finais de semana destacados)
+- Filtros multi-select: **Escopo** (2.0 / Legado / INF), **Sprints**, **Módulos**, **Status**
+- **Pan** no calendário (arrastar área vazia)
+- **Arrastar** barra → move datas no Redmine
+- **Bordas** da barra → redimensiona período no Redmine
+- **⋮** na barra → troca status no Redmine
 
 ## Segurança
 
-- Nenhuma API key no Git.
-- Login grava e-mail + URL + key **só em cookies** do navegador.
-- Logout apaga os cookies.
-
-## CORS
-
-Se o Redmine bloquear a API no browser:
-
-```bash
-git clone https://github.com/EngRocha1/REDMINE.git
-cd REDMINE && npm install && npm run proxy
-# http://localhost:8787
-```
-
-## Licença
+Sem API key no Git. Cookies locais + Logout.
 
 MIT © EngRocha1
