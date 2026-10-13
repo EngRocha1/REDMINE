@@ -12,7 +12,7 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   deploy:
@@ -24,7 +24,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Pages
+      # Só funciona DEPOIS de ativar Pages uma vez:
+      # Settings → Pages → Source = GitHub Actions → Save
+      - name: Configure Pages
         uses: actions/configure-pages@v5
 
       - name: Upload artifact
@@ -32,6 +34,6 @@ jobs:
         with:
           path: .
 
-      - name: Deploy to GitHub Pages
+      - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4

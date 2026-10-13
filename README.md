@@ -1,47 +1,44 @@
 # REDMINE — Dashboard Executivo HEMOPI
 
-Dashboard público para sprints, backlog e status do **HEMOPI 2.0** via Redmine REST API.
+Dashboard público HEMOPI 2.0 via Redmine REST API.
 
 **Código:** https://github.com/EngRocha1/REDMINE  
-**Site (GitHub Pages):** https://engrocha1.github.io/REDMINE/
+**Site:** https://engrocha1.github.io/REDMINE/
 
-> Se o link ainda não abrir, ative uma vez: **Settings → Pages → Build and deployment → Source = GitHub Actions** (ou *Deploy from a branch* → `main` → `/ (root)`). Depois aguarde 1–2 minutos.
+---
+
+## Ativar GitHub Pages (obrigatório — 1 vez, ~20 segundos)
+
+O Actions **não pode ligar o Pages sozinho** na primeira vez (limitação do `GITHUB_TOKEN`). Faça isto:
+
+1. Abra: **https://github.com/EngRocha1/REDMINE/settings/pages**
+2. Em **Build and deployment → Source**, selecione **GitHub Actions**
+3. Clique em **Save** (se aparecer)
+4. Vá em **Actions** → workflow **Deploy GitHub Pages** → **Re-run jobs** no último run (ou faça um commit vazio / push)
+
+Em 1–2 minutos o site sobe em:
+
+### https://engrocha1.github.io/REDMINE/
+
+Alternativa sem Actions: na mesma tela Pages, escolha **Deploy from a branch** → `main` → `/ (root)` → Save. O `index.html` da raiz já é o dashboard.
 
 ---
 
 ## Segurança
 
-- **Nenhuma API key no repositório.**
-- Credenciais só em **cookies do navegador**, após aceite da política.
-- **Logout** apaga os cookies.
+- Nenhuma API key no Git.
+- Login grava e-mail + URL + key **só em cookies** do navegador.
+- Logout apaga os cookies.
 
----
+## CORS
 
-## Como usar no Pages
-
-1. Abra https://engrocha1.github.io/REDMINE/
-2. Aceite cookies → informe e-mail, URL do Redmine e API key.
-3. Use **↻** para atualizar e **Logout** para sair.
-
-### CORS
-
-O navegador pode bloquear chamadas diretas à API do Redmine (CORS). Nesse caso:
+Se o Redmine bloquear a API no browser:
 
 ```bash
 git clone https://github.com/EngRocha1/REDMINE.git
 cd REDMINE && npm install && npm run proxy
 # http://localhost:8787
 ```
-
-O proxy **não grava** a chave — só repassa o header da requisição.
-
----
-
-## Recursos
-
-- KPIs, cards de sprint, gráficos, matriz, tabela filtrável
-- Glossário (M01–M09, [US], [TS], Sprint, Backlog, Scrum…)
-- Refresh redondo + Logout
 
 ## Licença
 
