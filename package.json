@@ -1,0 +1,14 @@
+{
+  "name": "redmine-hemopi-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Dashboard HEMOPI / Redmine — credenciais só em cookies",
+  "scripts": {
+    "proxy": "node proxy-server.js",
+    "start": "node proxy-server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "http-proxy-middleware": "^3.0.0"
+  }
+}

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>HEMOPI · Dashboard Redmine</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+<!-- Cookie policy -->
+<div id="cookieBanner" class="cookie-banner hidden">
+  <div>
+    <strong>Política de cookies</strong>
+    <p>Usamos cookies locais apenas para guardar e-mail, URL do Redmine e API key neste navegador. Nada é enviado a terceiros nem commitado em repositório. Ao continuar, você concorda com esse uso.</p>
+  </div>
+  <button id="btnAcceptCookies" class="btn primary">Aceitar e continuar</button>
+</div>
+
+<!-- Login -->
+<div id="loginView" class="login-wrap hidden">
+  <div class="login-card">
+    <h1>HEMOPI <span>·</span> Redmine</h1>
+    <p class="muted">Dashboard executivo · credenciais só em cookies</p>
+    <label>E-mail válido</label>
+    <input id="inEmail" type="email" placeholder="voce@orgao.gov.br" required/>
+    <label>URL do Redmine</label>
+    <input id="inUrl" type="url" placeholder="https://projetos.exemplo.gov.br" value="https://projetos.ati.pi.gov.br"/>
+    <label>API Key</label>
+    <input id="inKey" type="password" placeholder="Chave de acesso à API" autocomplete="off"/>
+    <label>ID do projeto raiz</label>
+    <input id="inProject" type="text" placeholder="414" value="414"/>
+    <p id="loginError" class="error"></p>
+    <button id="btnLogin" class="btn primary block">Entrar</button>
+    <p class="hint">A API key fica apenas no cookie deste navegador. Use Logout para apagar.</p>
+  </div>
+</div>
+
+<!-- Dashboard -->
+<div id="dashView" class="wrap hidden">
+  <header>
+    <div>
+      <h1>HEMOPI <span>·</span> Dashboard Executivo</h1>
+      <p class="muted" id="hdrMeta">Sprints + backlog · validação de squad</p>
+    </div>
+    <div class="hdr-actions">
+      <button id="btnRefresh" class="btn-icon" title="Atualizar dados" aria-label="Refresh">↻</button>
+      <button id="btnLogout" class="btn ghost" title="Sair e apagar cookies">Logout</button>
+    </div>
+  </header>
+
+  <div class="banner" id="banner"></div>
+
+  <section class="glossary card">
+    <h2>Glossário técnico (DUTEC / Scrum)</h2>
+    <div class="glossary-grid" id="glossary"></div>
+  </section>
+
+  <section class="kpis" id="kpis"></section>
+  <section class="sprint-cards" id="sprintCards"></section>
+
+  <div class="grid2">
+    <div class="card"><h2>Status geral</h2><div class="chart-box"><canvas id="chartStatus"></canvas></div></div>
+    <div class="card"><h2>Issues por módulo</h2><div class="chart-box"><canvas id="chartMod"></canvas></div></div>
+  </div>
+  <div class="card" style="margin-bottom:16px"><h2>Tasks por sprint</h2><div class="chart-box" style="height:260px"><canvas id="chartSprint"></canvas></div></div>
+  <div class="card" style="margin-bottom:16px"><h2>Matriz sprint × status</h2><div id="matrix"></div></div>
+
+  <div class="card">
+    <h2>Lista de issues</h2>
+    <div class="filters" id="filters"></div>
+    <div class="table-wrap"><table id="tbl"><thead><tr>
+      <th>#</th><th>Sprint</th><th>Mód</th><th>Assunto</th><th>Status</th><th>Resp.</th><th>Início</th><th>Fim</th>
+    </tr></thead><tbody></tbody></table></div>
+  </div>
+
+  <div class="foot">
+    <span id="footLeft">Fonte: Redmine REST</span>
+    <span id="footRight"></span>
+  </div>
+</div>
+
+<div id="loading" class="loading hidden">Carregando…</div>
+
+<script src="app.js"></script>
+</body>
+</html>
