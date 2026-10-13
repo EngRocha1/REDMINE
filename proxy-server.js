@@ -1,9 +1,7 @@
 /**
- * Proxy local para contornar CORS ao chamar a API Redmine.
- * Não armazena a API key — apenas repassa o header X-Redmine-API-Key do browser.
- *
- * Uso: npm install && npm run proxy
- * Abra http://localhost:8787
+ * Proxy local CORS → Redmine REST (GET/PUT/POST).
+ * Não grava API key — só repassa headers do browser.
+ * npm install && npm run proxy → http://localhost:8787
  */
 const express = require("express");
 const path = require("path");
@@ -14,7 +12,6 @@ const app = express();
 
 app.use(express.static(path.join(__dirname)));
 
-// Proxy: /api/* → REDMINE_TARGET/*  (target vem do header X-Redmine-Target)
 app.use(
   "/api",
   createProxyMiddleware({
@@ -29,13 +26,23 @@ app.use(
       proxyReq: (proxyReq, req) => {
         const key = req.headers["x-redmine-api-key"];
         if (key) proxyReq.setHeader("X-Redmine-API-Key", key);
+        proxyReq.setHeader("Content-Type", "application/json");
         proxyReq.removeHeader("x-redmine-target");
+        // reencaminha body em PUT/POST
+        if (req.body && Object.keys(req.body).length) {
+          const bodyData = JSON.stringify(req.body);
+          proxyReq.setHeader("Content-Length", Buffer.byteLength(bodyData));
+          proxyReq.write(bodyData);
+        }
       },
     },
   })
 );
 
+// parse JSON before proxy for PUT body (middleware order: json only for non-proxy is tricky)
+// Use raw body approach via express.json on /api with verify
+app.use(express.json({ limit: "2mb" }));
+
 app.listen(PORT, () => {
-  console.log(`Dashboard + proxy em http://localhost:${PORT}`);
-  console.log("A API key NÃO é salva no servidor — só repassada por request.");
+  console.log(`Dashboard + Gantt + proxy em http://localhost:${PORT}`);
 });

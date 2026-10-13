@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>HEMOPI · Gantt</title>
+<link rel="stylesheet" href="styles.css"/>
+<link rel="stylesheet" href="gantt.css"/>
+</head>
+<body>
+<div id="cookieBanner" class="cookie-banner hidden">
+  <div><strong>Política de cookies</strong><p>Credenciais só em cookies locais deste navegador.</p></div>
+  <button id="btnAcceptCookies" class="btn primary">Aceitar</button>
+</div>
+
+<div id="loginView" class="login-wrap hidden">
+  <div class="login-card">
+    <h1>HEMOPI <span>·</span> Gantt</h1>
+    <p class="muted">Mesmo login do dashboard · cookies locais</p>
+    <label>E-mail</label><input id="inEmail" type="email" placeholder="ex.: voce@orgao.gov.br" required/>
+    <label>URL Redmine</label><input id="inUrl" type="url" placeholder="ex.: https://redmine.exemplo.gov.br" required/>
+    <label>API Key</label><input id="inKey" type="password" placeholder="sua chave de API" autocomplete="new-password" required/>
+    <label>ID projeto raiz</label><input id="inProject" type="text" placeholder="ex.: 414" required/>
+    <p id="loginError" class="error"></p>
+    <button id="btnLogin" class="btn primary block">Entrar</button>
+  </div>
+</div>
+
+<div id="ganttView" class="gantt-app hidden">
+  <header class="gantt-header">
+    <div class="gantt-brand">
+      <h1>HEMOPI <span>·</span> Gantt</h1>
+      <nav class="gantt-nav">
+        <a href="index.html">Dashboard</a>
+        <a href="gantt.html" class="active">Gantt</a>
+      </nav>
+    </div>
+    <div class="hdr-actions">
+      <button id="btnToday" class="btn ghost" title="Ir para hoje">Hoje</button>
+      <button id="btnRefresh" class="btn-icon" title="Atualizar">↻</button>
+      <button id="btnLogout" class="btn ghost">Logout</button>
+    </div>
+  </header>
+
+  <div class="gantt-filters">
+    <div class="filter-group">
+      <label>Escopo</label>
+      <select id="fltScope" multiple size="3" title="Ctrl+clique para vários">
+        <option value="all" selected>Todos</option>
+        <option value="2.0">HEMOPI 2.0 (módulos)</option>
+        <option value="legado">Legado</option>
+        <option value="inf">INF</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Sprints</label>
+      <select id="fltSprint" multiple size="4" title="Ctrl+clique para vários"></select>
+    </div>
+    <div class="filter-group">
+      <label>Módulos</label>
+      <select id="fltMod" multiple size="4" title="Ctrl+clique para vários"></select>
+    </div>
+    <div class="filter-group">
+      <label>Status</label>
+      <select id="fltStatus" multiple size="4" title="Ctrl+clique para vários"></select>
+    </div>
+    <div class="filter-actions">
+      <button id="btnApply" class="btn primary">Aplicar filtros</button>
+      <button id="btnClear" class="btn ghost">Limpar</button>
+      <span id="fltCount" class="muted"></span>
+    </div>
+  </div>
+
+  <div class="gantt-hint muted">Arraste a barra para mover · bordas para redimensionar · ⋮ para status · pan no calendário com clique vazio + arrastar</div>
+
+  <div class="gantt-wrap" id="ganttWrap">
+    <div class="gantt-left">
+      <div class="gantt-left-head"># · Task</div>
+      <div class="gantt-left-body" id="leftBody"></div>
+    </div>
+    <div class="gantt-right" id="ganttRight">
+      <div class="gantt-timeline-head" id="timeHead"></div>
+      <div class="gantt-timeline-body" id="timeBody"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+  <div id="statusMenu" class="status-menu hidden"></div>
+  <div id="loading" class="loading hidden">Carregando…</div>
+</div>
+
+<script src="gantt.js"></script>
+</body>
+</html>
