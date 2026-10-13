@@ -1,4 +1,4 @@
-.gantt-app{max-width:100%;margin:0;padding:12px 12px 32px;height:100vh;display:flex;flex-direction:column;box-sizing:border-box}
+.gantt-app{max-width:100%;margin:0;padding:12px 12px 24px;height:100vh;display:flex;flex-direction:column;box-sizing:border-box}
 .gantt-header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding-bottom:10px;border-bottom:1px solid var(--border);margin-bottom:10px}
 .gantt-brand{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
 .gantt-brand h1{font-size:1.2rem;margin:0}
@@ -6,16 +6,22 @@
 .gantt-nav a{color:var(--muted);text-decoration:none;margin-right:12px;font-size:.85rem}
 .gantt-nav a.active{color:var(--accent2);font-weight:600}
 
-/* Filters — chips UX */
-.filter-bar{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:10px}
-.filter-row{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;flex-wrap:wrap}
-.filter-label{font-size:.65rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);min-width:56px;padding-top:6px;font-weight:600}
-.chips{display:flex;flex-wrap:wrap;gap:6px;flex:1}
-.chip{border:1px solid var(--border);background:#243044;color:var(--text);border-radius:999px;padding:5px 12px;font-size:.72rem;cursor:pointer;transition:.12s;user-select:none}
+.filter-panel{background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;overflow:hidden}
+.filter-toggle{width:100%;display:flex;align-items:center;gap:12px;background:transparent;border:none;color:var(--text);padding:10px 14px;cursor:pointer;font-size:.85rem;font-weight:600}
+.filter-toggle .chevron{margin-left:auto;color:var(--muted);transition:.15s}
+.filter-panel.collapsed .chevron{transform:rotate(-90deg)}
+.filter-panel.collapsed .filter-body{display:none}
+.filter-body{padding:0 12px 12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.filter-box{background:#121a28;border:1px solid rgba(45,58,79,.8);border-radius:10px;padding:10px}
+.filter-box-title{font-size:.62rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:8px;font-weight:600}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--border);background:#243044;color:var(--text);border-radius:999px;padding:5px 11px;font-size:.72rem;cursor:pointer;user-select:none}
 .chip:hover{border-color:var(--accent)}
 .chip.on{background:rgba(59,130,246,.28);border-color:var(--accent);color:#e0f2fe;font-weight:600}
-.chip.accent-on{background:rgba(6,182,212,.2);border-color:var(--accent2)}
-.filter-footer{display:flex;align-items:center;gap:12px;margin-top:4px;padding-top:8px;border-top:1px solid rgba(45,58,79,.5)}
+.menu-checks{display:flex;flex-direction:column;gap:4px;max-height:140px;overflow:auto}
+.menu-checks label{display:flex;align-items:center;gap:8px;font-size:.75rem;color:var(--text);cursor:pointer;padding:3px 2px}
+.menu-checks input{accent-color:var(--accent)}
+.filter-footer{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding-top:4px}
 
 .gantt-hint{font-size:.72rem;margin-bottom:8px}
 .gantt-wrap{flex:1;display:flex;border:1px solid var(--border);border-radius:12px;overflow:hidden;min-height:0;background:var(--card)}
@@ -29,8 +35,10 @@
 .gantt-right.panning{cursor:grabbing}
 .gantt-timeline-head{height:56px;position:sticky;top:0;z-index:5;background:#121a28;border-bottom:1px solid var(--border);display:flex;flex-direction:column}
 .sprint-band{display:flex;height:28px;font-size:.65rem;font-weight:600}
-.sprint-cell{border-right:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--accent2);background:rgba(6,182,212,.08);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 4px}
+.sprint-cell{border-right:1px solid var(--border);display:flex;align-items:center;justify-content:center;gap:6px;color:var(--accent2);background:rgba(6,182,212,.08);overflow:hidden;white-space:nowrap;padding:0 4px}
 .sprint-cell.backlog-band{background:rgba(252,211,77,.12);color:#fcd34d}
+.sprint-cell .eye{border:none;background:rgba(0,0,0,.25);color:inherit;border-radius:4px;width:20px;height:18px;cursor:pointer;font-size:11px;line-height:1;padding:0;flex-shrink:0}
+.sprint-cell .eye:hover{background:rgba(59,130,246,.4)}
 .day-band{display:flex;height:28px;font-size:.6rem}
 .day-cell{width:28px;min-width:28px;border-right:1px solid rgba(45,58,79,.35);display:flex;align-items:center;justify-content:center;color:var(--muted)}
 .day-cell.weekend{background:rgba(148,163,184,.08);color:#64748b}
@@ -44,18 +52,29 @@
 .bar:active{cursor:grabbing}
 .bar .bar-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;pointer-events:none;flex:1;font-weight:600}
 .bar .handle{position:absolute;top:0;bottom:0;width:8px;cursor:ew-resize;z-index:3}
-.bar .handle.left{left:0}
-.bar .handle.right{right:0}
-.bar .menu-btn{position:absolute;right:2px;top:2px;width:18px;height:18px;border:none;background:rgba(0,0,0,.3);color:#fff;border-radius:4px;font-size:12px;line-height:1;cursor:pointer;padding:0;z-index:4}
-.bar.st-nova{background:#3b82f6}
-.bar.st-valid{background:#16a34a}
-.bar.st-plan{background:#7c3aed}
-.bar.st-and{background:#d97706}
-.bar.st-pag{background:#0891b2}
-.bar.st-done{background:#64748b}
-.bar.st-other{background:#475569}
+.bar .handle.left{left:0}.bar .handle.right{right:0}
+.bar .menu-btn{position:absolute;right:2px;top:2px;width:18px;height:18px;border:none;background:rgba(0,0,0,.3);color:#fff;border-radius:4px;font-size:12px;cursor:pointer;padding:0;z-index:4}
+.bar.st-nova{background:#3b82f6}.bar.st-valid{background:#16a34a}.bar.st-plan{background:#7c3aed}
+.bar.st-and{background:#d97706}.bar.st-pag{background:#0891b2}.bar.st-done{background:#64748b}.bar.st-other{background:#475569}
+
 .status-menu{position:fixed;z-index:100;background:#1e293b;border:1px solid var(--border);border-radius:10px;padding:6px;min-width:220px;max-height:70vh;overflow:auto;box-shadow:0 8px 24px rgba(0,0,0,.4)}
 .status-menu button{display:block;width:100%;text-align:left;background:transparent;border:none;color:var(--text);padding:8px 10px;border-radius:6px;font-size:.8rem;cursor:pointer}
 .status-menu button:hover{background:rgba(59,130,246,.2)}
-.toast{position:fixed;bottom:24px;right:24px;background:#1e293b;border:1px solid var(--accent);color:var(--text);padding:12px 16px;border-radius:10px;z-index:110;font-size:.85rem;max-width:320px}
+.toast{position:fixed;bottom:24px;right:24px;background:#1e293b;border:1px solid var(--accent);color:var(--text);padding:12px 16px;border-radius:10px;z-index:110;font-size:.85rem;max-width:360px}
 .toast.err{border-color:#f87171}
+
+.modal{position:fixed;inset:0;z-index:120;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal.hidden{display:none!important}
+.modal-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.55)}
+.modal-card{position:relative;background:var(--card);border:1px solid var(--border);border-radius:14px;width:min(1100px,96vw);max-height:88vh;display:flex;flex-direction:column;padding:14px 16px;box-shadow:0 16px 48px rgba(0,0,0,.45)}
+.modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.modal-head h2{font-size:1.1rem;margin:0}
+.modal-sub{font-size:.78rem;margin-bottom:12px}
+.kanban-board{display:flex;gap:10px;overflow:auto;flex:1;min-height:320px;padding-bottom:8px}
+.kanban-col{min-width:180px;flex:1;background:#121a28;border:1px solid var(--border);border-radius:10px;display:flex;flex-direction:column;max-height:60vh}
+.kanban-col-head{padding:8px 10px;font-size:.72rem;font-weight:600;border-bottom:1px solid var(--border);color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+.kanban-col-body{padding:8px;overflow:auto;flex:1;min-height:120px}
+.kanban-card{background:#243044;border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:.75rem;cursor:grab;user-select:none}
+.kanban-card:active{cursor:grabbing;opacity:.85}
+.kanban-card .kc-id{color:#7dd3fc;font-weight:600}
+.kanban-col-body.drag-over{background:rgba(59,130,246,.12);outline:1px dashed var(--accent)}
