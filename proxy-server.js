@@ -1,6 +1,5 @@
 /**
- * Proxy local CORS → Redmine REST (GET/PUT/POST).
- * Não grava API key — só repassa headers do browser.
+ * Proxy local CORS → Redmine (GET/PUT/POST).
  * npm install && npm run proxy → http://localhost:8787
  */
 const express = require("express");
@@ -12,11 +11,15 @@ const app = express();
 
 app.use(express.static(path.join(__dirname)));
 
+// Body parser ANTES do proxy (necessário para PUT de issues)
+app.use("/api", express.json({ limit: "2mb" }));
+
 app.use(
   "/api",
   createProxyMiddleware({
     changeOrigin: true,
     pathRewrite: { "^/api": "" },
+    selfHandleResponse: false,
     router: (req) => {
       const t = req.headers["x-redmine-target"];
       if (!t) throw new Error("Header X-Redmine-Target obrigatório");
@@ -26,11 +29,10 @@ app.use(
       proxyReq: (proxyReq, req) => {
         const key = req.headers["x-redmine-api-key"];
         if (key) proxyReq.setHeader("X-Redmine-API-Key", key);
-        proxyReq.setHeader("Content-Type", "application/json");
         proxyReq.removeHeader("x-redmine-target");
-        // reencaminha body em PUT/POST
-        if (req.body && Object.keys(req.body).length) {
+        if (req.body && (req.method === "PUT" || req.method === "POST" || req.method === "PATCH")) {
           const bodyData = JSON.stringify(req.body);
+          proxyReq.setHeader("Content-Type", "application/json");
           proxyReq.setHeader("Content-Length", Buffer.byteLength(bodyData));
           proxyReq.write(bodyData);
         }
@@ -39,10 +41,6 @@ app.use(
   })
 );
 
-// parse JSON before proxy for PUT body (middleware order: json only for non-proxy is tricky)
-// Use raw body approach via express.json on /api with verify
-app.use(express.json({ limit: "2mb" }));
-
 app.listen(PORT, () => {
-  console.log(`Dashboard + Gantt + proxy em http://localhost:${PORT}`);
+  console.log(`http://localhost:${PORT}  (Dashboard + Gantt + proxy)");
 });
