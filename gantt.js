@@ -1,12 +1,14 @@
-/* HEMOPI Gantt — chips UX, banda Backlog, #id na barra */
+/* HEMOPI Gantt — sprint on drop, kanban, collapsible filters */
 (function () {
   const COOKIE_OK = "rd_cookie_ok", C_EMAIL = "rd_email", C_URL = "rd_url", C_KEY = "rd_key", C_PROJ = "rd_project";
-  const DAY_W = 28;
-  const BACKLOG_DAYS = 7; // colunas iniciais = zona Backlog
+  const DAY_W = 28, BACKLOG_DAYS = 7;
+  // status do menu ⋮: ocultar Deploy e Fechada por padrão
+  const DEFAULT_MENU_HIDE = ["Desenvolvimento: Em Deploy", "Fechada"];
 
   let allIssues = [], versions = [], statuses = [];
   let rangeStart = null, dayCount = 0, filtered = [];
-  let sel = { scope: ["all"], sprint: null, mod: null, status: null }; // null = todos
+  let sel = { scope: ["all"], sprint: null, mod: null, status: null };
+  let menuVisible = null; // Set of status names allowed in ⋮
 
   function setCookie(n, v, days) {
     const d = new Date(); d.setTime(d.getTime() + (days || 30) * 864e5);
@@ -24,7 +26,7 @@
   function toast(msg, err) {
     const t = document.getElementById("toast");
     t.textContent = msg; t.classList.toggle("err", !!err); show(t);
-    setTimeout(() => hide(t), 3200);
+    setTimeout(() => hide(t), 3500);
   }
 
   async function api(method, path, body) {
@@ -32,13 +34,8 @@
     const key = getCookie(C_KEY);
     const useProxy = location.port === "8787" || window.REDMINE_USE_PROXY;
     const opts = { method: method || "GET", headers: { Accept: "application/json", "X-Redmine-API-Key": key } };
-    let url;
-    if (useProxy) {
-      url = "/api" + path;
-      opts.headers["X-Redmine-Target"] = base;
-    } else {
-      url = base + path;
-    }
+    const url = useProxy ? "/api" + path : base + path;
+    if (useProxy) opts.headers["X-Redmine-Target"] = base;
     if (body) { opts.headers["Content-Type"] = "application/json"; opts.body = JSON.stringify(body); }
     const res = await fetch(url, opts);
     if (!res.ok) throw new Error("HTTP " + res.status + ": " + (await res.text()).slice(0, 180));
@@ -90,12 +87,7 @@
     return (i.fixed_version && i.fixed_version.name) || "Backlog";
   }
   function isBacklogIssue(i) {
-    // sem sprint OU ainda Nova sem estar em andamento/validação
-    const sp = sprintName(i);
-    if (sp === "Backlog" || !i.fixed_version) return true;
-    const st = (i.status.name || "").toLowerCase();
-    if (st.indexOf("nova") >= 0 && !i.fixed_version) return true;
-    return false;
+    return !i.fixed_version || sprintName(i) === "Backlog";
   }
   function statusClass(name) {
     const s = (name || "").toLowerCase();
@@ -115,32 +107,48 @@
     return (s || "").replace(/\[HEMOPI\]\s*/g, "").replace(/\[(M0[1-9]|INF|US|TS|EP)\]\s*/g, "").trim();
   }
 
-  function renderChips(containerId, items, selectedSet, key, multi) {
+  /** Período Mon–Fri da versão (due_date = sexta) */
+  function versionPeriod(v) {
+    if (!v || !v.due_date) return null;
+    const due = parseYMD(v.due_date);
+    const start = addDays(due, -4);
+    return { id: v.id, name: v.name, start: start, due: due };
+  }
+
+  /** Dado um dia no calendário real, retorna a versão cujo período cobre */
+  function versionAtDate(d) {
+    const sorted = versions.slice().filter((v) => v.due_date);
+    for (const v of sorted) {
+      const p = versionPeriod(v);
+      if (p && d >= p.start && d <= p.due) return p;
+    }
+    return null;
+  }
+
+  function renderChips(containerId, items, selectedSet, key) {
     const el = document.getElementById(containerId);
     el.innerHTML = items.map((it) => {
       const val = typeof it === "string" ? it : it.v;
       const lab = typeof it === "string" ? it : it.l;
       const on = selectedSet === null || selectedSet.has(val);
-      return '<button type="button" class="chip' + (on ? " on" : "") + '" data-k="' + key + '" data-v="' + val + '">' + lab + "</button>";
+      return '<button type="button" class="chip' + (on ? " on" : "") + '" data-k="' + key + '" data-v="' + val.replace(/"/g, "&quot;") + '">' + lab + "</button>";
     }).join("");
     el.querySelectorAll(".chip").forEach((btn) => {
       btn.onclick = () => {
         const v = btn.dataset.v;
         const k = btn.dataset.k;
         if (k === "scope") {
-          if (v === "all") {
-            sel.scope = ["all"];
-          } else {
+          if (v === "all") sel.scope = ["all"];
+          else {
             sel.scope = sel.scope.filter((x) => x !== "all");
             if (sel.scope.includes(v)) sel.scope = sel.scope.filter((x) => x !== v);
             else sel.scope.push(v);
             if (!sel.scope.length) sel.scope = ["all"];
           }
         } else {
-          // toggle in Set stored as array; null = all selected
-          let set = sel[k] === null ? new Set(items.map((x) => (typeof x === "string" ? x : x.v))) : new Set(sel[k]);
-          if (set.has(v)) set.delete(v); else set.add(v);
           const allVals = items.map((x) => (typeof x === "string" ? x : x.v));
+          let set = sel[k] === null ? new Set(allVals) : new Set(sel[k]);
+          if (set.has(v)) set.delete(v); else set.add(v);
           if (set.size === 0 || set.size === allVals.length) sel[k] = null;
           else sel[k] = Array.from(set);
         }
@@ -150,34 +158,46 @@
     });
   }
 
-  function fillChips() {
-    const scopes = [
-      { v: "all", l: "Todos" },
-      { v: "2.0", l: "HEMOPI 2.0" },
-      { v: "legado", l: "Legado" },
-      { v: "inf", l: "INF" },
+  function fillMenuChecks() {
+    const el = document.getElementById("menuStatusChecks");
+    const list = statuses.length ? statuses : [
+      { id: 1, name: "Nova" }, { id: 12, name: "Desenvolvimento: Planejamento" },
+      { id: 11, name: "Desenvolvimento: Em Andamento" }, { id: 9, name: "Desenvolvimento: Em Validação" },
+      { id: 16, name: "Desenvolvimento: Em Deploy" }, { id: 13, name: "Em Pagamento" },
+      { id: 4, name: "Resolvida" }, { id: 5, name: "Fechada" }, { id: 6, name: "Rejeitada" },
     ];
-    const scopeSet = new Set(sel.scope);
-    renderChips("chipsScope", scopes, scopeSet, "scope");
-
-    const sprints = ["Backlog"].concat(
-      versions.map((v) => v.name).filter((n, i, a) => a.indexOf(n) === i).sort()
-    );
-    // also any sprint names on issues
-    allIssues.forEach((i) => {
-      const n = sprintName(i);
-      if (sprints.indexOf(n) < 0) sprints.push(n);
+    if (!menuVisible) {
+      menuVisible = new Set(list.map((s) => s.name).filter((n) => DEFAULT_MENU_HIDE.indexOf(n) < 0));
+    }
+    el.innerHTML = list.map((s) => {
+      const checked = menuVisible.has(s.name) ? " checked" : "";
+      return '<label><input type="checkbox" data-sname="' + s.name.replace(/"/g, "&quot;") + '"' + checked + "/> ' + s.name + "</label>";
+    }).join("");
+    el.querySelectorAll("input").forEach((inp) => {
+      inp.onchange = () => {
+        if (inp.checked) menuVisible.add(inp.dataset.sname);
+        else menuVisible.delete(inp.dataset.sname);
+      };
     });
-    const sprintSet = sel.sprint === null ? null : new Set(sel.sprint);
-    renderChips("chipsSprint", sprints, sprintSet, "sprint");
+  }
+
+  function fillChips() {
+    renderChips("chipsScope", [
+      { v: "all", l: "Todos" }, { v: "2.0", l: "HEMOPI 2.0" },
+      { v: "legado", l: "Legado" }, { v: "inf", l: "INF" },
+    ], new Set(sel.scope), "scope");
+
+    const sprints = ["Backlog"].concat(versions.map((v) => v.name));
+    allIssues.forEach((i) => { const n = sprintName(i); if (sprints.indexOf(n) < 0) sprints.push(n); });
+    renderChips("chipsSprint", sprints, sel.sprint === null ? null : new Set(sel.sprint), "sprint");
 
     const mods = Array.from(new Set(allIssues.map(getMod))).sort();
-    const modSet = sel.mod === null ? null : new Set(sel.mod);
-    renderChips("chipsMod", mods, modSet, "mod");
+    renderChips("chipsMod", mods, sel.mod === null ? null : new Set(sel.mod), "mod");
 
     const sts = Array.from(new Set(allIssues.map((i) => i.status.name))).sort();
-    const stSet = sel.status === null ? null : new Set(sel.status);
-    renderChips("chipsStatus", sts.map((s) => ({ v: s, l: shortStatus(s) })), stSet, "status");
+    renderChips("chipsStatus", sts.map((s) => ({ v: s, l: shortStatus(s) })), sel.status === null ? null : new Set(sel.status), "status");
+
+    fillMenuChecks();
   }
 
   function applyFilters() {
@@ -189,7 +209,6 @@
       return true;
     });
     filtered.sort((a, b) => {
-      // backlog first, then by start
       const ab = isBacklogIssue(a) ? 0 : 1;
       const bb = isBacklogIssue(b) ? 0 : 1;
       if (ab !== bb) return ab - bb;
@@ -205,48 +224,56 @@
   function computeRange() {
     let min = null, max = null;
     filtered.forEach((i) => {
-      if (isBacklogIssue(i)) return; // backlog fica na zona fixa
+      if (isBacklogIssue(i)) return;
       const s = parseYMD(i.start_date);
       const e = parseYMD(i.due_date);
       if (s && (!min || s < min)) min = s;
       if (e && (!max || e > max)) max = e;
       if (s && (!max || s > max)) max = s;
     });
+    versions.forEach((v) => {
+      const p = versionPeriod(v);
+      if (!p) return;
+      if (!min || p.start < min) min = p.start;
+      if (!max || p.due > max) max = p.due;
+    });
     const today = new Date(); today.setHours(0, 0, 0, 0);
     if (!min) min = addDays(today, -7);
     if (!max) max = addDays(today, 45);
-    // rangeStart = início do calendário real (após banda backlog)
-    // visual: days 0..BACKLOG_DAYS-1 = backlog, then real days
     rangeStart = addDays(min, -2);
     const rangeEnd = addDays(max, 10);
-    dayCount = BACKLOG_DAYS + Math.max(14, dayIndex(rangeEnd) + 1);
+    dayCount = BACKLOG_DAYS + Math.max(14, Math.round((rangeEnd - rangeStart) / 864e5) + 1);
   }
 
   function versionBands() {
     const sorted = versions.slice().filter((v) => v.due_date).sort((a, b) => (a.due_date < b.due_date ? -1 : 1));
-    const bands = [{ name: "Backlog", from: 0, span: BACKLOG_DAYS, backlog: true }];
+    const bands = [{ name: "Backlog", from: 0, span: BACKLOG_DAYS, backlog: true, versionId: null }];
     let i = BACKLOG_DAYS;
     while (i < dayCount) {
       const d = addDays(rangeStart, i - BACKLOG_DAYS);
-      let name = "";
+      let hit = null;
       for (const v of sorted) {
-        const due = parseYMD(v.due_date);
-        const start = addDays(due, -4);
-        if (d >= start && d <= due) { name = v.name; break; }
+        const p = versionPeriod(v);
+        if (p && d >= p.start && d <= p.due) { hit = p; break; }
       }
       let j = i + 1;
       while (j < dayCount) {
         const d2 = addDays(rangeStart, j - BACKLOG_DAYS);
-        let n2 = "";
+        let hit2 = null;
         for (const v of sorted) {
-          const due = parseYMD(v.due_date);
-          const start = addDays(due, -4);
-          if (d2 >= start && d2 <= due) { n2 = v.name; break; }
+          const p = versionPeriod(v);
+          if (p && d2 >= p.start && d2 <= p.due) { hit2 = p; break; }
         }
-        if (n2 !== name) break;
+        if ((hit2 && hit2.name) !== (hit && hit.name)) break;
         j++;
       }
-      bands.push({ name: name || "—", from: i, span: j - i, backlog: false });
+      bands.push({
+        name: (hit && hit.name) || "—",
+        from: i,
+        span: j - i,
+        backlog: false,
+        versionId: hit ? hit.id : null,
+      });
       i = j;
     }
     return bands;
@@ -267,19 +294,21 @@
     const bands = versionBands();
     let sprintHtml = '<div class="sprint-band" style="width:' + dayCount * DAY_W + 'px">';
     bands.forEach((b) => {
-      sprintHtml += '<div class="sprint-cell' + (b.backlog ? " backlog-band" : "") + '" style="width:' + b.span * DAY_W + 'px">' + b.name + "</div>";
+      const eye = b.backlog || !b.versionId
+        ? ""
+        : '<button type="button" class="eye" data-vid="' + b.versionId + '" data-vname="' + b.name + '" title="Kanban ' + b.name + '">👁</button>';
+      sprintHtml += '<div class="sprint-cell' + (b.backlog ? " backlog-band" : "") + '" style="width:' + b.span * DAY_W + 'px"><span>' + b.name + "</span>" + eye + "</div>";
     });
     sprintHtml += "</div>";
 
     let dayHtml = '<div class="day-band" style="width:' + dayCount * DAY_W + 'px">';
     const today = new Date(); today.setHours(0, 0, 0, 0);
     for (let i = 0; i < dayCount; i++) {
-      const cls = ["day-cell"];
       if (i < BACKLOG_DAYS) {
-        cls.push("backlog-day");
-        dayHtml += '<div class="' + cls.join(" ") + '">·</div>';
+        dayHtml += '<div class="day-cell backlog-day">·</div>';
       } else {
         const d = addDays(rangeStart, i - BACKLOG_DAYS);
+        const cls = ["day-cell"];
         if (isWeekend(d)) cls.push("weekend");
         if (fmtYMD(d) === fmtYMD(today)) cls.push("today");
         dayHtml += '<div class="' + cls.join(" ") + '">' + d.getDate() + "</div>";
@@ -288,6 +317,13 @@
     dayHtml += "</div>";
     head.innerHTML = sprintHtml + dayHtml;
 
+    head.querySelectorAll(".eye").forEach((btn) => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        openKanban(+btn.dataset.vid, btn.dataset.vname);
+      };
+    });
+
     let rows = "";
     filtered.forEach((issue) => {
       let extras = '<div class="bl-zone" style="left:0;width:' + BACKLOG_DAYS * DAY_W + 'px"></div>';
@@ -295,14 +331,9 @@
         const d = addDays(rangeStart, i - BACKLOG_DAYS);
         if (isWeekend(d)) extras += '<div class="wknd" style="left:' + i * DAY_W + 'px;width:' + DAY_W + 'px"></div>';
       }
-
-      let bar = "";
-      const backlog = isBacklogIssue(issue);
-      let i0, i1;
-      if (backlog) {
-        // centraliza na zona backlog
-        i0 = 1;
-        i1 = BACKLOG_DAYS - 2;
+      let bar = "", i0, i1;
+      if (isBacklogIssue(issue)) {
+        i0 = 1; i1 = BACKLOG_DAYS - 2;
       } else {
         const s = parseYMD(issue.start_date) || parseYMD(issue.due_date);
         const e = parseYMD(issue.due_date) || s;
@@ -315,13 +346,12 @@
       if (i0 != null) {
         const leftPx = i0 * DAY_W + 1;
         const widthPx = Math.max(DAY_W * 2 - 2, (i1 - i0 + 1) * DAY_W - 2);
-        const sc = statusClass(issue.status.name);
         const label = "#" + issue.id + " · " + shortStatus(issue.status.name);
         bar =
-          '<div class="bar ' + sc + '" data-id="' + issue.id + '" data-backlog="' + (backlog ? "1" : "0") + '" style="left:' + leftPx + 'px;width:' + widthPx + 'px" title="' + label + '">' +
+          '<div class="bar ' + statusClass(issue.status.name) + '" data-id="' + issue.id + '" style="left:' + leftPx + 'px;width:' + widthPx + 'px" title="' + label + '">' +
           '<div class="handle left" data-edge="left"></div>' +
           '<span class="bar-label">' + label + "</span>" +
-          '<button type="button" class="menu-btn" data-menu="' + issue.id + '">⋮</button>' +
+          '<button type="button" class="menu-btn">⋮</button>' +
           '<div class="handle right" data-edge="right"></div></div>';
       }
       rows += '<div class="gantt-row-track" style="width:' + dayCount * DAY_W + 'px">' + extras + bar + "</div>";
@@ -359,6 +389,7 @@
             bar.style.left = Math.max(0, origLeft + dx) + "px";
           }
         }
+
         async function onUp() {
           document.removeEventListener("mousemove", onMove);
           document.removeEventListener("mouseup", onUp);
@@ -367,12 +398,12 @@
           const i0 = Math.round(leftPx / DAY_W);
           const span = Math.max(1, Math.round(widthPx / DAY_W));
 
-          // se soltou na zona backlog → remove versão
-          if (i0 + span <= BACKLOG_DAYS) {
+          // Zona Backlog → remove versão
+          if (i0 + span <= BACKLOG_DAYS || (i0 < BACKLOG_DAYS && i0 + span / 2 < BACKLOG_DAYS)) {
             try {
               await api("PUT", "/issues/" + id + ".json", { issue: { fixed_version_id: "" } });
               issue.fixed_version = null;
-              toast("#" + id + " → Backlog");
+              toast("#" + id + " → Backlog (sem sprint)");
               applyFilters();
             } catch (err) {
               toast("Erro: " + err.message, true);
@@ -384,16 +415,34 @@
           const real0 = Math.max(0, i0 - BACKLOG_DAYS);
           const newStart = addDays(rangeStart, real0);
           const newDue = addDays(rangeStart, real0 + span - 1);
+
+          // Sprint obrigatória pelo dia de INÍCIO da barra
+          const ver = versionAtDate(newStart);
+          const payload = {
+            start_date: fmtYMD(newStart),
+            due_date: fmtYMD(newDue),
+          };
+          if (ver) {
+            payload.fixed_version_id = ver.id;
+            // alinha datas à sprint se o drop for só partial? user asked: start coincides with sprint period → assign that sprint
+          } else {
+            // fora de qualquer sprint → só datas, mantém versão ou limpa?
+            // se não cai em sprint, não força versão
+          }
+
           try {
-            await api("PUT", "/issues/" + id + ".json", {
-              issue: { start_date: fmtYMD(newStart), due_date: fmtYMD(newDue) },
-            });
-            issue.start_date = fmtYMD(newStart);
-            issue.due_date = fmtYMD(newDue);
-            toast("#" + id + " → " + fmtYMD(newStart) + " … " + fmtYMD(newDue));
+            await api("PUT", "/issues/" + id + ".json", { issue: payload });
+            issue.start_date = payload.start_date;
+            issue.due_date = payload.due_date;
+            if (ver) {
+              issue.fixed_version = { id: ver.id, name: ver.name };
+              toast("#" + id + " → " + ver.name + " · " + payload.start_date + " … " + payload.due_date);
+            } else {
+              toast("#" + id + " → " + payload.start_date + " … " + payload.due_date);
+            }
             applyFilters();
           } catch (err) {
-            toast("Erro ao salvar datas: " + err.message, true);
+            toast("Erro ao salvar: " + err.message, true);
             applyFilters();
           }
         }
@@ -405,15 +454,17 @@
 
   function openStatusMenu(issueId, x, y) {
     const menu = document.getElementById("statusMenu");
-    const list = statuses.length ? statuses : [
+    const list = (statuses.length ? statuses : [
       { id: 1, name: "Nova" }, { id: 12, name: "Desenvolvimento: Planejamento" },
       { id: 11, name: "Desenvolvimento: Em Andamento" }, { id: 9, name: "Desenvolvimento: Em Validação" },
       { id: 16, name: "Desenvolvimento: Em Deploy" }, { id: 13, name: "Em Pagamento" },
       { id: 4, name: "Resolvida" }, { id: 5, name: "Fechada" }, { id: 6, name: "Rejeitada" },
-    ];
-    menu.innerHTML = list.map((s) => '<button type="button" data-sid="' + s.id + '">' + s.name + "</button>").join("");
+    ]).filter((s) => !menuVisible || menuVisible.has(s.name));
+
+    menu.innerHTML = list.map((s) => '<button type="button" data-sid="' + s.id + '">' + s.name + "</button>").join("") ||
+      '<div style="padding:8px;color:#94a3b8;font-size:.8rem">Nenhum status marcado nos filtros</div>';
     menu.style.left = Math.min(x, window.innerWidth - 240) + "px";
-    menu.style.top = Math.min(y, window.innerHeight - 300) + "px";
+    menu.style.top = Math.min(y, window.innerHeight - 280) + "px";
     show(menu);
     menu.querySelectorAll("button").forEach((btn) => {
       btn.onclick = async () => {
@@ -432,16 +483,106 @@
     });
   }
 
+  function openKanban(versionId, versionName) {
+    const modal = document.getElementById("kanbanModal");
+    document.getElementById("kanbanTitle").textContent = versionName + " · Kanban";
+    const board = document.getElementById("kanbanBoard");
+
+    // colunas = status visíveis no filtro de visão (ou todos se null)
+    let colNames;
+    if (sel.status !== null) colNames = sel.status.slice();
+    else {
+      colNames = Array.from(new Set(
+        allIssues.filter((i) => i.fixed_version && i.fixed_version.id === versionId).map((i) => i.status.name)
+      ));
+      // garantir ordem útil
+      const order = ["Nova", "Desenvolvimento: Planejamento", "Desenvolvimento: Em Andamento", "Desenvolvimento: Em Validação", "Em Pagamento", "Resolvida"];
+      colNames.sort((a, b) => {
+        const ia = order.indexOf(a); const ib = order.indexOf(b);
+        return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+      });
+      if (!colNames.length) colNames = ["Nova", "Desenvolvimento: Planejamento", "Desenvolvimento: Em Andamento", "Desenvolvimento: Em Validação", "Resolvida"];
+    }
+
+    const issuesInSprint = allIssues.filter((i) => {
+      if (!i.fixed_version || i.fixed_version.id !== versionId) return false;
+      if (sel.scope && !sel.scope.includes("all") && !sel.scope.includes(getScope(i))) return false;
+      if (sel.mod !== null && !sel.mod.includes(getMod(i))) return false;
+      if (sel.status !== null && !sel.status.includes(i.status.name)) return false;
+      return true;
+    });
+
+    const statusIdByName = {};
+    (statuses.length ? statuses : []).forEach((s) => { statusIdByName[s.name] = s.id; });
+    // fallback ids
+    const FALLBACK = {
+      "Nova": 1, "Desenvolvimento: Planejamento": 12, "Desenvolvimento: Em Andamento": 11,
+      "Desenvolvimento: Em Validação": 9, "Desenvolvimento: Em Deploy": 16,
+      "Em Pagamento": 13, "Resolvida": 4, "Fechada": 5, "Rejeitada": 6,
+    };
+
+    board.innerHTML = colNames.map((st) => {
+      const cards = issuesInSprint.filter((i) => i.status.name === st);
+      return '<div class="kanban-col" data-status="' + st.replace(/"/g, "&quot;") + '">' +
+        '<div class="kanban-col-head">' + shortStatus(st) + " (" + cards.length + ")</div>" +
+        '<div class="kanban-col-body">' +
+        cards.map((i) =>
+          '<div class="kanban-card" draggable="true" data-id="' + i.id + '">' +
+          '<div class="kc-id">#' + i.id + "</div>" +
+          '<div>' + cleanSubject(i.subject) + "</div></div>"
+        ).join("") +
+        "</div></div>";
+    }).join("");
+
+    // drag and drop between columns
+    let dragId = null;
+    board.querySelectorAll(".kanban-card").forEach((card) => {
+      card.addEventListener("dragstart", () => { dragId = +card.dataset.id; card.style.opacity = ".5"; });
+      card.addEventListener("dragend", () => { card.style.opacity = "1"; dragId = null; });
+    });
+    board.querySelectorAll(".kanban-col-body").forEach((body) => {
+      body.addEventListener("dragover", (e) => { e.preventDefault(); body.classList.add("drag-over"); });
+      body.addEventListener("dragleave", () => body.classList.remove("drag-over"));
+      body.addEventListener("drop", async (e) => {
+        e.preventDefault();
+        body.classList.remove("drag-over");
+        if (!dragId) return;
+        const stName = body.parentElement.dataset.status;
+        const sid = statusIdByName[stName] || FALLBACK[stName];
+        if (!sid) { toast("Status sem id: " + stName, true); return; }
+        try {
+          await api("PUT", "/issues/" + dragId + ".json", { issue: { status_id: sid } });
+          const issue = allIssues.find((x) => x.id === dragId);
+          if (issue) issue.status = { id: sid, name: stName };
+          toast("#" + dragId + " → " + stName);
+          openKanban(versionId, versionName);
+          applyFilters();
+        } catch (err) {
+          toast("Erro: " + err.message, true);
+        }
+      });
+    });
+
+    show(modal);
+  }
+
+  document.getElementById("kanbanClose").onclick = () => hide(document.getElementById("kanbanModal"));
+  document.getElementById("kanbanBackdrop").onclick = () => hide(document.getElementById("kanbanModal"));
+
   document.addEventListener("click", (e) => {
     if (!e.target.closest("#statusMenu") && !e.target.closest(".menu-btn"))
       hide(document.getElementById("statusMenu"));
   });
 
+  document.getElementById("btnToggleFilters").onclick = () => {
+    document.getElementById("filterPanel").classList.toggle("collapsed");
+  };
+
   (function bindPan() {
     const right = document.getElementById("ganttRight");
     let panning = false, sx = 0, sy = 0, sl = 0, st = 0;
     right.addEventListener("mousedown", (e) => {
-      if (e.target.closest(".bar")) return;
+      if (e.target.closest(".bar") || e.target.closest(".eye")) return;
       panning = true; right.classList.add("panning");
       sx = e.clientX; sy = e.clientY; sl = right.scrollLeft; st = right.scrollTop;
     });
@@ -480,7 +621,7 @@
       fillChips();
       applyFilters();
     } catch (e) {
-      toast("Falha: " + e.message + " — use npm run proxy em :8787", true);
+      toast("Falha: " + e.message, true);
       console.error(e);
     } finally {
       hide(loading);
