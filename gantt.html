@@ -42,36 +42,30 @@
     </div>
   </header>
 
-  <div class="gantt-filters">
-    <div class="filter-group">
-      <label>Escopo</label>
-      <select id="fltScope" multiple size="3" title="Ctrl+clique para vários">
-        <option value="all" selected>Todos</option>
-        <option value="2.0">HEMOPI 2.0 (módulos)</option>
-        <option value="legado">Legado</option>
-        <option value="inf">INF</option>
-      </select>
+  <div class="filter-bar" id="filterBar">
+    <div class="filter-row">
+      <span class="filter-label">Escopo</span>
+      <div class="chips" id="chipsScope"></div>
     </div>
-    <div class="filter-group">
-      <label>Sprints</label>
-      <select id="fltSprint" multiple size="4" title="Ctrl+clique para vários"></select>
+    <div class="filter-row">
+      <span class="filter-label">Sprint</span>
+      <div class="chips" id="chipsSprint"></div>
     </div>
-    <div class="filter-group">
-      <label>Módulos</label>
-      <select id="fltMod" multiple size="4" title="Ctrl+clique para vários"></select>
+    <div class="filter-row">
+      <span class="filter-label">Módulo</span>
+      <div class="chips" id="chipsMod"></div>
     </div>
-    <div class="filter-group">
-      <label>Status</label>
-      <select id="fltStatus" multiple size="4" title="Ctrl+clique para vários"></select>
+    <div class="filter-row">
+      <span class="filter-label">Status</span>
+      <div class="chips" id="chipsStatus"></div>
     </div>
-    <div class="filter-actions">
-      <button id="btnApply" class="btn primary">Aplicar filtros</button>
-      <button id="btnClear" class="btn ghost">Limpar</button>
+    <div class="filter-footer">
+      <button id="btnClear" class="btn ghost">Limpar filtros</button>
       <span id="fltCount" class="muted"></span>
     </div>
   </div>
 
-  <div class="gantt-hint muted">Arraste a barra para mover · bordas para redimensionar · ⋮ para status · pan no calendário com clique vazio + arrastar</div>
+  <div class="gantt-hint muted">Barra: <strong>#id · status</strong> · arrastar move · bordas redimensionam · ⋮ troca status · pan no fundo do calendário</div>
 
   <div class="gantt-wrap" id="ganttWrap">
     <div class="gantt-left">
