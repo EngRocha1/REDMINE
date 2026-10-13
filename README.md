@@ -1,35 +1,60 @@
 # REDMINE — Dashboard + Gantt HEMOPI
 
-**Repo:** https://github.com/EngRocha1/REDMINE  
-**Pages:** https://engrocha1.github.io/REDMINE/ (só UI; API precisa de proxy local por CORS)
+Dashboard executivo e Gantt interativo para Redmine (HEMOPI 2.0).
 
-## Uso local (recomendado)
+- **Repo:** https://github.com/EngRocha1/REDMINE
+- **Pages:** https://engrocha1.github.io/REDMINE/ (só UI; API precisa de proxy local)
+
+## Uso local
 
 ```bash
-cd /d/REDMINE
-git pull origin main
+git clone https://github.com/EngRocha1/REDMINE.git
+cd REDMINE
 npm install
 npm run proxy
 ```
 
-Abra:
-- Dashboard: http://localhost:8787/
-- **Gantt:** http://localhost:8787/gantt.html
+| Tela | URL |
+|------|-----|
+| Dashboard | http://localhost:8787/ |
+| Gantt | http://localhost:8787/gantt.html |
 
-Login: e-mail + URL Redmine + API key + ID projeto (ex. `414`). Credenciais só em cookies.
+Login: e-mail + URL Redmine + API Key + ID projeto (ex. `414`). Credenciais **só em cookies**.
 
-## Gantt interativo
+## Se o Gantt ficar em branco
 
-- Coluna esquerda limpa: **#issue + nome**
-- Cabeçalho do calendário: **nome da sprint** + dias (finais de semana destacados)
-- Filtros multi-select: **Escopo** (2.0 / Legado / INF), **Sprints**, **Módulos**, **Status**
-- **Pan** no calendário (arrastar área vazia)
-- **Arrastar** barra → move datas no Redmine
-- **Bordas** da barra → redimensiona período no Redmine
-- **⋮** na barra → troca status no Redmine
+O `gantt.js` no `main` pode estar desatualizado. Restaure a última versão estável:
+
+```bash
+cd REDMINE
+curl -sL "https://raw.githubusercontent.com/EngRocha1/REDMINE/ed365ee418e6ced65c319d0c0987ac4e7f508973/gantt.js" -o gantt.js
+npm run proxy
+```
+
+Depois abra http://localhost:8787/gantt.html e use **Ctrl+Shift+R**.
+
+## Arquitetura (sem gambiarra de DOM)
+
+```
+index.html + app.js + styles.css     → Dashboard
+gantt.html + gantt.js + gantt.css    → Gantt + Kanban
+proxy-server.js                      → CORS proxy :8787
+```
+
+- Código-fonte versionado apenas nos arquivos acima.
+- Sem `eval`, sem `atob` de payload externo, sem injeção de script fora do `gantt.js`.
+- Proxy repassa `X-Redmine-API-Key` e `X-Redmine-Target` (não grava a key).
+
+## Gantt (versão estável)
+
+- Arrastar barra → datas + sprint no Redmine
+- Backlog remove versão
+- Menu ⋮ → status
+- 👁 → Kanban da sprint
+- Filtros colapsáveis (Escopo, Sprint, Módulo, Status, Menu ⋮)
 
 ## Segurança
 
-Sem API key no Git. Cookies locais + Logout.
+Sem API key no Git. Cookies `SameSite=Strict`. Logout apaga cookies.
 
 MIT © EngRocha1
