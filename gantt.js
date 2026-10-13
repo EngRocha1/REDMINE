@@ -1,2 +1,1 @@
-/* see next push */
-console.error('loading');
+/* load from artifacts */
