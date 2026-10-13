@@ -23,16 +23,16 @@
     <h1>HEMOPI <span>·</span> Redmine</h1>
     <p class="muted">Dashboard executivo · credenciais só em cookies</p>
     <label>E-mail válido</label>
-    <input id="inEmail" type="email" placeholder="voce@orgao.gov.br" required/>
+    <input id="inEmail" type="email" placeholder="ex.: voce@orgao.gov.br" autocomplete="username" required/>
     <label>URL do Redmine</label>
-    <input id="inUrl" type="url" placeholder="https://projetos.exemplo.gov.br" value="https://projetos.ati.pi.gov.br"/>
+    <input id="inUrl" type="url" placeholder="ex.: https://redmine.exemplo.gov.br" autocomplete="off" required/>
     <label>API Key</label>
-    <input id="inKey" type="password" placeholder="Chave de acesso à API" autocomplete="off"/>
+    <input id="inKey" type="password" placeholder="ex.: cole aqui sua chave de API" autocomplete="new-password" required/>
     <label>ID do projeto raiz</label>
-    <input id="inProject" type="text" placeholder="414" value="414"/>
+    <input id="inProject" type="text" placeholder="ex.: 414" autocomplete="off" required/>
     <p id="loginError" class="error"></p>
     <button id="btnLogin" class="btn primary block">Entrar</button>
-    <p class="hint">A API key fica apenas no cookie deste navegador. Use Logout para apagar.</p>
+    <p class="hint">Nenhum dado sensível fica no código ou no Git. A API key é gravada só em cookie local deste navegador. Use Logout para apagar.</p>
   </div>
 </div>
 
