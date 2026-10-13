@@ -78,3 +78,23 @@
 .kanban-card:active{cursor:grabbing;opacity:.85}
 .kanban-card .kc-id{color:#7dd3fc;font-weight:600}
 .kanban-col-body.drag-over{background:rgba(59,130,246,.12);outline:1px dashed var(--accent)}
+
+.kanban-col.neon-nova{border-color:#3b82f6;box-shadow:0 0 12px rgba(59,130,246,.35)}
+.kanban-col.neon-nova .kanban-col-head{color:#93c5fd;border-bottom-color:#3b82f6}
+.kanban-col.neon-plan{border-color:#a78bfa;box-shadow:0 0 12px rgba(167,139,250,.35)}
+.kanban-col.neon-plan .kanban-col-head{color:#c4b5fd;border-bottom-color:#a78bfa}
+.kanban-col.neon-and{border-color:#f59e0b;box-shadow:0 0 12px rgba(245,158,11,.35)}
+.kanban-col.neon-and .kanban-col-head{color:#fcd34d;border-bottom-color:#f59e0b}
+.kanban-col.neon-valid{border-color:#22c55e;box-shadow:0 0 12px rgba(34,197,94,.35)}
+.kanban-col.neon-valid .kanban-col-head{color:#86efac;border-bottom-color:#22c55e}
+.kanban-col.neon-deploy{border-color:#06b6d4;box-shadow:0 0 12px rgba(6,182,212,.35)}
+.kanban-col.neon-deploy .kanban-col-head{color:#67e8f9;border-bottom-color:#06b6d4}
+.kanban-col.neon-pag{border-color:#14b8a6;box-shadow:0 0 12px rgba(20,184,166,.35)}
+.kanban-col.neon-pag .kanban-col-head{color:#5eead4;border-bottom-color:#14b8a6}
+.kanban-col.neon-done{border-color:#94a3b8;box-shadow:0 0 10px rgba(148,163,184,.25)}
+.kanban-col.neon-done .kanban-col-head{color:#cbd5e1;border-bottom-color:#94a3b8}
+.kanban-col.neon-closed{border-color:#64748b;box-shadow:0 0 8px rgba(100,116,139,.2)}
+.kanban-col.neon-closed .kanban-col-head{color:#94a3b8}
+.kanban-col.neon-rej{border-color:#f87171;box-shadow:0 0 12px rgba(248,113,113,.3)}
+.kanban-col.neon-rej .kanban-col-head{color:#fca5a5;border-bottom-color:#f87171}
+.kanban-col.neon-other{border-color:var(--border)}
