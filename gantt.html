@@ -36,36 +36,46 @@
       </nav>
     </div>
     <div class="hdr-actions">
-      <button id="btnToday" class="btn ghost" title="Ir para hoje">Hoje</button>
+      <button id="btnToday" class="btn ghost">Hoje</button>
       <button id="btnRefresh" class="btn-icon" title="Atualizar">↻</button>
       <button id="btnLogout" class="btn ghost">Logout</button>
     </div>
   </header>
 
-  <div class="filter-bar" id="filterBar">
-    <div class="filter-row">
-      <span class="filter-label">Escopo</span>
-      <div class="chips" id="chipsScope"></div>
-    </div>
-    <div class="filter-row">
-      <span class="filter-label">Sprint</span>
-      <div class="chips" id="chipsSprint"></div>
-    </div>
-    <div class="filter-row">
-      <span class="filter-label">Módulo</span>
-      <div class="chips" id="chipsMod"></div>
-    </div>
-    <div class="filter-row">
-      <span class="filter-label">Status</span>
-      <div class="chips" id="chipsStatus"></div>
-    </div>
-    <div class="filter-footer">
-      <button id="btnClear" class="btn ghost">Limpar filtros</button>
+  <div class="filter-panel" id="filterPanel">
+    <button type="button" class="filter-toggle" id="btnToggleFilters" aria-expanded="true">
+      <span>Filtros</span>
       <span id="fltCount" class="muted"></span>
+      <span class="chevron" id="filterChevron">▾</span>
+    </button>
+    <div class="filter-body" id="filterBody">
+      <div class="filter-box">
+        <div class="filter-box-title">Escopo</div>
+        <div class="chips" id="chipsScope"></div>
+      </div>
+      <div class="filter-box">
+        <div class="filter-box-title">Sprint</div>
+        <div class="chips" id="chipsSprint"></div>
+      </div>
+      <div class="filter-box">
+        <div class="filter-box-title">Módulo</div>
+        <div class="chips" id="chipsMod"></div>
+      </div>
+      <div class="filter-box">
+        <div class="filter-box-title">Status (visão)</div>
+        <div class="chips" id="chipsStatus"></div>
+      </div>
+      <div class="filter-box">
+        <div class="filter-box-title">Menu ⋮ — status visíveis</div>
+        <div class="menu-checks" id="menuStatusChecks"></div>
+      </div>
+      <div class="filter-footer">
+        <button id="btnClear" class="btn ghost">Limpar filtros</button>
+      </div>
     </div>
   </div>
 
-  <div class="gantt-hint muted">Barra: <strong>#id · status</strong> · arrastar move · bordas redimensionam · ⋮ troca status · pan no fundo do calendário</div>
+  <div class="gantt-hint muted">Arrastar para uma sprint grava <strong>versão + datas</strong> · zona Backlog remove sprint · ⋮ status · 👁 no cabeçalho abre Kanban da sprint</div>
 
   <div class="gantt-wrap" id="ganttWrap">
     <div class="gantt-left">
@@ -80,6 +90,19 @@
 
   <div id="toast" class="toast hidden"></div>
   <div id="statusMenu" class="status-menu hidden"></div>
+
+  <div id="kanbanModal" class="modal hidden">
+    <div class="modal-backdrop" id="kanbanBackdrop"></div>
+    <div class="modal-card">
+      <div class="modal-head">
+        <h2 id="kanbanTitle">Sprint</h2>
+        <button type="button" class="btn ghost" id="kanbanClose">✕</button>
+      </div>
+      <p class="muted modal-sub">Arraste o card entre colunas para mudar o status no Redmine</p>
+      <div class="kanban-board" id="kanbanBoard"></div>
+    </div>
+  </div>
+
   <div id="loading" class="loading hidden">Carregando…</div>
 </div>
 
