@@ -25,12 +25,40 @@
 
 .gantt-hint{font-size:.72rem;margin-bottom:8px}
 .gantt-wrap{flex:1;display:flex;border:1px solid var(--border);border-radius:12px;overflow:hidden;min-height:0;background:var(--card)}
-.gantt-left{width:280px;min-width:220px;flex-shrink:0;border-right:1px solid var(--border);display:flex;flex-direction:column}
-.gantt-left-head{height:56px;padding:8px 10px;font-size:.65rem;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);display:flex;align-items:flex-end}
+.gantt-left{width:340px;min-width:280px;flex-shrink:0;border-right:1px solid var(--border);display:flex;flex-direction:column}
+.gantt-left-head{height:56px;padding:6px 8px;font-size:.62rem;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);display:flex;align-items:flex-end;gap:6px;letter-spacing:.04em}
+.gantt-left-head .lh-rail{width:22px;text-align:center;flex-shrink:0}
+.gantt-left-head .lh-task{flex:1}
 .gantt-left-body{overflow-y:auto;flex:1}
-.gantt-row-label{height:36px;padding:0 10px;display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(45,58,79,.4);font-size:.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.gantt-row-label a{color:#7dd3fc;flex-shrink:0}
-.gantt-row-label .name{overflow:hidden;text-overflow:ellipsis;color:var(--text)}
+.gantt-row-label{height:36px;padding:0 6px 0 0;display:flex;align-items:stretch;gap:0;border-bottom:1px solid rgba(45,58,79,.35);font-size:.72rem;white-space:nowrap;overflow:hidden}
+.gantt-row-label a{color:#7dd3fc;flex-shrink:0;display:flex;align-items:center;padding:0 4px 0 6px}
+.gantt-row-label .name{overflow:hidden;text-overflow:ellipsis;color:var(--text);display:flex;align-items:center;flex:1;min-width:0;padding-right:4px}
+
+/* Trilhos laterais projeto / módulo (texto vertical neon) */
+.rail-p,.rail-m{flex-shrink:0;width:22px;display:flex;align-items:center;justify-content:center;writing-mode:vertical-rl;transform:rotate(180deg);font-size:.58rem;font-weight:700;letter-spacing:.05em;overflow:hidden;border-right:1px solid rgba(0,0,0,.25);line-height:1.1;padding:2px 0}
+.rail-p .rail-txt,.rail-m .rail-txt{max-height:34px;overflow:hidden;text-overflow:ellipsis}
+.rail-cont .rail-txt{visibility:hidden}
+.rail-cont{border-top:none}
+
+/* Neon suaves — projetos */
+.neon-p0{background:rgba(59,130,246,.18);color:#93c5fd;box-shadow:inset 2px 0 0 #3b82f6}
+.neon-p1{background:rgba(168,85,247,.18);color:#d8b4fe;box-shadow:inset 2px 0 0 #a855f7}
+.neon-p2{background:rgba(34,197,94,.16);color:#86efac;box-shadow:inset 2px 0 0 #22c55e}
+.neon-p3{background:rgba(245,158,11,.16);color:#fcd34d;box-shadow:inset 2px 0 0 #f59e0b}
+.neon-p4{background:rgba(6,182,212,.16);color:#67e8f9;box-shadow:inset 2px 0 0 #06b6d4}
+.neon-p5{background:rgba(244,63,94,.16);color:#fda4af;box-shadow:inset 2px 0 0 #f43f5e}
+
+/* Neon suaves — módulos */
+.neon-m0{background:rgba(99,102,241,.14);color:#a5b4fc;box-shadow:inset 2px 0 0 #6366f1}
+.neon-m1{background:rgba(20,184,166,.14);color:#5eead4;box-shadow:inset 2px 0 0 #14b8a6}
+.neon-m2{background:rgba(236,72,153,.14);color:#f9a8d4;box-shadow:inset 2px 0 0 #ec4899}
+.neon-m3{background:rgba(234,179,8,.14);color:#fde047;box-shadow:inset 2px 0 0 #eab308}
+.neon-m4{background:rgba(14,165,233,.14);color:#7dd3fc;box-shadow:inset 2px 0 0 #0ea5e9}
+.neon-m5{background:rgba(139,92,246,.14);color:#c4b5fd;box-shadow:inset 2px 0 0 #8b5cf6}
+
+/* Botão nova sprint na barra */
+.sprint-add{flex-shrink:0;width:32px;height:26px;margin:1px 4px;border:1px dashed rgba(6,182,212,.55);background:rgba(6,182,212,.12);color:#67e8f9;border-radius:6px;font-size:16px;line-height:1;cursor:pointer;align-self:center}
+.sprint-add:hover{background:rgba(6,182,212,.28);border-style:solid;box-shadow:0 0 10px rgba(6,182,212,.35)}
 .gantt-right{flex:1;overflow:auto;position:relative;cursor:grab}
 .gantt-right.panning{cursor:grabbing}
 .gantt-timeline-head{height:56px;position:sticky;top:0;z-index:5;background:#121a28;border-bottom:1px solid var(--border);display:flex;flex-direction:column}
