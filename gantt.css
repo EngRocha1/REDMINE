@@ -191,13 +191,37 @@
 .kanban-board{flex:1;min-height:0}
 
 
-/* —— Árvore de projetos (acima da coluna de tasks) —— */
-.proj-tree{border-bottom:1px solid var(--border);background:#0f1724;max-height:160px;display:flex;flex-direction:column;flex-shrink:0}
-.proj-tree-head{display:flex;align-items:center;justify-content:space-between;padding:6px 8px;font-size:.62rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600}
-.proj-tree-acts{display:flex;gap:4px}
-.proj-tree-body{overflow:auto;padding:0 4px 6px;flex:1}
-.proj-tree-item{display:flex;align-items:center;gap:6px;padding:3px 6px;margin:2px 0;border-radius:6px;font-size:.68rem;cursor:pointer;color:var(--text);border:1px solid transparent}
-.proj-tree-item:hover{border-color:rgba(148,163,184,.25)}
-.proj-tree-item input{accent-color:var(--accent);flex-shrink:0}
-.proj-tree-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.gantt-left{width:360px;min-width:300px}
+
+/* —— Seletor multi-projeto (dropdown refinado) —— */
+.gantt-left{width:360px;min-width:300px;position:relative}
+.proj-tree{position:relative;flex-shrink:0;padding:8px 8px 6px;border-bottom:1px solid var(--border);background:linear-gradient(180deg,#101826 0%,#0c1320 100%);z-index:20}
+.ms-trigger{width:100%;display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;border:1px solid rgba(45,58,79,.9);background:#121a28;color:var(--text);cursor:pointer;font-size:.78rem;font-weight:600;transition:border-color .15s,box-shadow .15s}
+.ms-trigger:hover,.ms-trigger[aria-expanded="true"]{border-color:rgba(6,182,212,.55);box-shadow:0 0 0 3px rgba(6,182,212,.12)}
+.ms-trigger-ico{color:#67e8f9;opacity:.9;font-size:.85rem}
+.ms-trigger-text{flex:1;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;color:#e2e8f0}
+.ms-trigger-chev{color:var(--muted);font-size:.7rem;transition:transform .15s}
+.ms-trigger[aria-expanded="true"] .ms-trigger-chev{transform:rotate(180deg)}
+
+.ms-panel{position:absolute;left:8px;right:8px;top:calc(100% - 2px);max-height:min(320px,45vh);display:flex;flex-direction:column;background:#0f172a;border:1px solid rgba(45,58,79,.95);border-radius:12px;box-shadow:0 16px 40px rgba(0,0,0,.55),0 0 0 1px rgba(6,182,212,.08);z-index:40;overflow:hidden}
+.ms-panel.hidden{display:none!important}
+.ms-panel-head{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid rgba(45,58,79,.8);font-size:.65rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600}
+.ms-panel-acts{display:flex;gap:6px}
+.ms-mini{border:1px solid var(--border);background:#1a2332;color:#94a3b8;border-radius:6px;padding:3px 8px;font-size:.65rem;cursor:pointer}
+.ms-mini:hover{border-color:var(--accent);color:#7dd3fc}
+.ms-panel-body{overflow:auto;padding:6px 4px 8px}
+.ms-option{display:flex;align-items:center;gap:8px;padding:6px 8px;margin:1px 4px;border-radius:8px;cursor:pointer;font-size:.75rem;color:#e2e8f0}
+.ms-option:hover{background:rgba(59,130,246,.1)}
+.ms-option input{accent-color:#06b6d4;flex-shrink:0;margin:0}
+.ms-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;box-shadow:0 0 6px currentColor}
+.ms-dot.neon-p0{background:#3b82f6;color:#3b82f6}
+.ms-dot.neon-p1{background:#a855f7;color:#a855f7}
+.ms-dot.neon-p2{background:#22c55e;color:#22c55e}
+.ms-dot.neon-p3{background:#f59e0b;color:#f59e0b}
+.ms-dot.neon-p4{background:#06b6d4;color:#06b6d4}
+.ms-dot.neon-p5{background:#f43f5e;color:#f43f5e}
+.ms-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+
+/* Trilhos laterais mais discretos e legíveis */
+.rail-p,.rail-m{width:20px;font-size:.55rem;opacity:.95}
+.gantt-row-label{gap:0}
+.gantt-left-head{padding:6px 8px;font-size:.6rem}
