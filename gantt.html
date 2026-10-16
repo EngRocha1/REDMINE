@@ -68,7 +68,7 @@
       </div>
       <div class="filter-box" data-filter="status">
         <div class="filter-box-title">
-          <span>Status</span>
+          <span>Status (visão)</span>
           <span class="filter-box-actions">
             <button type="button" class="flt-act" data-act="all" title="Selecionar todos">☑</button>
             <button type="button" class="flt-act" data-act="none" title="Limpar seleção">☐</button>
@@ -76,18 +76,18 @@
         </div>
         <div class="chips" id="chipsStatus"></div>
       </div>
-      <div class="filter-box" data-filter="menu">
+      <div class="filter-box" data-filter="menuStatus">
         <div class="filter-box-title">
-          <span>Status visíveis (menu/Kanban)</span>
+          <span>Menu — status visíveis</span>
           <span class="filter-box-actions">
-            <button type="button" class="flt-act" data-act="all" title="Selecionar todos">☑</button>
-            <button type="button" class="flt-act" data-act="none" title="Limpar seleção">☐</button>
+            <button type="button" class="flt-act" data-act="all" title="Marcar todos">☑</button>
+            <button type="button" class="flt-act" data-act="none" title="Desmarcar todos">☐</button>
           </span>
         </div>
         <div class="menu-checks" id="menuStatusChecks"></div>
       </div>
       <div class="filter-footer">
-        <button type="button" id="btnClear" class="btn ghost">Limpar filtros</button>
+        <button id="btnClear" class="btn ghost">Limpar filtros</button>
       </div>
     </div>
   </div>
@@ -109,6 +109,7 @@
   <div id="statusMenu" class="status-menu hidden"></div>
   <div id="assigneeMenu" class="status-menu assignee-menu hidden"></div>
 
+  <!-- Kanban modal (universal: drag / resize / fullscreen) -->
   <div id="kanbanModal" class="modal hidden">
     <div class="modal-backdrop" id="kanbanBackdrop"></div>
     <div class="modal-card" id="kanbanCard">
@@ -125,6 +126,7 @@
     </div>
   </div>
 
+  <!-- Issue detail modal (olhinho da task) -->
   <div id="issueModal" class="modal hidden">
     <div class="modal-backdrop" id="issueBackdrop"></div>
     <div class="modal-card" id="issueCard">
