@@ -1086,46 +1086,52 @@
     }
   }
 
-  function goLogin() { console.log("[Gantt] goLogin"); hide(document.getElementById("ganttView")); show(document.getElementById("loginView")); }
-  function goApp() { console.log("[Gantt] goApp"); hide(document.getElementById("loginView")); show(document.getElementById("ganttView")); loadAll(); }
+  /** Sem login próprio: usa cookies do dashboard; se faltar, volta para index.html */
+  function goLogin() {
+    console.log("[Gantt] sem sessão → index.html");
+    window.location.href = "index.html";
+  }
+  function goApp() {
+    console.log("[Gantt] goApp");
+    var gv = document.getElementById("ganttView");
+    if (gv) show(gv);
+    loadAll();
+  }
 
-  document.getElementById("btnAcceptCookies").onclick = function () {
-    setCookie(COOKIE_OK, "1", 365);
-    hide(document.getElementById("cookieBanner"));
-    if (getCookie(C_KEY) && getCookie(C_URL) && getCookie(C_PROJ)) goApp(); else goLogin();
-  };
-  document.getElementById("btnLogin").onclick = function () {
-    var email = document.getElementById("inEmail").value.trim();
-    var url = document.getElementById("inUrl").value.trim().replace(/\/$/, "");
-    var key = document.getElementById("inKey").value.trim();
-    var proj = document.getElementById("inProject").value.trim();
-    var err = document.getElementById("loginError");
-    err.textContent = "";
-    if (!validEmail(email)) { err.textContent = "E-mail inválido"; return; }
-    if (!url || !key || !proj) { err.textContent = "Preencha todos os campos"; return; }
-    setCookie(C_EMAIL, email, 30); setCookie(C_URL, url, 30); setCookie(C_KEY, key, 30); setCookie(C_PROJ, proj, 30);
-    goApp();
-  };
-  document.getElementById("btnLogout").onclick = function () { clearAuth(); goLogin(); };
-  document.getElementById("btnRefresh").onclick = function () { loadAll(); };
-  document.getElementById("btnClear").onclick = function () {
-    sel = { scope: ["all"], sprint: null, mod: null, status: null };
-    fillChips(); applyFilters();
-  };
-  document.getElementById("btnToday").onclick = function () {
-    var right = document.getElementById("ganttRight");
-    var today = new Date(); today.setHours(0, 0, 0, 0);
-    var idx = BACKLOG_DAYS + dayIndex(today);
-    right.scrollLeft = Math.max(0, idx * DAY_W - 200);
-  };
+  var btnCookie = document.getElementById("btnAcceptCookies");
+  if (btnCookie) {
+    btnCookie.onclick = function () {
+      setCookie(COOKIE_OK, "1", 365);
+      hide(document.getElementById("cookieBanner"));
+      if (getCookie(C_KEY) && getCookie(C_URL) && getCookie(C_PROJ)) goApp();
+      else goLogin();
+    };
+  }
+  var btnLogout = document.getElementById("btnLogout");
+  if (btnLogout) btnLogout.onclick = function () { clearAuth(); goLogin(); };
+  var btnRefresh = document.getElementById("btnRefresh");
+  if (btnRefresh) btnRefresh.onclick = function () { loadAll(); };
+  var btnClear = document.getElementById("btnClear");
+  if (btnClear) {
+    btnClear.onclick = function () {
+      sel = { scope: ["all"], sprint: null, mod: null, status: null };
+      fillChips(); applyFilters();
+    };
+  }
+  var btnToday = document.getElementById("btnToday");
+  if (btnToday) {
+    btnToday.onclick = function () {
+      var right = document.getElementById("ganttRight");
+      var today = new Date(); today.setHours(0, 0, 0, 0);
+      var idx = BACKLOG_DAYS + dayIndex(today);
+      right.scrollLeft = Math.max(0, idx * DAY_W - 200);
+    };
+  }
 
-  if (!getCookie(COOKIE_OK)) {
-    show(document.getElementById("cookieBanner"));
-    hide(document.getElementById("loginView"));
-    hide(document.getElementById("ganttView"));
-  } else if (getCookie(C_KEY) && getCookie(C_URL) && getCookie(C_PROJ)) {
-    goApp();
-  } else {
+  if (!getCookie(COOKIE_OK) || !getCookie(C_KEY) || !getCookie(C_URL) || !getCookie(C_PROJ)) {
     goLogin();
+  } else {
+    hide(document.getElementById("cookieBanner"));
+    goApp();
   }
 })();
