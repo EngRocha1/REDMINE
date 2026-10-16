@@ -189,3 +189,15 @@
 .issue-body img{max-width:100%;border-radius:6px}
 .issue-body a{color:#7dd3fc}
 .kanban-board{flex:1;min-height:0}
+
+
+/* —— Árvore de projetos (acima da coluna de tasks) —— */
+.proj-tree{border-bottom:1px solid var(--border);background:#0f1724;max-height:160px;display:flex;flex-direction:column;flex-shrink:0}
+.proj-tree-head{display:flex;align-items:center;justify-content:space-between;padding:6px 8px;font-size:.62rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600}
+.proj-tree-acts{display:flex;gap:4px}
+.proj-tree-body{overflow:auto;padding:0 4px 6px;flex:1}
+.proj-tree-item{display:flex;align-items:center;gap:6px;padding:3px 6px;margin:2px 0;border-radius:6px;font-size:.68rem;cursor:pointer;color:var(--text);border:1px solid transparent}
+.proj-tree-item:hover{border-color:rgba(148,163,184,.25)}
+.proj-tree-item input{accent-color:var(--accent);flex-shrink:0}
+.proj-tree-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gantt-left{width:360px;min-width:300px}
