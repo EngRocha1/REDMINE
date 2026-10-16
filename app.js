@@ -5,6 +5,33 @@
   const C_URL = "rd_url";
   const C_KEY = "rd_key";
   const C_PROJ = "rd_project";
+  const LS_FILTERS = "hemopi_shared_filters";
+
+  function loadSharedFilters() {
+    try {
+      var raw = localStorage.getItem(LS_FILTERS);
+      if (!raw) return { projects: null, assignee: null, mod: null };
+      var o = JSON.parse(raw);
+      return {
+        projects: o.projects == null ? null : o.projects.map(String),
+        assignee: o.assignee == null ? null : o.assignee.map(String),
+        mod: o.mod == null ? null : o.mod.map(String)
+      };
+    } catch (e) {
+      return { projects: null, assignee: null, mod: null };
+    }
+  }
+  function saveSharedFilters(partial) {
+    var cur = loadSharedFilters();
+    if (partial.projects !== undefined) cur.projects = partial.projects;
+    if (partial.assignee !== undefined) cur.assignee = partial.assignee;
+    if (partial.mod !== undefined) cur.mod = partial.mod;
+    try { localStorage.setItem(LS_FILTERS, JSON.stringify(cur)); } catch (e) {}
+  }
+  function clearSharedFilters() {
+    try { localStorage.removeItem(LS_FILTERS); } catch (e) {}
+  }
+
 
   const GLOSSARY = [
     ["M01", "Módulo Administração — catálogos, IAM, hospitais, locais, impedimentos."],
@@ -78,6 +105,9 @@
   }
   function clearAuth() {
     [C_EMAIL, C_URL, C_KEY, C_PROJ].forEach(delCookie);
+    clearSharedFilters();
+    dashDevFilter = null;
+    dashProjFilter = null;
   }
 
   function show(el) { el.classList.remove("hidden"); }
@@ -199,6 +229,83 @@
   }
 
 
+  function renderDashProjFilter() {
+    var el = document.getElementById("dashProjMs");
+    if (!el) return;
+    var list = allProjectsDash.slice().sort(function (a, b) {
+      return (a.name || "") < (b.name || "") ? -1 : 1;
+    });
+    function isOn(id) {
+      if (!dashProjFilter) return true;
+      return dashProjFilter.has(id) || dashProjFilter.has(String(id));
+    }
+    var nOn = 0;
+    list.forEach(function (p) { if (isOn(p.id)) nOn++; });
+    var summary = !list.length ? "Nenhum projeto" :
+      (!dashProjFilter ? "Todos (" + list.length + ")" :
+        (nOn === 0 ? "Nenhum" : nOn + " de " + list.length));
+    var body = list.map(function (p) {
+      return '<label class="ms-option">' +
+        '<input type="checkbox" data-pid="' + p.id + '"' + (isOn(p.id) ? " checked" : "") + "/>" +
+        '<span class="ms-label">' + (p.name || p.identifier || p.id) + "</span></label>";
+    }).join("");
+    el.innerHTML =
+      '<button type="button" class="ms-trigger" id="dashProjTrigger">' +
+        '<span class="ms-trigger-text">' + summary + "</span>" +
+        '<span class="ms-trigger-chev">▾</span></button>' +
+      '<div class="ms-panel hidden" id="dashProjPanel">' +
+        '<div class="ms-panel-head"><span>Projetos acessíveis</span>' +
+          '<span class="ms-panel-acts">' +
+            '<button type="button" class="ms-mini" id="dashProjAll">Todos</button> ' +
+            '<button type="button" class="ms-mini" id="dashProjNone">Limpar</button></span></div>' +
+        '<div class="ms-panel-body">' + body + "</div></div>";
+    var trigger = document.getElementById("dashProjTrigger");
+    var panel = document.getElementById("dashProjPanel");
+    if (trigger && panel) {
+      trigger.onclick = function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        panel.classList.toggle("hidden");
+        var other = document.getElementById("dashDevPanel");
+        if (other) other.classList.add("hidden");
+      };
+    }
+    function sync() {
+      var boxes = el.querySelectorAll("input[data-pid]");
+      var arr = [];
+      boxes.forEach(function (b) { if (b.checked) arr.push(String(b.dataset.pid)); });
+      if (arr.length === 0) dashProjFilter = new Set([-1]);
+      else if (arr.length === boxes.length) dashProjFilter = null;
+      else dashProjFilter = new Set(arr.concat(arr.map(Number)));
+      saveSharedFilters({ projects: dashProjFilter && dashProjFilter.has(-1) ? [] : (dashProjFilter ? arr : null) });
+      if (window.__lastDashIssues && window.__lastDashVersions) {
+        renderDashboard(window.__lastDashIssues, window.__lastDashVersions);
+      }
+    }
+    el.querySelectorAll("input[data-pid]").forEach(function (inp) {
+      inp.onchange = function (e) { e.stopPropagation(); sync(); };
+      inp.onclick = function (e) { e.stopPropagation(); };
+    });
+    var a = document.getElementById("dashProjAll");
+    var n = document.getElementById("dashProjNone");
+    if (a) a.onclick = function (e) {
+      e.stopPropagation();
+      el.querySelectorAll("input[data-pid]").forEach(function (b) { b.checked = true; });
+      dashProjFilter = null;
+      saveSharedFilters({ projects: null });
+      if (window.__lastDashIssues) renderDashboard(window.__lastDashIssues, window.__lastDashVersions);
+      renderDashProjFilter();
+    };
+    if (n) n.onclick = function (e) {
+      e.stopPropagation();
+      el.querySelectorAll("input[data-pid]").forEach(function (b) { b.checked = false; });
+      dashProjFilter = new Set([-1]);
+      saveSharedFilters({ projects: [] });
+      if (window.__lastDashIssues) renderDashboard(window.__lastDashIssues, window.__lastDashVersions);
+      renderDashProjFilter();
+    };
+  }
+
   function renderDashDevFilter(devList) {
     var el = document.getElementById("dashDevMs");
     if (!el) return;
@@ -218,39 +325,45 @@
     }).join("");
     el.innerHTML =
       '<button type="button" class="ms-trigger" id="dashDevTrigger">' +
-        '<span class="ms-trigger-text">' + summary + "</span><span class=\"ms-trigger-chev\">▾</span></button>" +
+        '<span class="ms-trigger-text">' + summary + "</span>" +
+        '<span class="ms-trigger-chev">▾</span></button>' +
       '<div class="ms-panel hidden" id="dashDevPanel">' +
         '<div class="ms-panel-head"><span>Devs com atividades</span>' +
-          '<span><button type="button" class="ms-mini" id="dashDevAll">Todos</button> ' +
-          '<button type="button" class="ms-mini" id="dashDevNone">Limpar</button></span></div>' +
+          '<span class="ms-panel-acts">' +
+            '<button type="button" class="ms-mini" id="dashDevAll">Todos</button> ' +
+            '<button type="button" class="ms-mini" id="dashDevNone">Limpar</button></span></div>' +
         '<div class="ms-panel-body">' + body + "</div></div>";
     var trigger = document.getElementById("dashDevTrigger");
     var panel = document.getElementById("dashDevPanel");
-    if (trigger) trigger.onclick = function (e) {
-      e.stopPropagation();
-      panel.classList.toggle("hidden");
-    };
-    if (!window.__dashDevClose) {
-      window.__dashDevClose = true;
-      document.addEventListener("click", function (e) {
-        var t = document.getElementById("dashDevMs");
-        if (t && !t.contains(e.target)) {
-          var p = document.getElementById("dashDevPanel");
-          if (p) p.classList.add("hidden");
-        }
+    if (trigger && panel) {
+      trigger.onclick = function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        panel.classList.toggle("hidden");
+        var other = document.getElementById("dashProjPanel");
+        if (other) other.classList.add("hidden");
+      };
+    }
+    if (!window.__dashMsClose) {
+      window.__dashMsClose = true;
+      document.addEventListener("click", function (ev) {
+        ["dashDevMs", "dashProjMs"].forEach(function (id) {
+          var t = document.getElementById(id);
+          if (t && !t.contains(ev.target)) {
+            var p = t.querySelector(".ms-panel");
+            if (p) p.classList.add("hidden");
+          }
+        });
       });
     }
     function sync() {
       var boxes = el.querySelectorAll("input[data-did]");
-      var set = new Set();
-      var n = 0;
-      boxes.forEach(function (b) {
-        if (b.checked) { set.add(+b.dataset.did); set.add(String(b.dataset.did)); n++; }
-      });
-      if (n === 0) dashDevFilter = new Set([-1]);
-      else if (n === boxes.length) dashDevFilter = null;
-      else dashDevFilter = set;
-      /* re-render dashboard with same cached issues */
+      var arr = [];
+      boxes.forEach(function (b) { if (b.checked) arr.push(String(b.dataset.did)); });
+      if (arr.length === 0) dashDevFilter = new Set([-1]);
+      else if (arr.length === boxes.length) dashDevFilter = null;
+      else dashDevFilter = new Set(arr.concat(arr.map(Number)));
+      saveSharedFilters({ assignee: dashDevFilter && dashDevFilter.has(-1) ? [] : (dashDevFilter ? arr : null) });
       if (window.__lastDashIssues && window.__lastDashVersions) {
         renderDashboard(window.__lastDashIssues, window.__lastDashVersions);
       }
@@ -265,17 +378,28 @@
       e.stopPropagation();
       el.querySelectorAll("input[data-did]").forEach(function (b) { b.checked = true; });
       dashDevFilter = null;
-      sync();
+      saveSharedFilters({ assignee: null });
+      if (window.__lastDashIssues) renderDashboard(window.__lastDashIssues, window.__lastDashVersions);
     };
     if (nbtn) nbtn.onclick = function (e) {
       e.stopPropagation();
       el.querySelectorAll("input[data-did]").forEach(function (b) { b.checked = false; });
       dashDevFilter = new Set([-1]);
-      sync();
+      saveSharedFilters({ assignee: [] });
+      if (window.__lastDashIssues) renderDashboard(window.__lastDashIssues, window.__lastDashVersions);
     };
   }
 
   function renderDashboard(issues, versions) {
+    window.__lastDashIssues = issues;
+    window.__lastDashVersions = versions;
+    if (dashProjFilter && dashProjFilter.size) {
+      issues = issues.filter(function (i) {
+        var pid = i.project && i.project.id;
+        if (pid == null) return false;
+        return dashProjFilter.has(pid) || dashProjFilter.has(String(pid));
+      });
+    }
     const byStatus = countBy(issues, (i) => statusKey(i.status.name));
     const byMod = countBy(issues, getMod);
     const bySprint = countBy(issues, sprintName);
@@ -595,15 +719,63 @@ const now = new Date().toLocaleString("pt-BR");
   }
 
   let dashDevFilter = null;
+  let dashProjFilter = null;
+  let allProjectsDash = [];
+  (function initSharedFromLS() {
+    try {
+      var sf = loadSharedFilters();
+      if (sf.assignee) dashDevFilter = new Set(sf.assignee.concat(sf.assignee.map(Number)));
+      if (sf.projects) dashProjFilter = new Set(sf.projects.concat(sf.projects.map(Number)));
+    } catch (e) {}
+  })();
+
 
   async function loadData() {
-
     const loading = document.getElementById("loading");
     show(loading);
     try {
       const projectId = getCookie(C_PROJ);
       if (!projectId) throw new Error("ID do projeto não informado. Faça login novamente.");
-      const [issues, versions] = await Promise.all([fetchAllIssues(projectId), fetchVersions(projectId)]);
+      try {
+        var projs = [];
+        var poff = 0;
+        for (;;) {
+          var pd = await redmineGet("/projects.json?limit=100&offset=" + poff);
+          projs = projs.concat(pd.projects || []);
+          if ((pd.projects || []).length < 100) break;
+          poff += 100;
+        }
+        allProjectsDash = projs;
+      } catch (ep) {
+        console.warn("[Dash] projects", ep);
+        allProjectsDash = [];
+      }
+      renderDashProjFilter();
+      var issues = await fetchAllIssues(projectId);
+      try {
+        var root = allProjectsDash.find(function (p) {
+          return String(p.id) === String(projectId) || p.identifier === projectId;
+        });
+        var parentId = root && root.parent && root.parent.id;
+        if (parentId) {
+          var siblings = allProjectsDash.filter(function (p) {
+            return p.parent && p.parent.id === parentId && String(p.id) !== String(root.id);
+          });
+          var seen = {};
+          issues.forEach(function (i) { seen[i.id] = true; });
+          for (var si = 0; si < siblings.length; si++) {
+            var nm = (siblings[si].name || "").toLowerCase();
+            if (!/(hemopi|mv|legado|inf|sesapi)/i.test(nm)) continue;
+            try {
+              var extra = await fetchAllIssues(siblings[si].id);
+              extra.forEach(function (i) {
+                if (!seen[i.id]) { seen[i.id] = true; issues.push(i); }
+              });
+            } catch (e2) {}
+          }
+        }
+      } catch (e3) {}
+      var versions = await fetchVersions(projectId);
       renderDashboard(issues, versions);
     } catch (e) {
       alert("Falha ao carregar Redmine.\n" + e.message + "\n\nSe for CORS, rode: npm install && npm run proxy → http://localhost:8787");
