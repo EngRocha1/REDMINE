@@ -1156,9 +1156,27 @@
     });
 
     var issuesInSprint = allIssues.filter(function (i) {
-      if (!i.fixed_version || i.fixed_version.id !== versionId) return false;
-      if (sel.scope.indexOf("all") < 0 && sel.scope.indexOf(getScope(i)) < 0) return false;
-      if (sel.mod !== null && sel.mod.indexOf(getMod(i)) < 0) return false;
+      if (!i.fixed_version) return false;
+      if (String(i.fixed_version.id) !== String(versionId)) return false;
+      /* projetos (multi) */
+      if (sel.projects !== null) {
+        var pid = i.project && i.project.id;
+        if (pid == null || (!sel.projects.has(pid) && !sel.projects.has(String(pid)))) return false;
+      }
+      /* subprojetos/módulos dinâmicos (ids da árvore, não getMod M01) */
+      if (sel.mod !== null) {
+        var path = projectPath(i);
+        var hit = path.some(function (p) {
+          return sel.mod.indexOf(String(p.id)) >= 0 || sel.mod.indexOf(p.id) >= 0 || sel.mod.indexOf(p.name) >= 0;
+        });
+        if (!hit) return false;
+      }
+      /* desenvolvedor */
+      if (sel.assignee !== null) {
+        var aid = i.assigned_to && i.assigned_to.id;
+        if (aid == null || (sel.assignee.indexOf(aid) < 0 && sel.assignee.indexOf(String(aid)) < 0)) return false;
+      }
+      /* NÃO filtrar por sel.status: colunas do Kanban SÃO os status */
       return true;
     });
 
@@ -1171,7 +1189,10 @@
     };
 
     board.innerHTML = colNames.map(function (st) {
-      var cards = issuesInSprint.filter(function (i) { return i.status.name === st; });
+      var cards = issuesInSprint.filter(function (i) {
+        var sn = (i.status && i.status.name) || "";
+        return sn === st || sn.toLowerCase() === String(st).toLowerCase();
+      });
       var neon = "neon-other";
       var sl = (st || "").toLowerCase();
       if (sl.indexOf("nova") >= 0) neon = "neon-nova";
