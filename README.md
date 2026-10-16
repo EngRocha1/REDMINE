@@ -1,14 +1,15 @@
 # REDMINE — Dashboard + Gantt HEMOPI
 
 - **Repo:** https://github.com/EngRocha1/REDMINE
-- **Pages:** https://engrocha1.github.io/REDMINE/
-- **Local (recomendado para API):** `npm run proxy` → http://localhost:8787
+- **Pages:** https://engrocha1.github.io/REDMINE/ (UI estática — **sem API**)
+- **Local (obrigatório para API):** `npm run proxy` → http://localhost:8787
 
-## Uso local
+## Uso local (recomendado)
 
 ```bash
 git clone https://github.com/EngRocha1/REDMINE.git
 cd REDMINE
+git pull origin main
 npm install
 npm run proxy
 ```
@@ -18,24 +19,45 @@ npm run proxy
 | Dashboard | http://localhost:8787/ |
 | Gantt | http://localhost:8787/gantt.html |
 
-Login: e-mail + URL Redmine + API Key + ID projeto (`414`). Credenciais só em cookies.
+Login: e-mail + URL Redmine + API Key + ID projeto (`414`). Credenciais **só em cookies**.
 
-## Se o Gantt ficar em branco
+Hard refresh após atualizar: **Ctrl+Shift+R**.
+
+### Conferir se o Gantt está completo
 
 ```bash
-cd REDMINE
-curl -sL "https://raw.githubusercontent.com/EngRocha1/REDMINE/ed365ee418e6ced65c319d0c0987ac4e7f508973/gantt.js" -o gantt.js
-head -n 3 gantt.js   # deve ser o IIFE completo, não placeholder
-npm run proxy
+wc -c gantt.js          # deve ser > 40000
+head -n 2 gantt.js      # deve começar com: (function () {
 ```
 
-Hard refresh: Ctrl+Shift+R.
+Se ainda for stub (`wc -c` < 2000), faça `git pull` de novo ou baixe os arquivos do último commit.
 
-**Importante:** GitHub Pages é só UI estática. A API do Redmine no browser exige o proxy local (`:8787`) por CORS. Falha de deploy do Pages **não** afeta o localhost.
+## Por que o proxy local é necessário?
 
-## CI / Pages
+O **GitHub Pages só serve arquivos estáticos** (HTML/CSS/JS). Ele **não** pode:
 
-Workflow em dois jobs (`build` sobe artefato `_site`, `deploy` publica). Source: Settings → Pages → GitHub Actions.
+- fazer proxy de requests para o seu Redmine
+- contornar CORS do browser
+- guardar API keys no servidor
+
+Quando o browser em `engrocha1.github.io` tenta chamar a API do Redmine, o Redmine bloqueia por CORS. No localhost `:8787`, o `proxy-server.js` repassa as chamadas com o header `X-Redmine-API-Key` e resolve o CORS.
+
+**Alternativas reais** (se quiser Pages “com API”):
+
+1. **Proxy local** (atual) — mais simples e seguro (key só no seu PC)
+2. **Cloudflare Worker / Vercel serverless** como proxy CORS (você hospeda o proxy; key ainda não deve ir no front)
+3. **Habilitar CORS no próprio Redmine** (`Access-Control-Allow-Origin`) se você administra o servidor — aí Pages + fetch direto funcionam, mas a API key continua no browser (cookie)
+
+Não existe “proxy interno do GitHub Pages”.
+
+## Novidades Gantt (out/2026)
+
+- 👁 na barra da task → modal com **descrição** completa
+- Nome do **responsável** na barra + 👤 para trocar assignee
+- Modais com **arrastar / redimensionar / fullscreen**
+- ☑ / ☐ por grupo de filtro (selecionar tudo / limpar)
+- Colunas de sprint somem ao desmarcar no filtro
+- Kanban mostra exatamente os status marcados em “Menu — status visíveis” (mesmo vazios)
 
 ## Arquitetura
 
