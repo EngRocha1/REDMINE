@@ -81,6 +81,61 @@
     if (p.indexOf("INF") >= 0) return "inf";
     return "2.0";
   }
+  function projectLabel(i) {
+    return ((i.project && i.project.name) || "Sem projeto").trim();
+  }
+  function shortProject(name) {
+    var n = String(name || "");
+    if (n.length <= 18) return n;
+    return n.slice(0, 16) + "…";
+  }
+  /** Ordena issues por projeto → módulo → id (visão master hierárquica) */
+  function sortByHierarchy(list) {
+    return list.slice().sort(function (a, b) {
+      var pa = projectLabel(a), pb = projectLabel(b);
+      if (pa !== pb) return pa < pb ? -1 : 1;
+      var ma = getMod(a), mb = getMod(b);
+      if (ma !== mb) return ma < mb ? -1 : 1;
+      return a.id - b.id;
+    });
+  }
+  function neonIndex(str, mod) {
+    var h = 0;
+    var s = String(str || "");
+    for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+    return h % (mod || 6);
+  }
+  function nextSprintName() {
+    var max = 0;
+    versions.forEach(function (v) {
+      var m = String(v.name || "").match(/sprint\s*(\d+)/i);
+      if (m) max = Math.max(max, +m[1]);
+    });
+    return "Sprint " + (max + 1);
+  }
+  function openNewSprintDialog() {
+    var suggested = nextSprintName();
+    var name = window.prompt("Nome da nova sprint:", suggested);
+    if (name == null) return;
+    name = String(name).trim();
+    if (!name) { toast("Informe um nome", true); return; }
+    createSprint(name);
+  }
+  async function createSprint(name) {
+    var projectId = getCookie(C_PROJ);
+    if (!projectId) { toast("Projeto não configurado", true); return; }
+    try {
+      await api("POST", "/projects/" + projectId + "/versions.json", {
+        version: { name: name, status: "open" }
+      });
+      versions = (await api("GET", "/projects/" + projectId + "/versions.json")).versions || [];
+      toast("Sprint criada: " + name);
+      fillChips();
+      applyFilters();
+    } catch (err) {
+      toast("Erro ao criar sprint: " + err.message, true);
+    }
+  }
   function sprintName(i) {
     return (i.fixed_version && i.fixed_version.name) || "Backlog";
   }
@@ -243,6 +298,7 @@
       if (sa !== sb) return sa < sb ? -1 : 1;
       return a.id - b.id;
     });
+    filtered = sortByHierarchy(filtered);
     document.getElementById("fltCount").textContent = filtered.length + " tasks";
     renderGantt();
   }
@@ -355,20 +411,33 @@
     var body = document.getElementById("timeBody");
     var baseUrl = getCookie(C_URL).replace(/\/$/, "");
 
+    var prevP = null, prevM = null;
     left.innerHTML = filtered.map(function (i) {
       var name = cleanSubject(i.subject);
-      return '<div class="gantt-row-label" title="' + name.replace(/"/g, "") + '"><a href="' + baseUrl + "/issues/" + i.id + '" target="_blank">#' + i.id + '</a><span class="name">' + name + "</span></div>";
+      var proj = projectLabel(i);
+      var mod = getMod(i);
+      var pCont = prevP === proj;
+      var mCont = pCont && prevM === mod;
+      prevP = proj;
+      prevM = mod;
+      var pNeon = "neon-p" + neonIndex(proj, 6);
+      var mNeon = "neon-m" + neonIndex(mod, 6);
+      return '<div class="gantt-row-label" title="' + escapeHtml(proj + " · " + mod + " · " + name) + '">' +
+        '<span class="rail-p ' + pNeon + (pCont ? " rail-cont" : "") + '" title="' + escapeHtml(proj) + '"><span class="rail-txt">' + escapeHtml(shortProject(proj)) + "</span></span>" +
+        '<span class="rail-m ' + mNeon + (mCont ? " rail-cont" : "") + '" title="' + escapeHtml(mod) + '"><span class="rail-txt">' + escapeHtml(mod) + "</span></span>" +
+        '<a href="' + baseUrl + "/issues/" + i.id + '" target="_blank">#' + i.id + "</a>" +
+        '<span class="name">' + escapeHtml(name) + "</span></div>";
     }).join("");
 
     var bands = versionBands();
     var visualDays = window.__ganttVisualDays || dayCount;
-    var sprintHtml = '<div class="sprint-band" style="width:' + visualDays * DAY_W + 'px">';
+    var sprintHtml = '<div class="sprint-band" style="width:' + (visualDays * DAY_W + 36) + 'px">';
     bands.forEach(function (b) {
       var eye = b.backlog || !b.versionId ? "" :
         '<button type="button" class="eye" data-vid="' + b.versionId + '" data-vname="' + b.name + '" title="Kanban">👁</button>';
       sprintHtml += '<div class="sprint-cell' + (b.backlog ? " backlog-band" : "") + '" style="width:' + b.span * DAY_W + 'px"><span>' + b.name + "</span>" + eye + "</div>";
     });
-    sprintHtml += "</div>";
+    sprintHtml += '<button type="button" class="sprint-add" id="btnNewSprint" title="Nova sprint">＋</button></div>';
 
     var today = new Date(); today.setHours(0, 0, 0, 0);
     var colDates = [];
@@ -403,6 +472,8 @@
         openKanban(+btn.dataset.vid, btn.dataset.vname);
       };
     });
+    var btnNs = document.getElementById("btnNewSprint");
+    if (btnNs) btnNs.onclick = function (e) { e.stopPropagation(); openNewSprintDialog(); };
 
     var rows = "";
     filtered.forEach(function (issue) {
