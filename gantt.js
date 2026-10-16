@@ -270,6 +270,7 @@
 
   function renderChips(containerId, items, selectedSet, key) {
     const el = document.getElementById(containerId);
+    if (!el) return;
     el.innerHTML = items.map(function (it) {
       const val = typeof it === "string" ? it : it.v;
       const lab = typeof it === "string" ? it : it.l;
@@ -1143,63 +1144,151 @@
     (node.children || []).forEach(function (c) { collectDescendantIds(c, out); });
     return out;
   }
-  function renderProjTree() {
+    function renderProjTree() {
     var el = document.getElementById("projTree");
     if (!el) return;
     var tree = buildProjectTree(allProjects);
     var rootCookie = getCookie(C_PROJ);
-    /* tenta achar nó raiz pelo id ou identifier do cookie */
     var rootNode = null;
     Object.keys(tree.byId).forEach(function (id) {
       var n = tree.byId[id];
       if (String(n.id) === String(rootCookie) || n.identifier === rootCookie) rootNode = n;
     });
+    /* mostra raiz + filhos; se não achar, árvore completa acessível */
     var nodes = rootNode ? [rootNode] : tree.roots;
-    function walk(list, depth) {
+    /* se a raiz tem parent, inclui irmãos do portfólio no dropdown */
+    if (rootNode && rootNode.parentId && tree.byId[rootNode.parentId]) {
+      nodes = tree.byId[rootNode.parentId].children.slice() || nodes;
+    }
+
+    function isChecked(id) {
+      return sel.projects === null || sel.projects.has(id) || sel.projects.has(String(id));
+    }
+    function countChecked(list) {
+      var c = 0;
+      function walk(arr) {
+        arr.forEach(function (n) {
+          if (isChecked(n.id)) c++;
+          walk(n.children || []);
+        });
+      }
+      walk(list);
+      return c;
+    }
+    function countAll(list) {
+      var c = 0;
+      function walk(arr) {
+        arr.forEach(function (n) { c++; walk(n.children || []); });
+      }
+      walk(list);
+      return c;
+    }
+    var total = countAll(nodes);
+    var nSel = sel.projects === null ? total : countChecked(nodes);
+    var summary = sel.projects === null ? "Todos os projetos" :
+      (nSel === 0 ? "Nenhum projeto" : nSel === 1 ? "1 projeto" : nSel + " projetos");
+
+    function walkOptions(list, depth) {
       return list.map(function (n) {
-        var checked = sel.projects === null || sel.projects.has(n.id) || sel.projects.has(String(n.id));
-        var neon = "neon-p" + neonIndex(n.name, 6);
-        var html = '<label class="proj-tree-item ' + neon + '" style="padding-left:' + (8 + depth * 12) + 'px">' +
-          '<input type="checkbox" data-pid="' + n.id + '"' + (checked ? " checked" : "") + '/>' +
-          '<span class="proj-tree-name" title="' + escapeHtml(n.name) + '">' + escapeHtml(n.name) + "</span></label>";
-        return html + walk(n.children || [], depth + 1);
+        var pad = depth * 14;
+        var hasKids = n.children && n.children.length;
+        var checked = isChecked(n.id);
+        var row =
+          '<label class="ms-option" style="padding-left:' + (10 + pad) + 'px">' +
+            '<input type="checkbox" data-pid="' + n.id + '"' + (checked ? " checked" : "") + '/>' +
+            '<span class="ms-dot neon-p' + neonIndex(n.name, 6) + '"></span>' +
+            '<span class="ms-label" title="' + escapeHtml(n.name) + '">' + escapeHtml(n.name) + "</span>" +
+          "</label>";
+        return row + walkOptions(n.children || [], depth + 1);
       }).join("");
     }
+
     el.innerHTML =
-      '<div class="proj-tree-head">' +
-        '<span>Projetos</span>' +
-        '<span class="proj-tree-acts">' +
-          '<button type="button" class="flt-act" id="projAll" title="Todos">☑</button>' +
-          '<button type="button" class="flt-act" id="projNone" title="Nenhum">☐</button>' +
-        "</span></div>" +
-      '<div class="proj-tree-body">' + walk(nodes, 0) + "</div>";
-    el.querySelectorAll("input[data-pid]").forEach(function (inp) {
-      inp.onchange = function () {
-        var boxes = el.querySelectorAll("input[data-pid]");
-        var set = new Set();
-        var nChecked = 0;
-        boxes.forEach(function (b) {
-          if (b.checked) { set.add(+b.dataset.pid); set.add(String(b.dataset.pid)); nChecked++; }
-        });
-        if (nChecked === 0 || nChecked === boxes.length) sel.projects = null;
-        else sel.projects = set;
-        applyFilters();
+      '<button type="button" class="ms-trigger" id="projMsTrigger" aria-expanded="false">' +
+        '<span class="ms-trigger-ico">▣</span>' +
+        '<span class="ms-trigger-text">' + escapeHtml(summary) + "</span>" +
+        '<span class="ms-trigger-chev">▾</span>' +
+      "</button>" +
+      '<div class="ms-panel hidden" id="projMsPanel">' +
+        '<div class="ms-panel-head">' +
+          '<span>Projetos</span>' +
+          '<span class="ms-panel-acts">' +
+            '<button type="button" class="ms-mini" id="projAll" title="Selecionar todos">Todos</button>' +
+            '<button type="button" class="ms-mini" id="projNone" title="Limpar">Limpar</button>' +
+          "</span>" +
+        "</div>" +
+        '<div class="ms-panel-body">' + walkOptions(nodes, 0) + "</div>" +
+      "</div>";
+
+    var trigger = document.getElementById("projMsTrigger");
+    var panel = document.getElementById("projMsPanel");
+    function closePanel() {
+      if (panel) panel.classList.add("hidden");
+      if (trigger) trigger.setAttribute("aria-expanded", "false");
+    }
+    function openPanel() {
+      if (panel) panel.classList.remove("hidden");
+      if (trigger) trigger.setAttribute("aria-expanded", "true");
+    }
+    if (trigger) {
+      trigger.onclick = function (e) {
+        e.stopPropagation();
+        if (panel && panel.classList.contains("hidden")) openPanel();
+        else closePanel();
       };
+    }
+    if (!window.__projMsDocClose) {
+      window.__projMsDocClose = true;
+      document.addEventListener("click", function (e) {
+        var t = document.getElementById("projTree");
+        if (t && !t.contains(e.target)) {
+          var p = document.getElementById("projMsPanel");
+          if (p) p.classList.add("hidden");
+          var tr = document.getElementById("projMsTrigger");
+          if (tr) tr.setAttribute("aria-expanded", "false");
+        }
+      });
+    }
+    function syncFromBoxes() {
+      var boxes = el.querySelectorAll("input[data-pid]");
+      var set = new Set();
+      var n = 0;
+      boxes.forEach(function (b) {
+        if (b.checked) { set.add(+b.dataset.pid); set.add(String(b.dataset.pid)); n++; }
+      });
+      if (n === 0) sel.projects = new Set([-1]);
+      else if (n === boxes.length) sel.projects = null;
+      else sel.projects = set;
+      applyFilters();
+      /* atualiza só o texto do trigger sem fechar o painel */
+      var txt = el.querySelector(".ms-trigger-text");
+      if (txt) {
+        var label = sel.projects === null ? "Todos os projetos" :
+          (n === 0 ? "Nenhum projeto" : n === 1 ? "1 projeto" : n + " projetos");
+        txt.textContent = label;
+      }
+    }
+    el.querySelectorAll("input[data-pid]").forEach(function (inp) {
+      inp.onchange = function (e) { e.stopPropagation(); syncFromBoxes(); };
+      inp.onclick = function (e) { e.stopPropagation(); };
     });
     var btnAll = document.getElementById("projAll");
     var btnNone = document.getElementById("projNone");
-    if (btnAll) btnAll.onclick = function () {
+    if (btnAll) btnAll.onclick = function (e) {
+      e.stopPropagation();
       el.querySelectorAll("input[data-pid]").forEach(function (b) { b.checked = true; });
       sel.projects = null;
-      applyFilters();
+      syncFromBoxes();
     };
-    if (btnNone) btnNone.onclick = function () {
+    if (btnNone) btnNone.onclick = function (e) {
+      e.stopPropagation();
       el.querySelectorAll("input[data-pid]").forEach(function (b) { b.checked = false; });
-      sel.projects = new Set([-1]); /* nenhum */
-      applyFilters();
+      sel.projects = new Set([-1]);
+      syncFromBoxes();
     };
   }
-  async function fetchIssuesForProject(projectId) {
+
+async function fetchIssuesForProject(projectId) {
     var issues = [];
     var offset = 0;
     for (;;) {
@@ -1320,7 +1409,8 @@
   var btnClear = document.getElementById("btnClear");
   if (btnClear) {
     btnClear.onclick = function () {
-      sel = { scope: ["all"], sprint: null, mod: null, status: null };
+      sel = { scope: ["all"], sprint: null, mod: null, status: null, projects: null };
+      renderProjTree();
       fillChips(); applyFilters();
     };
   }
