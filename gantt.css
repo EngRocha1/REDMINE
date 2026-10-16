@@ -225,3 +225,28 @@
 .rail-p,.rail-m{width:20px;font-size:.55rem;opacity:.95}
 .gantt-row-label{gap:0}
 .gantt-left-head{padding:6px 8px;font-size:.6rem}
+
+/* —— Hierarquia de projetos (trilhos neon spanning) —— */
+.left-hier{position:relative;min-height:100%}
+.left-hier-rails{position:absolute;left:0;top:0;bottom:0;pointer-events:none;z-index:1}
+.left-hier-rows{position:relative;z-index:2}
+.h-rail{position:absolute;width:22px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;writing-mode:vertical-rl;transform:rotate(180deg);font-size:.58rem;font-weight:700;letter-spacing:.04em;overflow:hidden;border-right:1px solid rgba(0,0,0,.2);padding:4px 0}
+.h-rail-txt{max-height:100%;overflow:hidden;text-overflow:ellipsis;text-align:center;line-height:1.15}
+.gantt-row-label{height:36px;padding:0 8px 0 6px;display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(45,58,79,.35);font-size:.72rem;white-space:nowrap;overflow:hidden}
+.gantt-row-label.row-tint{background:transparent}
+.gantt-row-label.row-tint.neon-p0{background:rgba(59,130,246,.06)}
+.gantt-row-label.row-tint.neon-p1{background:rgba(168,85,247,.06)}
+.gantt-row-label.row-tint.neon-p2{background:rgba(34,197,94,.06)}
+.gantt-row-label.row-tint.neon-p3{background:rgba(245,158,11,.06)}
+.gantt-row-label.row-tint.neon-p4{background:rgba(6,182,212,.06)}
+.gantt-row-label.row-tint.neon-p5{background:rgba(244,63,94,.06)}
+/* trilhos usam as mesmas neon-p* com fundo mais forte */
+.h-rail.neon-p0{background:rgba(59,130,246,.22);color:#93c5fd;box-shadow:inset 2px 0 0 #3b82f6}
+.h-rail.neon-p1{background:rgba(168,85,247,.22);color:#d8b4fe;box-shadow:inset 2px 0 0 #a855f7}
+.h-rail.neon-p2{background:rgba(34,197,94,.2);color:#86efac;box-shadow:inset 2px 0 0 #22c55e}
+.h-rail.neon-p3{background:rgba(245,158,11,.2);color:#fcd34d;box-shadow:inset 2px 0 0 #f59e0b}
+.h-rail.neon-p4{background:rgba(6,182,212,.2);color:#67e8f9;box-shadow:inset 2px 0 0 #06b6d4}
+.h-rail.neon-p5{background:rgba(244,63,94,.2);color:#fda4af;box-shadow:inset 2px 0 0 #f43f5e}
+/* alinhamento: dropdown ocupa altura do timeHead */
+.proj-tree{min-height:56px;display:flex;align-items:center;box-sizing:border-box}
+.gantt-left-body{overflow-y:auto;flex:1;min-height:0}
