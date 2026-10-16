@@ -38,6 +38,32 @@
 
   let charts = {};
 
+  const valueLabelsPlugin = {
+    id: "valueLabels",
+    afterDatasetsDraw: function (chart) {
+      var ctx = chart.ctx;
+      chart.data.datasets.forEach(function (dataset, i) {
+        if (dataset.type === "line") return;
+        var meta = chart.getDatasetMeta(i);
+        if (!meta || meta.hidden) return;
+        meta.data.forEach(function (el, idx) {
+          var val = dataset.data[idx];
+          if (val == null) return;
+          var pos = el.tooltipPosition ? el.tooltipPosition() : { x: el.x, y: el.y };
+          ctx.save();
+          ctx.fillStyle = "#e2e8f0";
+          ctx.font = "600 11px system-ui,sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = chart.config.type === "doughnut" ? "middle" : "bottom";
+          ctx.fillText(String(val), pos.x, chart.config.type === "doughnut" ? pos.y : pos.y - 4);
+          ctx.restore();
+        });
+      });
+    }
+  };
+
+
+
   function setCookie(n, v, days) {
     const d = new Date();
     d.setTime(d.getTime() + (days || 30) * 864e5);
@@ -363,39 +389,73 @@
       };
     });
 
-    Object.values(charts || {}).forEach((c) => { try { c.destroy(); } catch (e) {} });
+    Object.keys(charts || {}).forEach(function (k) { try { charts[k].destroy(); } catch (e) {} });
     charts = {};
     const col = { nova: "#3b82f6", valid: "#22c55e", plan: "#a78bfa", done: "#94a3b8" };
-    charts.status = new Chart(document.getElementById("chartStatus"), {
-      type: "doughnut",
-      data: { labels: ["Nova","Em Validação","Planejamento","Resolvida"], datasets: [{ data: [nova, valid, plan, done], backgroundColor: [col.nova, col.valid, col.plan, col.done], borderWidth: 0 }] },
-      options: { plugins: { legend: { position: "bottom", labels: { color: "#94a3b8", boxWidth: 12 } } }, maintainAspectRatio: false },
-    });
-    const modLabels = modsOrder.filter((m) => byMod[m] > 0);
-    charts.mod = new Chart(document.getElementById("chartMod"), {
-      type: "bar",
-      data: { labels: modLabels, datasets: [{ data: modLabels.map((m) => byMod[m]), backgroundColor: "#3b82f6", borderRadius: 6 }] },
-      options: { plugins: { legend: { display: false } }, scales: { x: { ticks: { color: "#94a3b8" }, grid: { display: false } }, y: { ticks: { color: "#94a3b8" }, grid: { color: "#2d3a4f" }, beginAtZero: true } }, maintainAspectRatio: false },
-    });
-    charts.sprint = new Chart(document.getElementById("chartSprint"), {
-      type: "bar",
-      data: {
-        labels: sprintOrder,
-        datasets: [
-          { label: "Nova", data: sprintOrder.map((s) => (sprintStatus[s] || {})["Nova"] || 0), backgroundColor: col.nova, stack: "s" },
-          { label: "Em Validação", data: sprintOrder.map((s) => (sprintStatus[s] || {})["Em Validação"] || 0), backgroundColor: col.valid, stack: "s" },
-          { label: "Planejamento", data: sprintOrder.map((s) => (sprintStatus[s] || {})["Planejamento"] || 0), backgroundColor: col.plan, stack: "s" },
-          { label: "Resolvida", data: sprintOrder.map((s) => ((sprintStatus[s] || {})["Resolvida"] || 0) + ((sprintStatus[s] || {})["Fechada"] || 0)), backgroundColor: col.done, stack: "s" },
-        ],
-      },
-      options: { plugins: { legend: { position: "bottom", labels: { color: "#94a3b8", boxWidth: 12 } } }, scales: { x: { stacked: true, ticks: { color: "#94a3b8" }, grid: { display: false } }, y: { stacked: true, ticks: { color: "#94a3b8" }, grid: { color: "#2d3a4f" }, beginAtZero: true } }, maintainAspectRatio: false },
-    });
 
-    
+    try {
+      charts.status = new Chart(document.getElementById("chartStatus"), {
+        type: "doughnut",
+        data: {
+          labels: ["Nova", "Em Validação", "Planejamento", "Resolvida"],
+          datasets: [{ data: [nova, valid, plan, done], backgroundColor: [col.nova, col.valid, col.plan, col.done], borderWidth: 0 }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: "bottom", labels: { color: "#94a3b8", boxWidth: 12 } } }
+        },
+        plugins: [valueLabelsPlugin]
+      });
+    } catch (e) { console.error("[Dash] chartStatus", e); }
+
+    try {
+      const modLabels = modsOrder.filter((m) => byMod[m] > 0);
+      charts.mod = new Chart(document.getElementById("chartMod"), {
+        type: "bar",
+        data: {
+          labels: modLabels,
+          datasets: [{ data: modLabels.map((m) => byMod[m]), backgroundColor: "#3b82f6", borderRadius: 6 }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: { padding: { top: 16 } },
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: "#94a3b8" }, grid: { display: false } },
+            y: { ticks: { color: "#94a3b8" }, grid: { color: "#2d3a4f" }, beginAtZero: true }
+          }
+        },
+        plugins: [valueLabelsPlugin]
+      });
+    } catch (e) { console.error("[Dash] chartMod", e); }
+
+    try {
+      charts.sprint = new Chart(document.getElementById("chartSprint"), {
+        type: "bar",
+        data: {
+          labels: sprintOrder,
+          datasets: [
+            { label: "Nova", data: sprintOrder.map((s) => (sprintStatus[s] || {})["Nova"] || 0), backgroundColor: col.nova, stack: "s" },
+            { label: "Em Validação", data: sprintOrder.map((s) => (sprintStatus[s] || {})["Em Validação"] || 0), backgroundColor: col.valid, stack: "s" },
+            { label: "Planejamento", data: sprintOrder.map((s) => (sprintStatus[s] || {})["Planejamento"] || 0), backgroundColor: col.plan, stack: "s" },
+            { label: "Resolvida", data: sprintOrder.map((s) => ((sprintStatus[s] || {})["Resolvida"] || 0) + ((sprintStatus[s] || {})["Fechada"] || 0)), backgroundColor: col.done, stack: "s" }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: "bottom", labels: { color: "#94a3b8", boxWidth: 12 } } },
+          scales: {
+            x: { stacked: true, ticks: { color: "#94a3b8" }, grid: { display: false } },
+            y: { stacked: true, ticks: { color: "#94a3b8" }, grid: { color: "#2d3a4f" }, beginAtZero: true }
+          }
+        }
+      });
+    } catch (e) { console.error("[Dash] chartSprint", e); }
+
     /* ===== Produtividade por desenvolvedor ===== */
-    if (window.ChartDataLabels && !window.__dlRegistered) {
-      try { Chart.register(ChartDataLabels); window.__dlRegistered = true; } catch (e) {}
-    }
     function isDoneStatus(st) {
       var s = (st || "").toLowerCase();
       return s.indexOf("resolv") >= 0 || s.indexOf("fechad") >= 0;
@@ -432,85 +492,85 @@
         " · média abertas " + teamAvgOpen.toFixed(1);
     }
     var neonPalette = ["#3b82f6","#a855f7","#22c55e","#f59e0b","#06b6d4","#f43f5e","#6366f1","#14b8a6","#eab308","#ec4899"];
-    var prodCanvas = document.getElementById("chartProd");
-    var loadCanvas = document.getElementById("chartLoad");
-    if (prodCanvas) {
-      charts.prod = new Chart(prodCanvas, {
-        type: "bar",
-        data: {
-          labels: shown.map(function (d) { return d.name.split(" ")[0]; }),
-          datasets: [
-            {
-              label: "Entregas",
-              data: shown.map(function (d) { return d.done; }),
+    function shortName(n) {
+      var parts = String(n || "").trim().split(/\s+/);
+      if (parts.length <= 1) return parts[0] || "";
+      return parts[0] + " " + parts[parts.length - 1].charAt(0) + ".";
+    }
+    try {
+      var prodCanvas = document.getElementById("chartProd");
+      if (prodCanvas && shown.length) {
+        charts.prod = new Chart(prodCanvas, {
+          type: "bar",
+          data: {
+            labels: shown.map(function (d) { return shortName(d.name); }),
+            datasets: [
+              {
+                label: "Entregas",
+                data: shown.map(function (d) { return d.done; }),
+                backgroundColor: shown.map(function (_, i) { return neonPalette[i % neonPalette.length]; }),
+                borderRadius: 6,
+                barPercentage: 0.7
+              },
+              {
+                label: "Média equipe (" + teamAvgDone.toFixed(1) + ")",
+                data: shown.map(function () { return Math.round(teamAvgDone * 10) / 10; }),
+                type: "line",
+                borderColor: "#f472b6",
+                backgroundColor: "#f472b6",
+                borderWidth: 2,
+                borderDash: [6, 4],
+                pointRadius: 3,
+                pointBackgroundColor: "#f472b6",
+                fill: false,
+                tension: 0
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            layout: { padding: { top: 18 } },
+            plugins: {
+              legend: { position: "bottom", labels: { color: "#94a3b8", boxWidth: 12 } }
+            },
+            scales: {
+              x: { ticks: { color: "#94a3b8", maxRotation: 40 }, grid: { display: false } },
+              y: { beginAtZero: true, ticks: { color: "#94a3b8", precision: 0 }, grid: { color: "#2d3a4f" } }
+            }
+          },
+          plugins: [valueLabelsPlugin]
+        });
+      }
+      var loadCanvas = document.getElementById("chartLoad");
+      if (loadCanvas && shown.length) {
+        charts.load = new Chart(loadCanvas, {
+          type: "bar",
+          data: {
+            labels: shown.map(function (d) { return shortName(d.name); }),
+            datasets: [{
+              label: "Abertas",
+              data: shown.map(function (d) { return d.open; }),
               backgroundColor: shown.map(function (_, i) { return neonPalette[i % neonPalette.length]; }),
               borderRadius: 6,
-              order: 2
-            },
-            {
-              label: "Média equipe",
-              data: shown.map(function () { return Math.round(teamAvgDone * 10) / 10; }),
-              type: "line",
-              borderColor: "#f472b6",
-              borderWidth: 2,
-              borderDash: [6, 4],
-              pointRadius: 0,
-              fill: false,
-              order: 1
-            }
-          ]
-        },
-        options: {
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { position: "bottom", labels: { color: "#94a3b8", boxWidth: 12 } },
-            datalabels: {
-              color: "#e2e8f0",
-              anchor: "end",
-              align: "top",
-              font: { size: 11, weight: "600" },
-              formatter: function (v, ctx) {
-                return ctx.dataset.type === "line" ? "" : v;
-              }
+              barPercentage: 0.7
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            layout: { padding: { top: 18 } },
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { ticks: { color: "#94a3b8", maxRotation: 40 }, grid: { display: false } },
+              y: { beginAtZero: true, ticks: { color: "#94a3b8", precision: 0 }, grid: { color: "#2d3a4f" } }
             }
           },
-          scales: {
-            x: { ticks: { color: "#94a3b8", maxRotation: 45 }, grid: { display: false } },
-            y: { beginAtZero: true, ticks: { color: "#94a3b8" }, grid: { color: "#2d3a4f" } }
-          }
-        }
-      });
-    }
-    if (loadCanvas) {
-      charts.load = new Chart(loadCanvas, {
-        type: "bar",
-        data: {
-          labels: shown.map(function (d) { return d.name.split(" ")[0]; }),
-          datasets: [{
-            label: "Abertas",
-            data: shown.map(function (d) { return d.open; }),
-            backgroundColor: shown.map(function (_, i) { return neonPalette[i % neonPalette.length]; }),
-            borderRadius: 6
-          }]
-        },
-        options: {
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false },
-            datalabels: {
-              color: "#e2e8f0",
-              anchor: "end",
-              align: "top",
-              font: { size: 11, weight: "600" },
-              formatter: function (v) { return v; }
-            }
-          },
-          scales: {
-            x: { ticks: { color: "#94a3b8", maxRotation: 45 }, grid: { display: false } },
-            y: { beginAtZero: true, ticks: { color: "#94a3b8" }, grid: { color: "#2d3a4f" } }
-          }
-        }
-      });
+          plugins: [valueLabelsPlugin]
+        });
+      }
+    } catch (chartErr) {
+      console.error("[Dashboard] charts produtividade", chartErr);
     }
     var prodTable = document.getElementById("prodTable");
     if (prodTable) {
@@ -601,4 +661,20 @@ const now = new Date().toLocaleString("pt-BR");
   } else {
     goLogin();
   }
+
+  var btnGloss = document.getElementById("btnGlossary");
+  if (btnGloss) {
+    btnGloss.onclick = function () {
+      var sec = document.getElementById("glossarySection");
+      if (!sec) return;
+      var collapsed = sec.classList.toggle("collapsed");
+      btnGloss.setAttribute("aria-expanded", collapsed ? "false" : "true");
+      var body = document.getElementById("glossary");
+      if (body) {
+        if (collapsed) body.setAttribute("hidden", "");
+        else body.removeAttribute("hidden");
+      }
+    };
+  }
+
 })();
