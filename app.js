@@ -229,36 +229,113 @@
   }
 
 
+
+  function neonIndex(str, mod) {
+    var h = 0;
+    var s = String(str || "");
+    for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+    return h % (mod || 6);
+  }
+  function buildProjectTree(flat) {
+    var byId = {};
+    (flat || []).forEach(function (p) {
+      byId[p.id] = {
+        id: p.id,
+        name: p.name,
+        identifier: p.identifier,
+        parentId: p.parent && p.parent.id,
+        children: []
+      };
+    });
+    var roots = [];
+    Object.keys(byId).forEach(function (id) {
+      var n = byId[id];
+      if (n.parentId && byId[n.parentId]) byId[n.parentId].children.push(n);
+      else roots.push(n);
+    });
+    function sortRec(nodes) {
+      nodes.sort(function (a, b) { return (a.name || "") < (b.name || "") ? -1 : 1; });
+      nodes.forEach(function (c) { sortRec(c.children); });
+    }
+    sortRec(roots);
+    return { byId: byId, roots: roots };
+  }
+  function collectDescendantIds(node, out) {
+    out.push(node.id);
+    (node.children || []).forEach(function (c) { collectDescendantIds(c, out); });
+    return out;
+  }
+
   function renderDashProjFilter() {
     var el = document.getElementById("dashProjMs");
     if (!el) return;
-    var list = allProjectsDash.slice().sort(function (a, b) {
-      return (a.name || "") < (b.name || "") ? -1 : 1;
+    var tree = buildProjectTree(allProjectsDash);
+    var rootCookie = getCookie(C_PROJ);
+    var rootNode = null;
+    Object.keys(tree.byId).forEach(function (id) {
+      var n = tree.byId[id];
+      if (String(n.id) === String(rootCookie) || n.identifier === rootCookie) rootNode = n;
     });
+    var nodes = rootNode ? [rootNode] : tree.roots;
+    if (rootNode && rootNode.parentId && tree.byId[rootNode.parentId]) {
+      nodes = tree.byId[rootNode.parentId].children.slice() || nodes;
+    }
+    if (!nodes.length) nodes = tree.roots;
+
     function isOn(id) {
       if (!dashProjFilter) return true;
       return dashProjFilter.has(id) || dashProjFilter.has(String(id));
     }
-    var nOn = 0;
-    list.forEach(function (p) { if (isOn(p.id)) nOn++; });
-    var summary = !list.length ? "Nenhum projeto" :
-      (!dashProjFilter ? "Todos (" + list.length + ")" :
-        (nOn === 0 ? "Nenhum" : nOn + " de " + list.length));
-    var body = list.map(function (p) {
-      return '<label class="ms-option">' +
-        '<input type="checkbox" data-pid="' + p.id + '"' + (isOn(p.id) ? " checked" : "") + "/>" +
-        '<span class="ms-label">' + (p.name || p.identifier || p.id) + "</span></label>";
-    }).join("");
+    function countAll(list) {
+      var c = 0;
+      function walk(arr) {
+        (arr || []).forEach(function (n) { c++; walk(n.children); });
+      }
+      walk(list);
+      return c;
+    }
+    function countOn(list) {
+      var c = 0;
+      function walk(arr) {
+        (arr || []).forEach(function (n) {
+          if (isOn(n.id)) c++;
+          walk(n.children);
+        });
+      }
+      walk(list);
+      return c;
+    }
+    var total = countAll(nodes);
+    var nOn = !dashProjFilter ? total : countOn(nodes);
+    var summary = !total ? "Nenhum projeto" :
+      (!dashProjFilter ? "Todos os projetos" :
+        (nOn === 0 ? "Nenhum projeto" : nOn === 1 ? "1 projeto" : nOn + " projetos"));
+
+    function walkOptions(list, depth) {
+      return (list || []).map(function (n) {
+        var pad = depth * 14;
+        var checked = isOn(n.id);
+        var row =
+          '<label class="ms-option" style="padding-left:' + (10 + pad) + 'px">' +
+            '<input type="checkbox" data-pid="' + n.id + '"' + (checked ? " checked" : "") + "/>" +
+            '<span class="ms-dot neon-p' + neonIndex(n.name, 6) + '"></span>' +
+            '<span class="ms-label" title="' + (n.name || "") + '">' + (n.name || n.identifier || n.id) + "</span></label>";
+        return row + walkOptions(n.children || [], depth + 1);
+      }).join("");
+    }
+
     el.innerHTML =
       '<button type="button" class="ms-trigger" id="dashProjTrigger">' +
+        '<span class="ms-trigger-ico">▣</span>' +
         '<span class="ms-trigger-text">' + summary + "</span>" +
         '<span class="ms-trigger-chev">▾</span></button>' +
       '<div class="ms-panel hidden" id="dashProjPanel">' +
-        '<div class="ms-panel-head"><span>Projetos acessíveis</span>' +
+        '<div class="ms-panel-head"><span>Projetos</span>' +
           '<span class="ms-panel-acts">' +
             '<button type="button" class="ms-mini" id="dashProjAll">Todos</button> ' +
             '<button type="button" class="ms-mini" id="dashProjNone">Limpar</button></span></div>' +
-        '<div class="ms-panel-body">' + body + "</div></div>";
+        '<div class="ms-panel-body">' + walkOptions(nodes, 0) + "</div></div>";
+
     var trigger = document.getElementById("dashProjTrigger");
     var panel = document.getElementById("dashProjPanel");
     if (trigger && panel) {
@@ -270,39 +347,67 @@
         if (other) other.classList.add("hidden");
       };
     }
-    function sync() {
+
+    function allIdsUnder(node) {
+      return collectDescendantIds(node, []);
+    }
+
+    function syncFromBoxes() {
       var boxes = el.querySelectorAll("input[data-pid]");
       var arr = [];
-      boxes.forEach(function (b) { if (b.checked) arr.push(String(b.dataset.pid)); });
+      boxes.forEach(function (b) {
+        if (b.checked) arr.push(String(b.dataset.pid));
+      });
       if (arr.length === 0) dashProjFilter = new Set([-1]);
       else if (arr.length === boxes.length) dashProjFilter = null;
       else dashProjFilter = new Set(arr.concat(arr.map(Number)));
-      saveSharedFilters({ projects: dashProjFilter && dashProjFilter.has(-1) ? [] : (dashProjFilter ? arr : null) });
+      saveSharedFilters({
+        projects: dashProjFilter === null ? null : (dashProjFilter.has(-1) ? [] : arr)
+      });
+      var txt = el.querySelector(".ms-trigger-text");
+      if (txt) {
+        var n = arr.length;
+        txt.textContent = dashProjFilter === null ? "Todos os projetos" :
+          (n === 0 ? "Nenhum projeto" : n === 1 ? "1 projeto" : n + " projetos");
+      }
       if (window.__lastDashIssues && window.__lastDashVersions) {
         renderDashboard(window.__lastDashIssues, window.__lastDashVersions);
       }
     }
+
     el.querySelectorAll("input[data-pid]").forEach(function (inp) {
-      inp.onchange = function (e) { e.stopPropagation(); sync(); };
+      inp.onchange = function (e) {
+        e.stopPropagation();
+        var pid = +inp.dataset.pid;
+        var node = tree.byId[pid];
+        /* pai marca/desmarca todos os descendentes */
+        if (node && node.children && node.children.length) {
+          var ids = allIdsUnder(node);
+          var on = inp.checked;
+          el.querySelectorAll("input[data-pid]").forEach(function (b) {
+            if (ids.indexOf(+b.dataset.pid) >= 0) b.checked = on;
+          });
+        }
+        syncFromBoxes();
+      };
       inp.onclick = function (e) { e.stopPropagation(); };
     });
+
     var a = document.getElementById("dashProjAll");
-    var n = document.getElementById("dashProjNone");
+    var nbtn = document.getElementById("dashProjNone");
     if (a) a.onclick = function (e) {
       e.stopPropagation();
       el.querySelectorAll("input[data-pid]").forEach(function (b) { b.checked = true; });
       dashProjFilter = null;
       saveSharedFilters({ projects: null });
-      if (window.__lastDashIssues) renderDashboard(window.__lastDashIssues, window.__lastDashVersions);
-      renderDashProjFilter();
+      syncFromBoxes();
     };
-    if (n) n.onclick = function (e) {
+    if (nbtn) nbtn.onclick = function (e) {
       e.stopPropagation();
       el.querySelectorAll("input[data-pid]").forEach(function (b) { b.checked = false; });
       dashProjFilter = new Set([-1]);
       saveSharedFilters({ projects: [] });
-      if (window.__lastDashIssues) renderDashboard(window.__lastDashIssues, window.__lastDashVersions);
-      renderDashProjFilter();
+      syncFromBoxes();
     };
   }
 
