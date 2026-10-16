@@ -1,6 +1,6 @@
-/* HEMOPI Gantt — loader permanente: concatena gantt.src.part0-7.js */
+/* HEMOPI Gantt — loader: monta a partir de gantt.b64.00..16 */
 (function () {
-  var N = 8;
+  var N = 17;
   var parts = new Array(N);
   var left = N;
   var failed = false;
@@ -14,9 +14,13 @@
   }
   function run() {
     try {
-      var src = parts.join("");
+      var b64 = parts.join("");
+      var bin = atob(b64);
+      var bytes = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      var src = new TextDecoder("utf-8").decode(bytes);
       if (src.indexOf("openIssueDetail") < 0) {
-        fail("Fonte incompleta (openIssueDetail ausente).");
+        fail("Fonte incompleta.");
         return;
       }
       var s = document.createElement("script");
@@ -27,13 +31,14 @@
     }
   }
   function loadOne(i) {
-    fetch("gantt.src.part" + i + ".js?v=20261016c", { cache: "no-store" })
+    var name = "gantt.b64." + (i < 10 ? "0" + i : "" + i);
+    fetch(name + "?v=20261016d", { cache: "no-store" })
       .then(function (r) {
-        if (!r.ok) throw new Error("HTTP " + r.status + " gantt.src.part" + i + ".js");
+        if (!r.ok) throw new Error("HTTP " + r.status + " " + name);
         return r.text();
       })
       .then(function (t) {
-        parts[i] = t;
+        parts[i] = t.replace(/\s/g, "");
         left--;
         if (left === 0) run();
       })
