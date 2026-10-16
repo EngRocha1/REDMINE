@@ -86,3 +86,11 @@ a{color:#7dd3fc;text-decoration:none}a:hover{text-decoration:underline}
 .prod-table th,.prod-table td{padding:8px 10px;border-bottom:1px solid #2d3a4f;text-align:left}
 .prod-table th{color:#94a3b8;font-weight:600;font-size:.65rem;text-transform:uppercase}
 .prod-table .avg-row{color:#67e8f9;font-weight:600}
+
+.glossary-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;background:transparent;border:0;color:inherit;cursor:pointer;padding:0;text-align:left}
+.glossary-toggle h2{margin:0;font-size:1rem}
+.glossary-chev{color:#94a3b8;font-size:.9rem;transition:transform .15s}
+.glossary.collapsed .glossary-body{display:none!important}
+.glossary:not(.collapsed) .glossary-chev{transform:rotate(90deg)}
+.chart-box{position:relative;height:230px;width:100%}
+.chart-box canvas{max-width:100%}
