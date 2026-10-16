@@ -1,5 +1,28 @@
 (function () {
   const COOKIE_OK = "rd_cookie_ok", C_EMAIL = "rd_email", C_URL = "rd_url", C_KEY = "rd_key", C_PROJ = "rd_project";
+  const LS_FILTERS = "hemopi_shared_filters";
+  function loadSharedFilters() {
+    try {
+      var raw = localStorage.getItem(LS_FILTERS);
+      if (!raw) return { projects: null, assignee: null, mod: null };
+      var o = JSON.parse(raw);
+      return {
+        projects: o.projects == null ? null : o.projects.map(String),
+        assignee: o.assignee == null ? null : o.assignee.map(String),
+        mod: o.mod == null ? null : o.mod.map(String)
+      };
+    } catch (e) { return { projects: null, assignee: null, mod: null }; }
+  }
+  function saveSharedFilters(partial) {
+    var cur = loadSharedFilters();
+    if (partial.projects !== undefined) cur.projects = partial.projects;
+    if (partial.assignee !== undefined) cur.assignee = partial.assignee;
+    if (partial.mod !== undefined) cur.mod = partial.mod;
+    try { localStorage.setItem(LS_FILTERS, JSON.stringify(cur)); } catch (e) {}
+  }
+  function clearSharedFilters() {
+    try { localStorage.removeItem(LS_FILTERS); } catch (e) {}
+  }
   const DAY_W = 28, BACKLOG_DAYS = 7;
   const DEFAULT_MENU_HIDE = ["Desenvolvimento: Em Deploy", "Fechada"];
 
@@ -7,6 +30,24 @@
   let allProjects = []; /* árvore plana do Redmine */
   let rangeStart = null, dayCount = 0, filtered = [];
   let sel = { scope: ["all"], sprint: null, mod: null, status: null, projects: null, assignee: null };
+  (function restoreSharedFilters() {
+    var sf = loadSharedFilters();
+    if (sf.projects && sf.projects.length) {
+      sel.projects = new Set(sf.projects.concat(sf.projects.map(Number)));
+    } else if (Array.isArray(sf.projects) && sf.projects.length === 0) {
+      sel.projects = new Set([-1]);
+    }
+    if (sf.assignee && sf.assignee.length) {
+      sel.assignee = sf.assignee.map(String).concat(sf.assignee.map(Number));
+    } else if (Array.isArray(sf.assignee) && sf.assignee.length === 0) {
+      sel.assignee = [];
+    }
+    if (sf.mod && sf.mod.length) {
+      sel.mod = sf.mod.map(String);
+    } else if (Array.isArray(sf.mod) && sf.mod.length === 0) {
+      sel.mod = [];
+    }
+  })();
   /* projects: null = todos sob a raiz; Set de ids selecionados */
   let menuVisible = null;
 
@@ -19,7 +60,10 @@
     return m ? decodeURIComponent(m[1]) : "";
   }
   function delCookie(n) { document.cookie = n + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;SameSite=Strict"; }
-  function clearAuth() { [C_EMAIL, C_URL, C_KEY, C_PROJ].forEach(delCookie); }
+  function clearAuth() {
+    try { clearSharedFilters(); } catch (e) {}
+    [C_EMAIL, C_URL, C_KEY, C_PROJ].forEach(delCookie);
+  }
   function show(el) { el.classList.remove("hidden"); }
   function hide(el) { el.classList.add("hidden"); }
   function validEmail(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e); }
@@ -382,6 +426,9 @@
           if (set.has(v)) set.delete(v); else set.add(v);
           if (set.size === 0 || set.size === allVals.length) sel[k] = null;
           else sel[k] = Array.from(set);
+          if (k === "assignee" || k === "mod") {
+            saveSharedFilters(k === "assignee" ? { assignee: sel.assignee } : { mod: sel.mod });
+          }
         }
         fillChips();
         applyFilters();
@@ -474,6 +521,7 @@
       if (arr.length === 0) sel.mod = [];
       else if (arr.length === boxes.length) sel.mod = null;
       else sel.mod = arr;
+      saveSharedFilters({ mod: sel.mod });
       applyFilters();
       var txt = el.querySelector(".ms-trigger-text");
       if (txt) {
@@ -1487,6 +1535,13 @@
       if (n === 0) sel.projects = new Set([-1]);
       else if (n === boxes.length) sel.projects = null;
       else sel.projects = set;
+      (function () {
+        var projArr = null;
+        if (sel.projects === null) projArr = null;
+        else if (sel.projects.has(-1)) projArr = [];
+        else projArr = Array.from(sel.projects).filter(function (x) { return String(+x) === String(x); }).map(String);
+        saveSharedFilters({ projects: projArr });
+      })();
       fillChips();
       applyFilters();
       /* atualiza só o texto do trigger sem fechar o painel */
