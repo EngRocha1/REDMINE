@@ -418,6 +418,79 @@
     });
   }
 
+
+  function renderModDropdown() {
+    var el = document.getElementById("modMs");
+    if (!el) return;
+    var modOpts = moduleOptionsFromSelection();
+    function isOn(id) {
+      if (sel.mod === null) return true;
+      return sel.mod.indexOf(String(id)) >= 0 || sel.mod.indexOf(id) >= 0;
+    }
+    var nOn = 0;
+    modOpts.forEach(function (m) { if (isOn(m.id)) nOn++; });
+    var summary = !modOpts.length ? "Sem subprojetos" :
+      (sel.mod === null ? "Todos (" + modOpts.length + ")" :
+        (nOn === 0 ? "Nenhum" : nOn + " de " + modOpts.length));
+    var body = modOpts.map(function (m) {
+      return '<label class="ms-option" style="padding-left:' + (10 + (m.depth || 0) * 12) + 'px">' +
+        '<input type="checkbox" data-mid="' + m.id + '"' + (isOn(m.id) ? " checked" : "") + '/>' +
+        '<span class="ms-dot neon-p' + neonIndex(m.name, 6) + '"></span>' +
+        '<span class="ms-label" title="' + escapeHtml(m.name) + '">' + escapeHtml(m.name) + "</span></label>";
+    }).join("") || '<div class="muted" style="padding:8px;font-size:.75rem">Nenhum filho no projeto selecionado</div>';
+    el.innerHTML =
+      '<button type="button" class="ms-trigger" id="modMsTrigger" aria-expanded="false">' +
+        '<span class="ms-trigger-ico">⊞</span>' +
+        '<span class="ms-trigger-text">' + escapeHtml(summary) + "</span>" +
+        '<span class="ms-trigger-chev">▾</span></button>' +
+      '<div class="ms-panel hidden" id="modMsPanel">' +
+        '<div class="ms-panel-head"><span>Subprojetos</span>' +
+          '<span class="ms-panel-acts">' +
+            '<button type="button" class="ms-mini" id="modAll">Todos</button>' +
+            '<button type="button" class="ms-mini" id="modNone">Limpar</button>' +
+          "</span></div>" +
+        '<div class="ms-panel-body" style="max-height:180px;overflow-y:auto">' + body + "</div></div>";
+    var trigger = document.getElementById("modMsTrigger");
+    var panel = document.getElementById("modMsPanel");
+    if (trigger) trigger.onclick = function (e) {
+      e.stopPropagation();
+      if (panel.classList.contains("hidden")) { panel.classList.remove("hidden"); trigger.setAttribute("aria-expanded", "true"); }
+      else { panel.classList.add("hidden"); trigger.setAttribute("aria-expanded", "false"); }
+    };
+    if (!window.__modMsDocClose) {
+      window.__modMsDocClose = true;
+      document.addEventListener("click", function (e) {
+        var t = document.getElementById("modMs");
+        if (t && !t.contains(e.target)) {
+          var p = document.getElementById("modMsPanel");
+          if (p) p.classList.add("hidden");
+        }
+      });
+    }
+    function sync() {
+      var boxes = el.querySelectorAll("input[data-mid]");
+      var arr = [];
+      boxes.forEach(function (b) { if (b.checked) arr.push(String(b.dataset.mid)); });
+      if (arr.length === 0) sel.mod = [];
+      else if (arr.length === boxes.length) sel.mod = null;
+      else sel.mod = arr;
+      applyFilters();
+      var txt = el.querySelector(".ms-trigger-text");
+      if (txt) {
+        var n = arr.length;
+        txt.textContent = sel.mod === null ? "Todos (" + boxes.length + ")" : (n === 0 ? "Nenhum" : n + " de " + boxes.length);
+      }
+    }
+    el.querySelectorAll("input[data-mid]").forEach(function (inp) {
+      inp.onchange = function (e) { e.stopPropagation(); sync(); };
+      inp.onclick = function (e) { e.stopPropagation(); };
+    });
+    var a = document.getElementById("modAll");
+    var n = document.getElementById("modNone");
+    if (a) a.onclick = function (e) { e.stopPropagation(); el.querySelectorAll("input[data-mid]").forEach(function (b) { b.checked = true; }); sel.mod = null; sync(); };
+    if (n) n.onclick = function (e) { e.stopPropagation(); el.querySelectorAll("input[data-mid]").forEach(function (b) { b.checked = false; }); sel.mod = []; sync(); };
+  }
+
   function fillChips() {
     renderChips("chipsScope", [
       { v: "all", l: "Todos" }, { v: "2.0", l: "HEMOPI 2.0" },
@@ -431,13 +504,7 @@
     });
     renderChips("chipsSprint", sprints, sel.sprint === null ? null : new Set(sel.sprint), "sprint");
 
-    var modOpts = moduleOptionsFromSelection();
-    renderChips(
-      "chipsMod",
-      modOpts.map(function (m) { return { v: String(m.id), l: m.name }; }),
-      sel.mod === null ? null : new Set(sel.mod.map(String)),
-      "mod"
-    );
+    renderModDropdown();
 
     var sts = Array.from(new Set(allIssues.map(function (i) { return i.status.name; }))).sort();
     renderChips("chipsStatus", sts.map(function (s) { return { v: s, l: shortStatus(s) }; }), sel.status === null ? null : new Set(sel.status), "status");
