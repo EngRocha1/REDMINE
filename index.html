@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>HEMOPI · Dashboard Redmine</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <link rel="stylesheet" href="styles.css"/>
 </head>
 <body>
@@ -56,6 +57,30 @@
     <h2>Glossário técnico (DUTEC / Scrum)</h2>
     <div class="glossary-grid" id="glossary"></div>
   </section>
+
+  
+  <section class="card dash-filters" id="dashFilters">
+    <div class="dash-filters-head">
+      <h2>Filtros de produtividade</h2>
+      <span class="muted" id="dashFilterMeta"></span>
+    </div>
+    <div class="dash-filter-row">
+      <div class="dash-filter-box">
+        <div class="dash-filter-title">Desenvolvedor</div>
+        <div class="mod-ms" id="dashDevMs"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" style="margin-bottom:16px">
+    <h2>Produtividade por desenvolvedor</h2>
+    <p class="muted" style="font-size:.78rem;margin:0 0 10px">Barras = entregas (Resolvida + Fechada) · linha tracejada = média da equipe · números sempre visíveis</p>
+    <div class="chart-box" style="height:300px"><canvas id="chartProd"></canvas></div>
+  </section>
+  <div class="grid2" style="margin-bottom:16px">
+    <div class="card"><h2>Carga atual (abertas)</h2><div class="chart-box"><canvas id="chartLoad"></canvas></div></div>
+    <div class="card"><h2>Comparativo vs média</h2><div id="prodTable" class="prod-table"></div></div>
+  </div>
 
   <section class="kpis" id="kpis"></section>
   <section class="sprint-cards" id="sprintCards"></section>
