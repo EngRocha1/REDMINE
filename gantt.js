@@ -6,7 +6,7 @@
   let allIssues = [], versions = [], statuses = [], projectMembers = [];
   let allProjects = []; /* árvore plana do Redmine */
   let rangeStart = null, dayCount = 0, filtered = [];
-  let sel = { scope: ["all"], sprint: null, mod: null, status: null, projects: null };
+  let sel = { scope: ["all"], sprint: null, mod: null, status: null, projects: null, assignee: null };
   /* projects: null = todos sob a raiz; Set de ids selecionados */
   let menuVisible = null;
 
@@ -86,6 +86,90 @@
   function projectLabel(i) {
     return ((i.project && i.project.name) || "Sem projeto").trim();
   }
+  function projectIdOf(i) {
+    return i.project && i.project.id != null ? i.project.id : null;
+  }
+  /** Caminho hierárquico do projeto da issue (raiz → … → folha) usando allProjects */
+  function projectPath(i) {
+    var tree = window.__projTreeCache || buildProjectTree(allProjects);
+    window.__projTreeCache = tree;
+    var pid = projectIdOf(i);
+    var path = [];
+    var guard = 0;
+    while (pid != null && tree.byId[pid] && guard++ < 12) {
+      var n = tree.byId[pid];
+      path.unshift({ id: n.id, name: n.name });
+      pid = n.parentId;
+    }
+    if (!path.length) path.push({ id: pid, name: projectLabel(i) });
+    return path;
+  }
+  /** Filhos (não-folha de issues) dos projetos selecionados — para filtro Módulo dinâmico */
+  function moduleOptionsFromSelection() {
+    var tree = buildProjectTree(allProjects);
+    window.__projTreeCache = tree;
+    var selectedIds = null;
+    if (sel.projects !== null) {
+      selectedIds = new Set();
+      sel.projects.forEach(function (x) { selectedIds.add(+x); selectedIds.add(String(x)); });
+    }
+    var rootCookie = getCookie(C_PROJ);
+    var startNodes = [];
+    Object.keys(tree.byId).forEach(function (id) {
+      var n = tree.byId[id];
+      if (selectedIds) {
+        if (selectedIds.has(n.id) || selectedIds.has(String(n.id))) startNodes.push(n);
+      } else if (String(n.id) === String(rootCookie) || n.identifier === rootCookie) {
+        startNodes.push(n);
+      }
+    });
+    if (!startNodes.length) {
+      /* fallback: qualquer projeto que aparece nas issues */
+      var seen = {};
+      allIssues.forEach(function (i) {
+        var id = projectIdOf(i);
+        if (id != null && tree.byId[id] && !seen[id]) { seen[id] = true; startNodes.push(tree.byId[id]); }
+      });
+    }
+    var opts = [];
+    var seenOpt = {};
+    function addDescendants(node, depth) {
+      (node.children || []).forEach(function (ch) {
+        if (!seenOpt[ch.id]) {
+          seenOpt[ch.id] = true;
+          opts.push({ id: ch.id, name: ch.name, depth: depth });
+        }
+        addDescendants(ch, depth + 1);
+      });
+    }
+    startNodes.forEach(function (n) {
+      /* se o nó selecionado tem filhos, lista os filhos; senão o próprio como folha de filtro */
+      if (n.children && n.children.length) addDescendants(n, 0);
+      else if (!seenOpt[n.id]) {
+        seenOpt[n.id] = true;
+        opts.push({ id: n.id, name: n.name, depth: 0 });
+      }
+    });
+    opts.sort(function (a, b) {
+      if (a.depth !== b.depth) return a.depth - b.depth;
+      return a.name < b.name ? -1 : 1;
+    });
+    return opts;
+  }
+  function assigneeOptionsFromIssues() {
+    var map = {};
+    allIssues.forEach(function (i) {
+      if (sel.projects !== null) {
+        var pid = projectIdOf(i);
+        if (pid == null || (!sel.projects.has(pid) && !sel.projects.has(String(pid)))) return;
+      }
+      var a = i.assigned_to;
+      if (a && a.id != null && a.name) map[a.id] = a.name;
+    });
+    return Object.keys(map).map(function (id) {
+      return { id: +id, name: map[id] };
+    }).sort(function (a, b) { return a.name < b.name ? -1 : 1; });
+  }
   function shortProject(name) {
     var n = String(name || "");
     if (n.length <= 18) return n;
@@ -94,10 +178,13 @@
   /** Ordena issues por projeto → módulo → id (visão master hierárquica) */
   function sortByHierarchy(list) {
     return list.slice().sort(function (a, b) {
-      var pa = projectLabel(a), pb = projectLabel(b);
-      if (pa !== pb) return pa < pb ? -1 : 1;
-      var ma = getMod(a), mb = getMod(b);
-      if (ma !== mb) return ma < mb ? -1 : 1;
+      var pa = projectPath(a), pb = projectPath(b);
+      var n = Math.max(pa.length, pb.length);
+      for (var i = 0; i < n; i++) {
+        var na = pa[i] ? pa[i].name : "";
+        var nb = pb[i] ? pb[i].name : "";
+        if (na !== nb) return na < nb ? -1 : 1;
+      }
       return a.id - b.id;
     });
   }
@@ -344,11 +431,24 @@
     });
     renderChips("chipsSprint", sprints, sel.sprint === null ? null : new Set(sel.sprint), "sprint");
 
-    var mods = Array.from(new Set(allIssues.map(getMod))).sort();
-    renderChips("chipsMod", mods, sel.mod === null ? null : new Set(sel.mod), "mod");
+    var modOpts = moduleOptionsFromSelection();
+    renderChips(
+      "chipsMod",
+      modOpts.map(function (m) { return { v: String(m.id), l: m.name }; }),
+      sel.mod === null ? null : new Set(sel.mod.map(String)),
+      "mod"
+    );
 
     var sts = Array.from(new Set(allIssues.map(function (i) { return i.status.name; }))).sort();
     renderChips("chipsStatus", sts.map(function (s) { return { v: s, l: shortStatus(s) }; }), sel.status === null ? null : new Set(sel.status), "status");
+
+    var devs = assigneeOptionsFromIssues();
+    renderChips(
+      "chipsAssignee",
+      devs.map(function (d) { return { v: String(d.id), l: d.name }; }),
+      sel.assignee === null ? null : new Set(sel.assignee.map(String)),
+      "assignee"
+    );
 
     fillMenuChecks();
   }
@@ -362,8 +462,19 @@
       }
       if (sel.scope.indexOf("all") < 0 && sel.scope.indexOf(getScope(i)) < 0) return false;
       if (sel.sprint !== null && sel.sprint.indexOf(sprintName(i)) < 0) return false;
-      if (sel.mod !== null && sel.mod.indexOf(getMod(i)) < 0) return false;
+      /* módulo dinâmico: id de projeto filho (ou ancestral na path) */
+      if (sel.mod !== null) {
+        var path = projectPath(i);
+        var hit = path.some(function (p) {
+          return sel.mod.indexOf(String(p.id)) >= 0 || sel.mod.indexOf(p.id) >= 0 || sel.mod.indexOf(p.name) >= 0;
+        });
+        if (!hit) return false;
+      }
       if (sel.status !== null && sel.status.indexOf(i.status.name) < 0) return false;
+      if (sel.assignee !== null) {
+        var aid = i.assigned_to && i.assigned_to.id;
+        if (aid == null || (sel.assignee.indexOf(aid) < 0 && sel.assignee.indexOf(String(aid)) < 0)) return false;
+      }
       return true;
     });
     filtered.sort(function (a, b) {
@@ -488,23 +599,52 @@
     var body = document.getElementById("timeBody");
     var baseUrl = getCookie(C_URL).replace(/\/$/, "");
 
-    var prevP = null, prevM = null;
-    left.innerHTML = filtered.map(function (i) {
+    var ROW_H = 36;
+    var paths = filtered.map(projectPath);
+    var maxDepth = 0;
+    paths.forEach(function (p) { if (p.length > maxDepth) maxDepth = p.length; });
+    var railsHtml = "";
+    for (var level = 0; level < maxDepth; level++) {
+      var runStart = 0;
+      while (runStart < filtered.length) {
+        var node = paths[runStart][level];
+        var key = node ? String(node.id) : "";
+        var runEnd = runStart + 1;
+        while (runEnd < filtered.length) {
+          var same = true;
+          for (var L = 0; L <= level; L++) {
+            var a = paths[runStart][L] ? String(paths[runStart][L].id) : "";
+            var b = paths[runEnd][L] ? String(paths[runEnd][L].id) : "";
+            if (a !== b) { same = false; break; }
+          }
+          if (!same) break;
+          runEnd++;
+        }
+        if (node && key) {
+          var top = runStart * ROW_H;
+          var h = (runEnd - runStart) * ROW_H;
+          var neon = "neon-p" + neonIndex(node.name, 6);
+          railsHtml +=
+            '<div class="h-rail level-' + level + " " + neon + '" style="top:' + top + "px;height:" + h + "px;left:" + (level * 22) + 'px" title="' + escapeHtml(node.name) + '">' +
+            '<span class="h-rail-txt">' + escapeHtml(node.name) + "</span></div>";
+        }
+        runStart = runEnd;
+      }
+    }
+    var padLeft = Math.max(0, maxDepth * 22);
+    var rowsHtml = filtered.map(function (i, idx) {
       var name = cleanSubject(i.subject);
-      var proj = projectLabel(i);
-      var mod = getMod(i);
-      var pCont = prevP === proj;
-      var mCont = pCont && prevM === mod;
-      prevP = proj;
-      prevM = mod;
-      var pNeon = "neon-p" + neonIndex(proj, 6);
-      var mNeon = "neon-m" + neonIndex(mod, 6);
-      return '<div class="gantt-row-label" title="' + escapeHtml(proj + " · " + mod + " · " + name) + '">' +
-        '<span class="rail-p ' + pNeon + (pCont ? " rail-cont" : "") + '" title="' + escapeHtml(proj) + '"><span class="rail-txt">' + escapeHtml(shortProject(proj)) + "</span></span>" +
-        '<span class="rail-m ' + mNeon + (mCont ? " rail-cont" : "") + '" title="' + escapeHtml(mod) + '"><span class="rail-txt">' + escapeHtml(mod) + "</span></span>" +
+      var leaf = paths[idx].length ? paths[idx][paths[idx].length - 1] : null;
+      var tint = leaf ? "neon-p" + neonIndex(leaf.name, 6) : "neon-p0";
+      return '<div class="gantt-row-label row-tint ' + tint + '" title="' + escapeHtml(projectLabel(i) + " · " + name) + '">' +
         '<a href="' + baseUrl + "/issues/" + i.id + '" target="_blank">#' + i.id + "</a>" +
         '<span class="name">' + escapeHtml(name) + "</span></div>";
     }).join("");
+    left.innerHTML =
+      '<div class="left-hier">' +
+        '<div class="left-hier-rails">' + railsHtml + "</div>" +
+        '<div class="left-hier-rows" style="padding-left:' + padLeft + 'px">' + rowsHtml + "</div>" +
+      "</div>";
 
     var bands = versionBands();
     var visualDays = window.__ganttVisualDays || dayCount;
@@ -1259,6 +1399,7 @@
       if (n === 0) sel.projects = new Set([-1]);
       else if (n === boxes.length) sel.projects = null;
       else sel.projects = set;
+      fillChips();
       applyFilters();
       /* atualiza só o texto do trigger sem fechar o painel */
       var txt = el.querySelector(".ms-trigger-text");
@@ -1409,7 +1550,7 @@ async function fetchIssuesForProject(projectId) {
   var btnClear = document.getElementById("btnClear");
   if (btnClear) {
     btnClear.onclick = function () {
-      sel = { scope: ["all"], sprint: null, mod: null, status: null, projects: null };
+      sel = { scope: ["all"], sprint: null, mod: null, status: null, projects: null, assignee: null };
       renderProjTree();
       fillChips(); applyFilters();
     };
