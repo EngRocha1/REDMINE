@@ -4,8 +4,10 @@
   const DEFAULT_MENU_HIDE = ["Desenvolvimento: Em Deploy", "Fechada"];
 
   let allIssues = [], versions = [], statuses = [], projectMembers = [];
+  let allProjects = []; /* árvore plana do Redmine */
   let rangeStart = null, dayCount = 0, filtered = [];
-  let sel = { scope: ["all"], sprint: null, mod: null, status: null };
+  let sel = { scope: ["all"], sprint: null, mod: null, status: null, projects: null };
+  /* projects: null = todos sob a raiz; Set de ids selecionados */
   let menuVisible = null;
 
   function setCookie(n, v, days) {
@@ -113,23 +115,92 @@
     });
     return "Sprint " + (max + 1);
   }
+  /** Última sprint "real" (com data) para herdar padrão Mon–Sex + descrição Wxx + sharing tree */
+  function lastSprintTemplate() {
+    var list = versions.slice().filter(function (v) {
+      return /sprint\s*\d+/i.test(v.name || "") && v.due_date;
+    });
+    list.sort(function (a, b) {
+      if (a.due_date < b.due_date) return -1;
+      if (a.due_date > b.due_date) return 1;
+      return 0;
+    });
+    return list.length ? list[list.length - 1] : null;
+  }
+  function isoWeekNum(d) {
+    var dt = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    var dayNum = dt.getUTCDay() || 7;
+    dt.setUTCDate(dt.getUTCDate() + 4 - dayNum);
+    var yearStart = new Date(Date.UTC(dt.getUTCFullYear(), 0, 1));
+    return Math.ceil((((dt - yearStart) / 864e5) + 1) / 7);
+  }
+  function fmtBR(d) {
+    return String(d.getDate()).padStart(2, "0") + "/" + String(d.getMonth() + 1).padStart(2, "0") + "/" + d.getFullYear();
+  }
+  /** Deduz próxima semana útil (seg–sex) a partir da due_date da última sprint */
+  function inferNextSprintMeta() {
+    var last = lastSprintTemplate();
+    var name = nextSprintName();
+    var start, end, desc, sharing;
+    sharing = (last && last.sharing) ? last.sharing : "tree";
+    if (last && last.due_date) {
+      var due = parseYMD(last.due_date);
+      /* próxima segunda após o fim da última */
+      var nextMon = addDays(due, 1);
+      while (nextMon.getDay() !== 1) nextMon = addDays(nextMon, 1);
+      start = nextMon;
+      end = addDays(start, 4); /* sexta */
+      desc = fmtBR(start) + "–" + fmtBR(end) + " | W" + isoWeekNum(start);
+    } else {
+      var today = new Date(); today.setHours(0, 0, 0, 0);
+      start = addDays(today, (1 - today.getDay() + 7) % 7 || 7);
+      if (today.getDay() === 1) start = today;
+      else if (today.getDay() === 0) start = addDays(today, 1);
+      else start = addDays(today, 8 - today.getDay());
+      end = addDays(start, 4);
+      desc = fmtBR(start) + "–" + fmtBR(end) + " | W" + isoWeekNum(start);
+    }
+    /* se a última descrição tinha padrão, mantém o estilo */
+    if (last && last.description && /\d{2}\/\d{2}/.test(last.description)) {
+      desc = fmtBR(start) + "–" + fmtBR(end) + " | W" + isoWeekNum(start);
+    }
+    return {
+      name: name,
+      description: desc,
+      due_date: fmtYMD(end),
+      sharing: sharing,
+      status: "open"
+    };
+  }
   function openNewSprintDialog() {
-    var suggested = nextSprintName();
-    var name = window.prompt("Nome da nova sprint:", suggested);
+    var meta = inferNextSprintMeta();
+    var name = window.prompt(
+      "Nova sprint (nome):\nSerá criada com datas " + meta.description + "\ne compartilhamento: " + meta.sharing,
+      meta.name
+    );
     if (name == null) return;
     name = String(name).trim();
     if (!name) { toast("Informe um nome", true); return; }
-    createSprint(name);
+    meta.name = name;
+    createSprint(meta);
   }
-  async function createSprint(name) {
+  async function createSprint(meta) {
     var projectId = getCookie(C_PROJ);
     if (!projectId) { toast("Projeto não configurado", true); return; }
+    if (typeof meta === "string") meta = { name: meta, status: "open", sharing: "tree" };
     try {
-      await api("POST", "/projects/" + projectId + "/versions.json", {
-        version: { name: name, status: "open" }
-      });
+      var payload = {
+        version: {
+          name: meta.name,
+          status: meta.status || "open",
+          description: meta.description || "",
+          due_date: meta.due_date || null,
+          sharing: meta.sharing || "tree"
+        }
+      };
+      await api("POST", "/projects/" + projectId + "/versions.json", payload);
       versions = (await api("GET", "/projects/" + projectId + "/versions.json")).versions || [];
-      toast("Sprint criada: " + name);
+      toast("Sprint criada: " + meta.name + (meta.description ? " · " + meta.description : ""));
       fillChips();
       applyFilters();
     } catch (err) {
@@ -283,6 +354,11 @@
 
   function applyFilters() {
     filtered = allIssues.filter(function (i) {
+      if (sel.projects !== null) {
+        var pid = i.project && i.project.id;
+        if (pid == null) return false;
+        if (!sel.projects.has(pid) && !sel.projects.has(String(pid))) return false;
+      }
       if (sel.scope.indexOf("all") < 0 && sel.scope.indexOf(getScope(i)) < 0) return false;
       if (sel.sprint !== null && sel.sprint.indexOf(sprintName(i)) < 0) return false;
       if (sel.mod !== null && sel.mod.indexOf(getMod(i)) < 0) return false;
@@ -1046,21 +1122,150 @@
     document.getElementById("ganttRight").scrollTop = document.getElementById("leftBody").scrollTop;
   });
 
+  function buildProjectTree(flat) {
+    var byId = {};
+    flat.forEach(function (p) { byId[p.id] = { id: p.id, name: p.name, identifier: p.identifier, parentId: p.parent && p.parent.id, children: [] }; });
+    var roots = [];
+    Object.keys(byId).forEach(function (id) {
+      var n = byId[id];
+      if (n.parentId && byId[n.parentId]) byId[n.parentId].children.push(n);
+      else roots.push(n);
+    });
+    function sortRec(nodes) {
+      nodes.sort(function (a, b) { return a.name < b.name ? -1 : 1; });
+      nodes.forEach(function (c) { sortRec(c.children); });
+    }
+    sortRec(roots);
+    return { byId: byId, roots: roots };
+  }
+  function collectDescendantIds(node, out) {
+    out.push(node.id);
+    (node.children || []).forEach(function (c) { collectDescendantIds(c, out); });
+    return out;
+  }
+  function renderProjTree() {
+    var el = document.getElementById("projTree");
+    if (!el) return;
+    var tree = buildProjectTree(allProjects);
+    var rootCookie = getCookie(C_PROJ);
+    /* tenta achar nó raiz pelo id ou identifier do cookie */
+    var rootNode = null;
+    Object.keys(tree.byId).forEach(function (id) {
+      var n = tree.byId[id];
+      if (String(n.id) === String(rootCookie) || n.identifier === rootCookie) rootNode = n;
+    });
+    var nodes = rootNode ? [rootNode] : tree.roots;
+    function walk(list, depth) {
+      return list.map(function (n) {
+        var checked = sel.projects === null || sel.projects.has(n.id) || sel.projects.has(String(n.id));
+        var neon = "neon-p" + neonIndex(n.name, 6);
+        var html = '<label class="proj-tree-item ' + neon + '" style="padding-left:' + (8 + depth * 12) + 'px">' +
+          '<input type="checkbox" data-pid="' + n.id + '"' + (checked ? " checked" : "") + '/>' +
+          '<span class="proj-tree-name" title="' + escapeHtml(n.name) + '">' + escapeHtml(n.name) + "</span></label>";
+        return html + walk(n.children || [], depth + 1);
+      }).join("");
+    }
+    el.innerHTML =
+      '<div class="proj-tree-head">' +
+        '<span>Projetos</span>' +
+        '<span class="proj-tree-acts">' +
+          '<button type="button" class="flt-act" id="projAll" title="Todos">☑</button>' +
+          '<button type="button" class="flt-act" id="projNone" title="Nenhum">☐</button>' +
+        "</span></div>" +
+      '<div class="proj-tree-body">' + walk(nodes, 0) + "</div>";
+    el.querySelectorAll("input[data-pid]").forEach(function (inp) {
+      inp.onchange = function () {
+        var boxes = el.querySelectorAll("input[data-pid]");
+        var set = new Set();
+        var nChecked = 0;
+        boxes.forEach(function (b) {
+          if (b.checked) { set.add(+b.dataset.pid); set.add(String(b.dataset.pid)); nChecked++; }
+        });
+        if (nChecked === 0 || nChecked === boxes.length) sel.projects = null;
+        else sel.projects = set;
+        applyFilters();
+      };
+    });
+    var btnAll = document.getElementById("projAll");
+    var btnNone = document.getElementById("projNone");
+    if (btnAll) btnAll.onclick = function () {
+      el.querySelectorAll("input[data-pid]").forEach(function (b) { b.checked = true; });
+      sel.projects = null;
+      applyFilters();
+    };
+    if (btnNone) btnNone.onclick = function () {
+      el.querySelectorAll("input[data-pid]").forEach(function (b) { b.checked = false; });
+      sel.projects = new Set([-1]); /* nenhum */
+      applyFilters();
+    };
+  }
+  async function fetchIssuesForProject(projectId) {
+    var issues = [];
+    var offset = 0;
+    for (;;) {
+      /* subproject_id=* inclui filhos quando a API permitir; senão lista o próprio */
+      var d = await api("GET", "/issues.json?project_id=" + encodeURIComponent(projectId) +
+        "&status_id=*&limit=100&offset=" + offset + "&sort=start_date");
+      issues = issues.concat(d.issues || []);
+      if ((d.issues || []).length < 100) break;
+      offset += 100;
+    }
+    return issues;
+  }
   async function loadAll() {
     var loading = document.getElementById("loading");
     show(loading);
     try {
       var projectId = getCookie(C_PROJ);
       if (!projectId) throw new Error("Projeto não informado");
-      var issues = [];
-      var offset = 0;
-      for (;;) {
-        var d = await api("GET", "/issues.json?project_id=" + projectId + "&status_id=*&limit=100&offset=" + offset + "&sort=start_date");
-        issues = issues.concat(d.issues || []);
-        if ((d.issues || []).length < 100) break;
-        offset += 100;
+      /* árvore de projetos (para filtro multi + MV / módulos) */
+      try {
+        var projs = [];
+        var poff = 0;
+        for (;;) {
+          var pd = await api("GET", "/projects.json?limit=100&offset=" + poff);
+          projs = projs.concat(pd.projects || []);
+          if ((pd.projects || []).length < 100) break;
+          poff += 100;
+        }
+        allProjects = projs;
+      } catch (e) {
+        console.warn("[Gantt] projects", e);
+        allProjects = [];
       }
-      allIssues = issues;
+      /* issues: raiz + subprojetos via API (project_id da raiz costuma trazer filhos se o user tiver acesso) */
+      var issues = await fetchIssuesForProject(projectId);
+      /* dedupe */
+      var seen = {};
+      allIssues = issues.filter(function (i) {
+        if (seen[i.id]) return false;
+        seen[i.id] = true;
+        return true;
+      });
+      /* irmãos no portfólio (ex.: MV, Legado) sob o mesmo parent da raiz */
+      try {
+        var tree = buildProjectTree(allProjects);
+        var rootNode = null;
+        Object.keys(tree.byId).forEach(function (id) {
+          var n = tree.byId[id];
+          if (String(n.id) === String(projectId) || n.identifier === projectId) rootNode = n;
+        });
+        if (rootNode && rootNode.parentId && tree.byId[rootNode.parentId]) {
+          var siblings = tree.byId[rootNode.parentId].children || [];
+          for (var si = 0; si < siblings.length; si++) {
+            var sib = siblings[si];
+            if (sib.id === rootNode.id) continue;
+            var nm = (sib.name || "").toLowerCase();
+            if (!/(hemopi|mv|legado|inf|sesapi)/i.test(nm)) continue;
+            try {
+              var extra = await fetchIssuesForProject(sib.id);
+              extra.forEach(function (i) {
+                if (!seen[i.id]) { seen[i.id] = true; allIssues.push(i); }
+              });
+            } catch (e2) { console.warn("[Gantt] sibling", sib.name, e2); }
+          }
+        }
+      } catch (e3) { console.warn("[Gantt] portfolio expand", e3); }
       versions = (await api("GET", "/projects/" + projectId + "/versions.json")).versions || [];
       try { statuses = (await api("GET", "/issue_statuses.json")).issue_statuses || []; } catch (e) {}
       projectMembers = [];
@@ -1076,6 +1281,7 @@
           memOff += 100;
         }
       } catch (e) { console.warn("[Gantt] memberships", e); }
+      renderProjTree();
       fillChips();
       applyFilters();
     } catch (e) {
