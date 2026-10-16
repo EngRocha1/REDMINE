@@ -1553,7 +1553,20 @@
       }
     }
     el.querySelectorAll("input[data-pid]").forEach(function (inp) {
-      inp.onchange = function (e) { e.stopPropagation(); syncFromBoxes(); };
+      inp.onchange = function (e) {
+        e.stopPropagation();
+        var pid = +inp.dataset.pid;
+        var node = tree.byId[pid];
+        if (node && node.children && node.children.length) {
+          var ids = [];
+          collectDescendantIds(node, ids);
+          var on = inp.checked;
+          el.querySelectorAll("input[data-pid]").forEach(function (b) {
+            if (ids.indexOf(+b.dataset.pid) >= 0) b.checked = on;
+          });
+        }
+        syncFromBoxes();
+      };
       inp.onclick = function (e) { e.stopPropagation(); };
     });
     var btnAll = document.getElementById("projAll");
