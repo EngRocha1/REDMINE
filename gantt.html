@@ -1,73 +1,107 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>HEMOPI · Gantt</title>
 <link rel="stylesheet" href="styles.css"/>
 <link rel="stylesheet" href="gantt.css"/>
 </head>
-<body class="gantt-app">
+<body>
+<div id="cookieBanner" class="cookie-banner hidden">
+  <div><strong>Política de cookies</strong><p>Credenciais só em cookies locais deste navegador.</p></div>
+  <button id="btnAcceptCookies" class="btn primary">Aceitar</button>
+</div>
+
+<div id="ganttView" class="gantt-app hidden">
   <header class="gantt-header">
     <div class="gantt-brand">
-      <h1>HEMOPI · <span>Gantt</span></h1>
+      <h1>HEMOPI <span>·</span> Gantt</h1>
       <nav class="gantt-nav">
         <a href="index.html">Dashboard</a>
         <a href="gantt.html" class="active">Gantt</a>
       </nav>
     </div>
-    <div id="userInfo" class="user-info hidden"></div>
+    <div class="hdr-actions">
+      <button id="btnToday" class="btn ghost">Hoje</button>
+      <button id="btnRefresh" class="btn-icon" title="Atualizar">↻</button>
+      <button id="btnLogout" class="btn ghost">Logout</button>
+    </div>
   </header>
 
-  <div id="loginCard" class="card login-card">
-    <h2>Login Redmine</h2>
-    <label>E-mail<input id="email" type="email" autocomplete="username"/></label>
-    <label>URL Redmine<input id="baseUrl" type="url" placeholder="https://redmine.exemplo.com"/></label>
-    <label>API Key<input id="apiKey" type="password" autocomplete="current-password"/></label>
-    <label>Projeto (id ou identifier)<input id="projectId" type="text" placeholder="hemopi"/></label>
-    <button type="button" id="btnLogin" class="btn primary">Entrar</button>
-    <p class="hint">Use o proxy local: <code>npm run proxy</code> → porta 8787</p>
+  <div class="filter-panel" id="filterPanel">
+    <button type="button" class="filter-toggle" id="btnToggleFilters" aria-expanded="true">
+      <span>Filtros</span>
+      <span id="fltCount" class="muted"></span>
+      <span class="chevron" id="filterChevron">▾</span>
+    </button>
+    <div class="filter-body" id="filterBody">
+      <div class="filter-box" data-filter="scope">
+        <div class="filter-box-title">
+          <span>Escopo</span>
+          <span class="filter-box-actions">
+            <button type="button" class="flt-act" data-act="all" title="Selecionar todos">☑</button>
+            <button type="button" class="flt-act" data-act="none" title="Limpar seleção">☐</button>
+          </span>
+        </div>
+        <div class="chips" id="chipsScope"></div>
+      </div>
+      <div class="filter-box" data-filter="sprint">
+        <div class="filter-box-title">
+          <span>Sprint</span>
+          <span class="filter-box-actions">
+            <button type="button" class="flt-act" data-act="all" title="Selecionar todos">☑</button>
+            <button type="button" class="flt-act" data-act="none" title="Limpar seleção">☐</button>
+          </span>
+        </div>
+        <div class="chips" id="chipsSprint"></div>
+      </div>
+      <div class="filter-box" data-filter="mod">
+        <div class="filter-box-title">
+          <span>Módulo</span>
+          <span class="filter-box-actions">
+            <button type="button" class="flt-act" data-act="all" title="Selecionar todos">☑</button>
+            <button type="button" class="flt-act" data-act="none" title="Limpar seleção">☐</button>
+          </span>
+        </div>
+        <div class="chips" id="chipsMod"></div>
+      </div>
+      <div class="filter-box" data-filter="status">
+        <div class="filter-box-title">
+          <span>Status</span>
+          <span class="filter-box-actions">
+            <button type="button" class="flt-act" data-act="all" title="Selecionar todos">☑</button>
+            <button type="button" class="flt-act" data-act="none" title="Limpar seleção">☐</button>
+          </span>
+        </div>
+        <div class="chips" id="chipsStatus"></div>
+      </div>
+      <div class="filter-box" data-filter="menu">
+        <div class="filter-box-title">
+          <span>Status visíveis (menu/Kanban)</span>
+          <span class="filter-box-actions">
+            <button type="button" class="flt-act" data-act="all" title="Selecionar todos">☑</button>
+            <button type="button" class="flt-act" data-act="none" title="Limpar seleção">☐</button>
+          </span>
+        </div>
+        <div class="menu-checks" id="menuStatusChecks"></div>
+      </div>
+      <div class="filter-footer">
+        <button type="button" id="btnClear" class="btn ghost">Limpar filtros</button>
+      </div>
+    </div>
   </div>
 
-  <div id="appMain" class="hidden">
-    <section class="filter-panel" id="filterPanel">
-      <button type="button" class="filter-toggle" id="filterToggle">Filtros <span id="fltCount">0 tasks</span> <span class="chevron">▾</span></button>
-      <div class="filter-body" id="filterBody">
-        <div class="filter-box" data-flt="scope">
-          <div class="filter-box-title">Escopo <span class="filter-box-actions"><button type="button" class="flt-act" data-act="all" data-target="scope" title="Selecionar tudo">☑</button><button type="button" class="flt-act" data-act="none" data-target="scope" title="Limpar">☐</button></span></div>
-          <div class="chips" id="chipsScope"></div>
-        </div>
-        <div class="filter-box" data-flt="sprint">
-          <div class="filter-box-title">Sprint <span class="filter-box-actions"><button type="button" class="flt-act" data-act="all" data-target="sprint" title="Selecionar tudo">☑</button><button type="button" class="flt-act" data-act="none" data-target="sprint" title="Limpar">☐</button></span></div>
-          <div class="chips" id="chipsSprint"></div>
-        </div>
-        <div class="filter-box" data-flt="mod">
-          <div class="filter-box-title">Módulo <span class="filter-box-actions"><button type="button" class="flt-act" data-act="all" data-target="mod" title="Selecionar tudo">☑</button><button type="button" class="flt-act" data-act="none" data-target="mod" title="Limpar">☐</button></span></div>
-          <div class="chips" id="chipsMod"></div>
-        </div>
-        <div class="filter-box" data-flt="status">
-          <div class="filter-box-title">Status <span class="filter-box-actions"><button type="button" class="flt-act" data-act="all" data-target="status" title="Selecionar tudo">☑</button><button type="button" class="flt-act" data-act="none" data-target="status" title="Limpar">☐</button></span></div>
-          <div class="chips" id="chipsStatus"></div>
-        </div>
-        <div class="filter-box" data-flt="menu">
-          <div class="filter-box-title">Status visíveis (menu/kanban) <span class="filter-box-actions"><button type="button" class="flt-act" data-act="all" data-target="menu" title="Selecionar tudo">☑</button><button type="button" class="flt-act" data-act="none" data-target="menu" title="Limpar">☐</button></span></div>
-          <div class="menu-checks" id="menuStatusChecks"></div>
-        </div>
-        <div class="filter-footer">
-          <span class="hint">Arrastar grava versão + datas · Backlog remove sprint · ☰ status · 👤 responsável · 👁 descrição · 👁 no cabeçalho abre Kanban</span>
-        </div>
-      </div>
-    </section>
+  <div class="gantt-hint muted">Arrastar grava <strong>versão + datas</strong> · Backlog remove sprint · ☰ status · 👤 responsável · 👁 descrição da task · 👁 no cabeçalho abre Kanban</div>
 
-    <div class="gantt-wrap">
-      <div class="gantt-left">
-        <div class="gantt-left-head"><span class="lh-rail">Proj</span><span class="lh-rail">Mod</span><span class="lh-task"># · Task</span></div>
-        <div class="gantt-left-body" id="leftBody"></div>
-      </div>
-      <div class="gantt-right" id="ganttRight">
-        <div class="gantt-timeline-head" id="timeHead"></div>
-        <div class="gantt-timeline-body" id="timeBody"></div>
-      </div>
+  <div class="gantt-wrap" id="ganttWrap">
+    <div class="gantt-left">
+      <div class="gantt-left-head"><span class="lh-rail">Proj</span><span class="lh-rail">Mod</span><span class="lh-task"># · Task</span></div>
+      <div class="gantt-left-body" id="leftBody"></div>
+    </div>
+    <div class="gantt-right" id="ganttRight">
+      <div class="gantt-timeline-head" id="timeHead"></div>
+      <div class="gantt-timeline-body" id="timeBody"></div>
     </div>
   </div>
 
@@ -79,15 +113,15 @@
     <div class="modal-backdrop" id="kanbanBackdrop"></div>
     <div class="modal-card" id="kanbanCard">
       <div class="modal-head modal-drag">
-        <h2 id="kanbanTitle">Kanban</h2>
+        <h2 id="kanbanTitle">Sprint</h2>
         <div class="modal-head-actions">
-          <button type="button" class="icon-btn" id="kanbanFs" title="Fullscreen">⛶</button>
-          <button type="button" class="icon-btn" id="kanbanClose" title="Fechar">✕</button>
+          <button type="button" class="btn ghost modal-fs" title="Tela cheia">⛶</button>
+          <button type="button" class="btn ghost" id="kanbanClose" title="Fechar">✕</button>
         </div>
       </div>
-      <p class="modal-sub muted">Arraste o card entre colunas para mudar o status no Redmine</p>
+      <p class="muted modal-sub">Arraste o card entre colunas para mudar o status no Redmine</p>
       <div class="kanban-board" id="kanbanBoard"></div>
-      <div class="modal-resize" data-modal="kanbanCard"></div>
+      <div class="modal-resize" title="Redimensionar"></div>
     </div>
   </div>
 
@@ -95,18 +129,21 @@
     <div class="modal-backdrop" id="issueBackdrop"></div>
     <div class="modal-card" id="issueCard">
       <div class="modal-head modal-drag">
-        <h2 id="issueTitle">Issue</h2>
+        <h2 id="issueTitle">Task</h2>
         <div class="modal-head-actions">
-          <button type="button" class="icon-btn" id="issueFs" title="Fullscreen">⛶</button>
-          <button type="button" class="icon-btn" id="issueClose" title="Fechar">✕</button>
+          <button type="button" class="btn ghost modal-fs" title="Tela cheia">⛶</button>
+          <button type="button" class="btn ghost" id="issueClose" title="Fechar">✕</button>
         </div>
       </div>
       <div class="issue-meta" id="issueMeta"></div>
       <div class="issue-body" id="issueBody">Carregando…</div>
-      <div class="modal-resize" data-modal="issueCard"></div>
+      <div class="modal-resize" title="Redimensionar"></div>
     </div>
   </div>
 
-  <script src="gantt.js"></script>
+  <div id="loading" class="loading hidden">Carregando…</div>
+</div>
+
+<script src="gantt.js"></script>
 </body>
 </html>
