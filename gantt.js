@@ -108,6 +108,24 @@
     return String(s == null ? "" : s)
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
+  /** Renderiza HTML da descrição do Redmine (Textile/HTML rico) de forma segura */
+  function safeHtml(html) {
+    var d = document.createElement("div");
+    d.innerHTML = String(html == null ? "" : html);
+    d.querySelectorAll("script,iframe,object,embed,link,meta").forEach(function (el) { el.remove(); });
+    d.querySelectorAll("*").forEach(function (el) {
+      Array.prototype.slice.call(el.attributes).forEach(function (a) {
+        if (/^on/i.test(a.name) || (a.name === "href" && /^\s*javascript:/i.test(a.value))) {
+          el.removeAttribute(a.name);
+        }
+      });
+    });
+    return d.innerHTML;
+  }
+  /** Detecta se a string parece HTML (tags) */
+  function looksLikeHtml(s) {
+    return /<[a-z][\s\S]*>/i.test(String(s || ""));
+  }
 
   function versionPeriod(v) {
     if (!v || !v.due_date) return null;
@@ -745,8 +763,14 @@
         "<span><strong>Fim:</strong> " + escapeHtml(issue.due_date || local.due_date || "—") + "</span>" +
         '<span><a href="' + baseUrl + "/issues/" + issueId + '" target="_blank">Abrir no Redmine ↗</a></span>';
       var desc = issue.description || "";
-      if (!desc.trim()) bodyEl.innerHTML = '<span class="muted">Sem descrição cadastrada nesta issue.</span>';
-      else bodyEl.textContent = desc;
+      if (!desc.trim()) {
+        bodyEl.innerHTML = '<span class="muted">Sem descrição cadastrada nesta issue.</span>';
+      } else if (looksLikeHtml(desc)) {
+        bodyEl.innerHTML = safeHtml(desc);
+      } else {
+        /* Textile/plain: preserva quebras e escapa */
+        bodyEl.innerHTML = escapeHtml(desc).replace(/\n/g, "<br>");
+      }
     } catch (err) {
       bodyEl.textContent = "Erro ao carregar: " + err.message;
       toast("Erro descrição: " + err.message, true);
@@ -808,15 +832,40 @@
         '<div class="kanban-col-head">' + shortStatus(st) + " (" + cards.length + ")</div>" +
         '<div class="kanban-col-body">' +
         cards.map(function (i) {
-          return '<div class="kanban-card" draggable="true" data-id="' + i.id + '">' +
-            '<div class="kc-id">#' + i.id + "</div><div>" + cleanSubject(i.subject) + "</div></div>";
+          var who = (i.assigned_to && i.assigned_to.name) || "sem responsável";
+          var whoShort = who.length > 22 ? who.slice(0, 20) + "…" : who;
+          var stName = (i.status && i.status.name) || "";
+          return '<div class="kanban-card ' + statusClass(stName) + '" draggable="true" data-id="' + i.id + '">' +
+            '<div class="kc-top">' +
+              '<span class="kc-id">#' + i.id + '</span>' +
+              '<span class="kc-st">' + escapeHtml(shortStatus(stName)) + '</span>' +
+            '</div>' +
+            '<div class="kc-subject">' + escapeHtml(cleanSubject(i.subject)) + '</div>' +
+            '<div class="kc-footer">' +
+              '<span class="kc-who" title="' + escapeHtml(who) + '">' + escapeHtml(whoShort) + '</span>' +
+              '<span class="kc-actions">' +
+                '<button type="button" class="icon-btn eye-btn" title="Ver descrição">👁</button>' +
+                '<button type="button" class="icon-btn status-btn" title="Alterar status">☰</button>' +
+                '<button type="button" class="icon-btn person-btn" title="Responsável: ' + escapeHtml(who) + '">👤</button>' +
+              '</span>' +
+            '</div></div>';
         }).join("") + "</div></div>";
     }).join("");
 
     var dragId = null;
     board.querySelectorAll(".kanban-card").forEach(function (card) {
-      card.addEventListener("dragstart", function () { dragId = +card.dataset.id; card.style.opacity = ".5"; });
+      card.addEventListener("dragstart", function (ev) {
+        if (ev.target.closest && ev.target.closest(".icon-btn")) { ev.preventDefault(); return; }
+        dragId = +card.dataset.id; card.style.opacity = ".5";
+      });
       card.addEventListener("dragend", function () { card.style.opacity = "1"; dragId = null; });
+      var id = +card.dataset.id;
+      var eye = card.querySelector(".eye-btn");
+      if (eye) eye.addEventListener("click", function (ev) { ev.stopPropagation(); openIssueDetail(id); });
+      var stBtn = card.querySelector(".status-btn");
+      if (stBtn) stBtn.addEventListener("click", function (ev) { ev.stopPropagation(); openStatusMenu(id, ev.clientX, ev.clientY); });
+      var pBtn = card.querySelector(".person-btn");
+      if (pBtn) pBtn.addEventListener("click", function (ev) { ev.stopPropagation(); openAssigneeMenu(id, ev.clientX, ev.clientY); });
     });
     board.querySelectorAll(".kanban-col-body").forEach(function (colBody) {
       colBody.addEventListener("dragover", function (e) { e.preventDefault(); colBody.classList.add("drag-over"); });
