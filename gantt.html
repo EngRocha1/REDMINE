@@ -49,24 +49,54 @@
       <span class="chevron" id="filterChevron">▾</span>
     </button>
     <div class="filter-body" id="filterBody">
-      <div class="filter-box">
-        <div class="filter-box-title">Escopo</div>
+      <div class="filter-box" data-filter="scope">
+        <div class="filter-box-title">
+          <span>Escopo</span>
+          <span class="filter-box-actions">
+            <button type="button" class="flt-act" data-act="all" title="Selecionar todos">☑</button>
+            <button type="button" class="flt-act" data-act="none" title="Limpar seleção">☐</button>
+          </span>
+        </div>
         <div class="chips" id="chipsScope"></div>
       </div>
-      <div class="filter-box">
-        <div class="filter-box-title">Sprint</div>
+      <div class="filter-box" data-filter="sprint">
+        <div class="filter-box-title">
+          <span>Sprint</span>
+          <span class="filter-box-actions">
+            <button type="button" class="flt-act" data-act="all" title="Selecionar todos">☑</button>
+            <button type="button" class="flt-act" data-act="none" title="Limpar seleção">☐</button>
+          </span>
+        </div>
         <div class="chips" id="chipsSprint"></div>
       </div>
-      <div class="filter-box">
-        <div class="filter-box-title">Módulo</div>
+      <div class="filter-box" data-filter="mod">
+        <div class="filter-box-title">
+          <span>Módulo</span>
+          <span class="filter-box-actions">
+            <button type="button" class="flt-act" data-act="all" title="Selecionar todos">☑</button>
+            <button type="button" class="flt-act" data-act="none" title="Limpar seleção">☐</button>
+          </span>
+        </div>
         <div class="chips" id="chipsMod"></div>
       </div>
-      <div class="filter-box">
-        <div class="filter-box-title">Status (visão)</div>
+      <div class="filter-box" data-filter="status">
+        <div class="filter-box-title">
+          <span>Status (visão)</span>
+          <span class="filter-box-actions">
+            <button type="button" class="flt-act" data-act="all" title="Selecionar todos">☑</button>
+            <button type="button" class="flt-act" data-act="none" title="Limpar seleção">☐</button>
+          </span>
+        </div>
         <div class="chips" id="chipsStatus"></div>
       </div>
-      <div class="filter-box">
-        <div class="filter-box-title">Menu — status visíveis (Kanban + ☰)</div>
+      <div class="filter-box" data-filter="menuStatus">
+        <div class="filter-box-title">
+          <span>Menu — status visíveis</span>
+          <span class="filter-box-actions">
+            <button type="button" class="flt-act" data-act="all" title="Marcar todos">☑</button>
+            <button type="button" class="flt-act" data-act="none" title="Desmarcar todos">☐</button>
+          </span>
+        </div>
         <div class="menu-checks" id="menuStatusChecks"></div>
       </div>
       <div class="filter-footer">
@@ -75,7 +105,7 @@
     </div>
   </div>
 
-  <div class="gantt-hint muted">Arrastar grava <strong>versão + datas</strong> · Backlog remove sprint · <strong>☰</strong> status · <strong>👤</strong> responsável · <strong>👁</strong> Kanban da sprint</div>
+  <div class="gantt-hint muted">Arrastar grava <strong>versão + datas</strong> · Backlog remove sprint · ☰ status · 👤 responsável · 👁 descrição da task · 👁 no cabeçalho abre Kanban</div>
 
   <div class="gantt-wrap" id="ganttWrap">
     <div class="gantt-left">
@@ -94,13 +124,33 @@
 
   <div id="kanbanModal" class="modal hidden">
     <div class="modal-backdrop" id="kanbanBackdrop"></div>
-    <div class="modal-card">
-      <div class="modal-head">
+    <div class="modal-card" id="kanbanCard">
+      <div class="modal-head modal-drag">
         <h2 id="kanbanTitle">Sprint</h2>
-        <button type="button" class="btn ghost" id="kanbanClose">✕</button>
+        <div class="modal-head-actions">
+          <button type="button" class="btn ghost modal-fs" title="Tela cheia">⛶</button>
+          <button type="button" class="btn ghost" id="kanbanClose" title="Fechar">✕</button>
+        </div>
       </div>
       <p class="muted modal-sub">Arraste o card entre colunas para mudar o status no Redmine</p>
       <div class="kanban-board" id="kanbanBoard"></div>
+      <div class="modal-resize" title="Redimensionar"></div>
+    </div>
+  </div>
+
+  <div id="issueModal" class="modal hidden">
+    <div class="modal-backdrop" id="issueBackdrop"></div>
+    <div class="modal-card" id="issueCard">
+      <div class="modal-head modal-drag">
+        <h2 id="issueTitle">Task</h2>
+        <div class="modal-head-actions">
+          <button type="button" class="btn ghost modal-fs" title="Tela cheia">⛶</button>
+          <button type="button" class="btn ghost" id="issueClose" title="Fechar">✕</button>
+        </div>
+      </div>
+      <div class="issue-meta" id="issueMeta"></div>
+      <div class="issue-body" id="issueBody">Carregando…</div>
+      <div class="modal-resize" title="Redimensionar"></div>
     </div>
   </div>
 
