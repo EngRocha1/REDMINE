@@ -172,6 +172,83 @@
     ).join("");
   }
 
+
+  function renderDashDevFilter(devList) {
+    var el = document.getElementById("dashDevMs");
+    if (!el) return;
+    function isOn(id) {
+      if (!dashDevFilter) return true;
+      return dashDevFilter.has(id) || dashDevFilter.has(String(id));
+    }
+    var nOn = 0;
+    devList.forEach(function (d) { if (isOn(d.id)) nOn++; });
+    var summary = !devList.length ? "Nenhum dev com tasks" :
+      (!dashDevFilter ? "Todos (" + devList.length + ")" :
+        (nOn === 0 ? "Nenhum" : nOn + " de " + devList.length));
+    var body = devList.map(function (d) {
+      return '<label class="ms-option">' +
+        '<input type="checkbox" data-did="' + d.id + '"' + (isOn(d.id) ? " checked" : "") + "/>" +
+        '<span class="ms-label">' + d.name + " (" + d.done + " entregues)</span></label>";
+    }).join("");
+    el.innerHTML =
+      '<button type="button" class="ms-trigger" id="dashDevTrigger">' +
+        '<span class="ms-trigger-text">' + summary + "</span><span class=\"ms-trigger-chev\">▾</span></button>" +
+      '<div class="ms-panel hidden" id="dashDevPanel">' +
+        '<div class="ms-panel-head"><span>Devs com atividades</span>' +
+          '<span><button type="button" class="ms-mini" id="dashDevAll">Todos</button> ' +
+          '<button type="button" class="ms-mini" id="dashDevNone">Limpar</button></span></div>' +
+        '<div class="ms-panel-body">' + body + "</div></div>";
+    var trigger = document.getElementById("dashDevTrigger");
+    var panel = document.getElementById("dashDevPanel");
+    if (trigger) trigger.onclick = function (e) {
+      e.stopPropagation();
+      panel.classList.toggle("hidden");
+    };
+    if (!window.__dashDevClose) {
+      window.__dashDevClose = true;
+      document.addEventListener("click", function (e) {
+        var t = document.getElementById("dashDevMs");
+        if (t && !t.contains(e.target)) {
+          var p = document.getElementById("dashDevPanel");
+          if (p) p.classList.add("hidden");
+        }
+      });
+    }
+    function sync() {
+      var boxes = el.querySelectorAll("input[data-did]");
+      var set = new Set();
+      var n = 0;
+      boxes.forEach(function (b) {
+        if (b.checked) { set.add(+b.dataset.did); set.add(String(b.dataset.did)); n++; }
+      });
+      if (n === 0) dashDevFilter = new Set([-1]);
+      else if (n === boxes.length) dashDevFilter = null;
+      else dashDevFilter = set;
+      /* re-render dashboard with same cached issues */
+      if (window.__lastDashIssues && window.__lastDashVersions) {
+        renderDashboard(window.__lastDashIssues, window.__lastDashVersions);
+      }
+    }
+    el.querySelectorAll("input[data-did]").forEach(function (inp) {
+      inp.onchange = function (e) { e.stopPropagation(); sync(); };
+      inp.onclick = function (e) { e.stopPropagation(); };
+    });
+    var a = document.getElementById("dashDevAll");
+    var nbtn = document.getElementById("dashDevNone");
+    if (a) a.onclick = function (e) {
+      e.stopPropagation();
+      el.querySelectorAll("input[data-did]").forEach(function (b) { b.checked = true; });
+      dashDevFilter = null;
+      sync();
+    };
+    if (nbtn) nbtn.onclick = function (e) {
+      e.stopPropagation();
+      el.querySelectorAll("input[data-did]").forEach(function (b) { b.checked = false; });
+      dashDevFilter = new Set([-1]);
+      sync();
+    };
+  }
+
   function renderDashboard(issues, versions) {
     const byStatus = countBy(issues, (i) => statusKey(i.status.name));
     const byMod = countBy(issues, getMod);
@@ -286,7 +363,7 @@
       };
     });
 
-    Object.values(charts).forEach((c) => c.destroy());
+    Object.values(charts || {}).forEach((c) => { try { c.destroy(); } catch (e) {} });
     charts = {};
     const col = { nova: "#3b82f6", valid: "#22c55e", plan: "#a78bfa", done: "#94a3b8" };
     charts.status = new Chart(document.getElementById("chartStatus"), {
@@ -314,13 +391,153 @@
       options: { plugins: { legend: { position: "bottom", labels: { color: "#94a3b8", boxWidth: 12 } } }, scales: { x: { stacked: true, ticks: { color: "#94a3b8" }, grid: { display: false } }, y: { stacked: true, ticks: { color: "#94a3b8" }, grid: { color: "#2d3a4f" }, beginAtZero: true } }, maintainAspectRatio: false },
     });
 
-    const now = new Date().toLocaleString("pt-BR");
+    
+    /* ===== Produtividade por desenvolvedor ===== */
+    if (window.ChartDataLabels && !window.__dlRegistered) {
+      try { Chart.register(ChartDataLabels); window.__dlRegistered = true; } catch (e) {}
+    }
+    function isDoneStatus(st) {
+      var s = (st || "").toLowerCase();
+      return s.indexOf("resolv") >= 0 || s.indexOf("fechad") >= 0;
+    }
+    var byDev = {};
+    issues.forEach(function (i) {
+      var a = i.assigned_to;
+      if (!a || a.id == null) return;
+      if (!byDev[a.id]) byDev[a.id] = { id: a.id, name: a.name, done: 0, open: 0, total: 0 };
+      byDev[a.id].total++;
+      if (isDoneStatus(i.status && i.status.name)) byDev[a.id].done++;
+      else byDev[a.id].open++;
+    });
+    var devList = Object.keys(byDev).map(function (k) { return byDev[k]; })
+      .sort(function (a, b) { return a.name < b.name ? -1 : 1; });
+    window.__dashDevList = devList;
+    if (typeof renderDashDevFilter === "function") renderDashDevFilter(devList);
+    var shown = devList;
+    if (dashDevFilter && dashDevFilter.size) {
+      shown = devList.filter(function (d) {
+        return dashDevFilter.has(d.id) || dashDevFilter.has(String(d.id));
+      });
+    }
+    var teamAvgDone = devList.length
+      ? devList.reduce(function (s, d) { return s + d.done; }, 0) / devList.length
+      : 0;
+    var teamAvgOpen = devList.length
+      ? devList.reduce(function (s, d) { return s + d.open; }, 0) / devList.length
+      : 0;
+    var metaEl = document.getElementById("dashFilterMeta");
+    if (metaEl) {
+      metaEl.textContent =
+        shown.length + " dev(s) · média entregas " + teamAvgDone.toFixed(1) +
+        " · média abertas " + teamAvgOpen.toFixed(1);
+    }
+    var neonPalette = ["#3b82f6","#a855f7","#22c55e","#f59e0b","#06b6d4","#f43f5e","#6366f1","#14b8a6","#eab308","#ec4899"];
+    var prodCanvas = document.getElementById("chartProd");
+    var loadCanvas = document.getElementById("chartLoad");
+    if (prodCanvas) {
+      charts.prod = new Chart(prodCanvas, {
+        type: "bar",
+        data: {
+          labels: shown.map(function (d) { return d.name.split(" ")[0]; }),
+          datasets: [
+            {
+              label: "Entregas",
+              data: shown.map(function (d) { return d.done; }),
+              backgroundColor: shown.map(function (_, i) { return neonPalette[i % neonPalette.length]; }),
+              borderRadius: 6,
+              order: 2
+            },
+            {
+              label: "Média equipe",
+              data: shown.map(function () { return Math.round(teamAvgDone * 10) / 10; }),
+              type: "line",
+              borderColor: "#f472b6",
+              borderWidth: 2,
+              borderDash: [6, 4],
+              pointRadius: 0,
+              fill: false,
+              order: 1
+            }
+          ]
+        },
+        options: {
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: "bottom", labels: { color: "#94a3b8", boxWidth: 12 } },
+            datalabels: {
+              color: "#e2e8f0",
+              anchor: "end",
+              align: "top",
+              font: { size: 11, weight: "600" },
+              formatter: function (v, ctx) {
+                return ctx.dataset.type === "line" ? "" : v;
+              }
+            }
+          },
+          scales: {
+            x: { ticks: { color: "#94a3b8", maxRotation: 45 }, grid: { display: false } },
+            y: { beginAtZero: true, ticks: { color: "#94a3b8" }, grid: { color: "#2d3a4f" } }
+          }
+        }
+      });
+    }
+    if (loadCanvas) {
+      charts.load = new Chart(loadCanvas, {
+        type: "bar",
+        data: {
+          labels: shown.map(function (d) { return d.name.split(" ")[0]; }),
+          datasets: [{
+            label: "Abertas",
+            data: shown.map(function (d) { return d.open; }),
+            backgroundColor: shown.map(function (_, i) { return neonPalette[i % neonPalette.length]; }),
+            borderRadius: 6
+          }]
+        },
+        options: {
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            datalabels: {
+              color: "#e2e8f0",
+              anchor: "end",
+              align: "top",
+              font: { size: 11, weight: "600" },
+              formatter: function (v) { return v; }
+            }
+          },
+          scales: {
+            x: { ticks: { color: "#94a3b8", maxRotation: 45 }, grid: { display: false } },
+            y: { beginAtZero: true, ticks: { color: "#94a3b8" }, grid: { color: "#2d3a4f" } }
+          }
+        }
+      });
+    }
+    var prodTable = document.getElementById("prodTable");
+    if (prodTable) {
+      var rows = shown.map(function (d) {
+        var delta = d.done - teamAvgDone;
+        var sign = delta >= 0 ? "+" : "";
+        return "<tr><td>" + d.name + "</td><td>" + d.done + "</td><td>" + d.open + "</td><td>" + d.total +
+          "</td><td>" + sign + delta.toFixed(1) + "</td></tr>";
+      }).join("");
+      prodTable.innerHTML =
+        "<table><thead><tr><th>Dev</th><th>Entregas</th><th>Abertas</th><th>Total</th><th>vs média</th></tr></thead>" +
+        "<tbody>" + rows +
+        '<tr class="avg-row"><td>Média equipe</td><td>' + teamAvgDone.toFixed(1) +
+        "</td><td>" + teamAvgOpen.toFixed(1) + "</td><td>—</td><td>—</td></tr>" +
+        "</tbody></table>";
+    }
+
+const now = new Date().toLocaleString("pt-BR");
     document.getElementById("hdrMeta").textContent = "Sprints + backlog · " + getCookie(C_EMAIL) + " · " + now;
     document.getElementById("footLeft").textContent = "Fonte: Redmine REST · projeto " + getCookie(C_PROJ) + " + subprojetos · " + total + " issues";
     document.getElementById("footRight").textContent = "Atualizado " + now + " · cookies locais · sem chave no código";
   }
 
+  let dashDevFilter = null;
+
   async function loadData() {
+
     const loading = document.getElementById("loading");
     show(loading);
     try {
