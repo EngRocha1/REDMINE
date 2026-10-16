@@ -22,7 +22,7 @@ h1{font-size:1.45rem;font-weight:700}h1 span{color:var(--accent2)}
 .kpi.ok .value{color:#86efac}.kpi.info .value{color:#93c5fd}.kpi.warn .value{color:#fcd34d}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
 @media(max-width:960px){.grid2{grid-template-columns:1fr}}
-.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;overflow:hidden;margin-bottom:12px}
+.card{overflow:visible;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;overflow:hidden;margin-bottom:12px}
 .card h2{font-size:.82rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:12px;font-weight:600}
 .chart-box{position:relative;height:230px}
 .filters{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
@@ -94,3 +94,11 @@ a{color:#7dd3fc;text-decoration:none}a:hover{text-decoration:underline}
 .glossary:not(.collapsed) .glossary-chev{transform:rotate(90deg)}
 .chart-box{position:relative;height:230px;width:100%}
 .chart-box canvas{max-width:100%}
+
+/* dash filter dropdowns */
+.dash-filters,.dash-filters .card,.dash-filter-box,.mod-ms{overflow:visible!important;position:relative}
+.dash-filters{z-index:5}
+.mod-ms{position:relative;z-index:30}
+.ms-panel{z-index:80!important;max-height:280px}
+.ms-panel-body{max-height:200px;overflow-y:auto;scrollbar-width:thin}
+.dash-filter-row{align-items:flex-start}
