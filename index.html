@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>HEMOPI · Dashboard Redmine</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <link rel="stylesheet" href="styles.css"/>
 </head>
 <body>
@@ -53,9 +52,12 @@
 
   <div class="banner" id="banner"></div>
 
-  <section class="glossary card">
-    <h2>Glossário técnico (DUTEC / Scrum)</h2>
-    <div class="glossary-grid" id="glossary"></div>
+  <section class="glossary card collapsed" id="glossarySection">
+    <button type="button" class="glossary-toggle" id="btnGlossary" aria-expanded="false">
+      <h2>Glossário técnico (DUTEC / Scrum)</h2>
+      <span class="glossary-chev" id="glossaryChev">▸</span>
+    </button>
+    <div class="glossary-grid glossary-body" id="glossary" hidden></div>
   </section>
 
   
