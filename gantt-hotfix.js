@@ -1,10 +1,10 @@
-/* HEMOPI Gantt hotfix v2 — carregar DEPOIS de gantt.js */
+/* HEMOPI Gantt hotfix v2.1 */
 (function () {
   "use strict";
   var log = function () {
     try { console.log.apply(console, ["[HEMOPI hotfix]"].concat([].slice.call(arguments))); } catch (e) {}
   };
-  log("loaded v2");
+  log("loaded v2.1");
 
   window.placeMenu = function (menu, x, y) {
     if (!menu) return;
@@ -220,6 +220,38 @@
       });
   }, true);
 
+  function injectSprintPlus() {
+    document.querySelectorAll(".sprint-cell").forEach(function (cell) {
+      if (cell.querySelector(".sprint-task-add")) return;
+      var eye = cell.querySelector(".eye");
+      var vid = eye ? eye.getAttribute("data-vid") : "";
+      var vname = eye ? eye.getAttribute("data-vname") : (cell.querySelector("span") ? cell.querySelector("span").textContent : "Backlog");
+      var isBacklog = cell.classList.contains("backlog-band") || !vid;
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "sprint-task-add";
+      btn.title = "Nova task nesta coluna";
+      btn.textContent = "+";
+      btn.setAttribute("data-vid", vid || "");
+      btn.setAttribute("data-vname", vname || "Backlog");
+      btn.setAttribute("data-backlog", isBacklog ? "1" : "0");
+      btn.addEventListener("click", function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        var fn = window.openNewTaskDialog;
+        if (typeof fn === "function") {
+          fn({ versionId: vid || null, versionName: vname, backlog: isBacklog });
+        } else {
+          alert("Atualize o gantt.js para criar tasks (openNewTaskDialog)."
+          );
+        }
+      });
+      cell.appendChild(btn);
+    });
+  }
+  setInterval(injectSprintPlus, 1500);
+  setTimeout(injectSprintPlus, 800);
+
   setInterval(function () {
     var el = document.getElementById("chipsAssignee");
     if (!el || el.querySelector('[data-v="none"]')) return;
@@ -230,7 +262,6 @@
     btn.dataset.v = "none";
     btn.textContent = "Sem responsável";
     el.insertBefore(btn, el.firstChild);
-    log("chip Sem responsável");
   }, 2000);
 
   var st = document.createElement("style");
@@ -240,7 +271,9 @@
     ".modal-card.is-fs{position:fixed!important;left:0!important;top:0!important;width:100vw!important;height:100vh!important;max-width:none!important;max-height:none!important;z-index:10040!important;border-radius:0!important;margin:0!important}" +
     ".kanban-card.dragging{opacity:.55;outline:2px dashed #67e8f9}" +
     ".kanban-col-body.drag-over{background:rgba(59,130,246,.15)!important;outline:2px dashed #67e8f9}" +
-    ".kanban-card{cursor:grab}.kanban-card:active{cursor:grabbing}";
+    ".kanban-card{cursor:grab}.kanban-card:active{cursor:grabbing}" +
+    ".sprint-task-add{flex-shrink:0;width:18px;height:18px;border:1px dashed rgba(148,163,184,.5);background:rgba(15,23,42,.4);color:#94a3b8;border-radius:4px;font-size:13px;line-height:1;cursor:pointer;padding:0;margin-left:4px}" +
+    ".sprint-task-add:hover{border-color:#67e8f9;color:#67e8f9}";
   document.head.appendChild(st);
   log("css injected");
 })();
