@@ -1,22 +1,24 @@
 #!/bin/bash
-# Reconstroi app.js e gantt.js a partir das partes base64 no repositorio
 set -e
 cd "$(dirname "$0")"
+echo "==> Montando app.js e gantt.js a partir das partes b64"
 python3 - <<'PY'
 from pathlib import Path
-import base64, glob, sys
+import base64
 
-def assemble(prefix, outname):
-    parts = sorted(glob.glob(f"{prefix}.part*.b64"))
+def assemble(prefix, out):
+    parts = sorted(Path(".").glob(f"{prefix}.part*.b64"))
     if not parts:
-        print(f"ERRO: nenhuma parte {prefix}.part*.b64", file=sys.stderr)
-        sys.exit(1)
-    data = "".join(Path(p).read_text().strip() for p in parts)
-    Path(outname).write_bytes(base64.b64decode(data))
-    print(f"OK {outname} ({Path(outname).stat().st_size} bytes) de {len(parts)} partes")
+        print(f"ERRO: nenhuma parte {prefix}.part*.b64")
+        return False
+    data = b"".join(base64.b64decode(p.read_text().strip()) for p in parts)
+    Path(out).write_bytes(data)
+    print(f"OK {out} ({len(data)} bytes) de {len(parts)} partes")
+    return True
 
-assemble("app.js", "app.js")
-if glob.glob("gantt.js.part*.b64"):
-    assemble("gantt.js", "gantt.js")
-print("Pronto. Hard-refresh no browser (Ctrl+F5).")
+ok1 = assemble("app.js", "app.js")
+ok2 = assemble("gantt.js", "gantt.js")
+if not (ok1 and ok2):
+    raise SystemExit(1)
+print("Pronto. Reinicie o proxy se estiver rodando.")
 PY
