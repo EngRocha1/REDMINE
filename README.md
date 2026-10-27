@@ -1,33 +1,36 @@
 # REDMINE — Dashboard + Gantt HEMOPI
 
-Aplicação local (proxy CORS) para o Redmine do projeto HEMOPI.
+Dashboard executivo e Gantt/Kanban para Redmine (projeto HEMOPI 2.0).
 
-## Gantt (atualizado 2026-10-16)
+**Repo:** https://github.com/EngRocha1/REDMINE  
+**Docs:** [ARCHITECTURE.md](./ARCHITECTURE.md)
 
-Arquivo **monolítico** `gantt.js` (~43 KB) no repositório — **sem stub**.
-
-Recursos:
-- Filtros de sprint ocultam colunas no calendário
-- Kanban com todas as colunas do filtro de status visíveis (mesmo vazias)
-- Ícones 👁 (descrição), status e 👤 (responsável) nas barras
-- Nome do responsável na parte inferior da barra
-- Modais com arrastar, redimensionar e fullscreen
-- Select-all / limpar por grupo de filtros
-
-## Rodar local (Git Bash)
+## Uso local
 
 ```bash
-cd /d/REDMINE
-git pull origin main
 npm install
 npm run proxy
 ```
 
-Abra: **http://localhost:8787/gantt.html**  
-Hard refresh: **Ctrl+Shift+R**
+| Tela | URL |
+|------|-----|
+| Dashboard | http://localhost:8787/ |
+| Gantt | http://localhost:8787/gantt.html |
 
-> O proxy (`proxy-server.js` na porta 8787) é necessário por CORS. GitHub Pages sozinho não substitui o proxy para a API Redmine.
+Login: e-mail + URL do Redmine + API Key + ID do projeto. Credenciais **só em cookies**.
 
-## Login
+## Arquivos de produção
 
-Cookies locais: URL do Redmine, API key, projeto. Nada de senha no repositório.
+- `index.html` + `app.js` + `styles.css` — dashboard
+- `gantt.html` + `gantt.js` + `gantt.css` — Gantt e Kanban
+- `proxy-server.js` — proxy CORS
+- `gantt-hotfix.js` — **deprecated** (stub; não usar)
+
+## Kanban DnD
+
+Arrastar card entre colunas: atualização otimista no DOM + `PUT /issues/{id}.json` via `api()`.  
+Lógica **somente** em `gantt.js` (sem listeners paralelos).
+
+## Segurança
+
+Nenhuma API key no código ou no repositório.
