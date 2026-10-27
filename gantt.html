@@ -76,7 +76,7 @@
         </div>
         <div class="menu-checks" id="menuStatusChecks"></div>
       </div>
-            <div class="filter-box" data-filter="assignee">
+      <div class="filter-box" data-filter="assignee">
         <div class="filter-box-title">
           <span>Desenvolvedor</span>
           <span class="filter-box-actions">
@@ -92,7 +92,7 @@
     </div>
   </div>
 
-  <div class="gantt-hint muted">Arrastar grava <strong>versão + datas</strong> · Backlog remove sprint · ☰ status · 👤 responsável · 👁 descrição da task · 👁 no cabeçalho abre Kanban</div>
+  <div class="gantt-hint muted">Arrastar grava <strong>versão + datas</strong> · Backlog remove sprint · ☰ status · 👤 responsável · 👁 descrição · <strong>+</strong> na sprint cria task · 👁 no cabeçalho abre Kanban</div>
 
   <div class="gantt-wrap" id="ganttWrap">
     <div class="gantt-left">
@@ -109,7 +109,6 @@
   <div id="statusMenu" class="status-menu hidden"></div>
   <div id="assigneeMenu" class="status-menu assignee-menu hidden"></div>
 
-  <!-- Kanban modal (universal: drag / resize / fullscreen) -->
   <div id="kanbanModal" class="modal hidden">
     <div class="modal-backdrop" id="kanbanBackdrop"></div>
     <div class="modal-card" id="kanbanCard">
@@ -126,7 +125,6 @@
     </div>
   </div>
 
-  <!-- Issue detail modal (olhinho da task) -->
   <div id="issueModal" class="modal hidden">
     <div class="modal-backdrop" id="issueBackdrop"></div>
     <div class="modal-card" id="issueCard">
@@ -140,6 +138,41 @@
       <div class="issue-meta" id="issueMeta"></div>
       <div class="issue-body" id="issueBody">Carregando…</div>
       <div class="modal-resize" title="Redimensionar"></div>
+    </div>
+  </div>
+
+  <div id="newTaskModal" class="modal hidden">
+    <div class="modal-backdrop" id="newTaskBackdrop"></div>
+    <div class="modal-card">
+      <div class="modal-head">
+        <h2>Nova task</h2>
+        <div class="modal-head-actions">
+          <button type="button" class="btn ghost" id="ntCancel" title="Fechar">✕</button>
+        </div>
+      </div>
+      <p class="muted modal-sub">Sprint / coluna: <strong id="ntSprintLabel">—</strong></p>
+      <div class="nt-form">
+        <div>
+          <label for="ntProject">Projeto / subfilho</label>
+          <select id="ntProject"></select>
+        </div>
+        <div>
+          <label for="ntSubject">Título</label>
+          <input id="ntSubject" type="text" maxlength="255" placeholder="[HEMOPI][M0x][US] …" />
+        </div>
+        <div>
+          <label for="ntAssignee">Responsável</label>
+          <select id="ntAssignee"></select>
+        </div>
+        <div>
+          <label for="ntDescription">Descrição detalhada</label>
+          <textarea id="ntDescription" placeholder="Escopo, fluxo, critérios de aceite…"></textarea>
+        </div>
+        <div class="nt-actions">
+          <button type="button" class="btn ghost" id="ntCancel2">Cancelar</button>
+          <button type="button" class="btn primary" id="ntSave">Criar no Redmine</button>
+        </div>
+      </div>
     </div>
   </div>
 
