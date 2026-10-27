@@ -1,0 +1,38 @@
+name: Assemble app.js and gantt.js
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'app.js.part*.b64'
+      - 'gantt.js.part*.b64'
+      - 'INSTALL_FROM_PARTS.sh'
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assemble from base64 parts
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64
+          def assemble(prefix, out):
+              parts = sorted(Path('.').glob(f'{prefix}.part*.b64'))
+              if not parts:
+                  print(f'skip {prefix}: no parts')
+                  return
+              data = b''.join(base64.b64decode(p.read_text().strip()) for p in parts)
+              Path(out).write_bytes(data)
+              print(f'{out}: {len(data)} bytes from {len(parts)} parts')
+          assemble('app.js', 'app.js')
+          assemble('gantt.js', 'gantt.js')
+          PY
+      - name: Commit assembled files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add app.js gantt.js
+          git diff --staged --quiet || git commit -m "assemble app.js + gantt.js from base64 parts"
+          git push
