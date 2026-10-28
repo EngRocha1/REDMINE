@@ -622,8 +622,24 @@
     if (!v || !v.due_date) return null;
     var due = parseYMD(v.due_date);
     if (!due) return null;
-    /* se não há start_date: assume sprint de até 14 dias (2 semanas) terminando no due */
-    var start = v.start_date ? parseYMD(v.start_date) : addDays(due, -13);
+    var start;
+    if (v.start_date) {
+      start = parseYMD(v.start_date);
+    } else {
+      /* sem start: do dia seguinte à sprint anterior até o due (dinâmico) */
+      start = null;
+      var sorted = versions.slice().filter(function (x) { return x.due_date; }).sort(function (a, b) {
+        return a.due_date < b.due_date ? -1 : 1;
+      });
+      for (var i = 0; i < sorted.length; i++) {
+        if (String(sorted[i].id) === String(v.id) && i > 0) {
+          var prevDue = parseYMD(sorted[i - 1].due_date);
+          if (prevDue) start = addDays(prevDue, 1);
+          break;
+        }
+      }
+      if (!start) start = addDays(due, -4);
+    }
     return { id: v.id, name: v.name, start: start, due: due };
   }
 
@@ -872,7 +888,7 @@
       if (s && (!max || s > max)) max = s;
     });
     versions.forEach(function (v) {
-      if (sel.sprint !== null && sel.sprint.indexOf(v.name) < 0) return;
+      if (sel.sprint !== null && sel.sprint.length && sel.sprint.indexOf(v.name) < 0) return;
       var p = versionPeriod(v);
       if (!p) return;
       if (!min || p.start < min) min = p.start;
@@ -887,101 +903,84 @@
   }
 
 
+
   function versionBands() {
+    /* Dinâmico: só sprints do filtro (ou todas se nenhum chip marcado) */
     var sorted = versions.slice().filter(function (v) { return v.due_date; }).sort(function (a, b) {
-      return a.due_date < b.due_date ? -1 : 1;
+      return a.due_date < b.due_date ? -1 : a.due_date > b.due_date ? 1 : 0;
     });
     if (sel.sprint !== null && sel.sprint.length) {
       sorted = sorted.filter(function (v) { return sel.sprint.indexOf(v.name) >= 0; });
     }
 
-    /* Colunas: backlog + cada dia real do range (opcionalmente só úteis) */
-    var cols = [];
+    function daysInPeriod(start, due) {
+      /* lista de datas (Date) no período, respeitando FN */
+      var out = [];
+      if (!start || !due) return out;
+      var d = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+      var end = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+      while (d <= end) {
+        if (!(hideWeekends && isWeekend(d))) out.push(new Date(d.getTime()));
+        d.setDate(d.getDate() + 1);
+      }
+      return out;
+    }
+
+    var bands = [];
+    var cols = []; /* { date|null, backlog, weekend } */
+    var cursor = 0;
+
+    /* Backlog (se filtro permitir) */
     var includeBacklog = !sel.sprint || !sel.sprint.length || sel.sprint.indexOf("Backlog") >= 0;
     if (includeBacklog) {
       for (var bi = 0; bi < BACKLOG_DAYS; bi++) {
         cols.push({ date: null, backlog: true, weekend: false });
       }
-    }
-
-    /* Calendário contínuo a partir de rangeStart (dayCount dias corridos) */
-    var calDays = Math.max(14, dayCount | 0);
-    for (var day = 0; day < calDays; day++) {
-      var d = addDays(rangeStart, day);
-      if (!d) continue;
-      var we = isWeekend(d);
-      if (hideWeekends && we) continue;
-      cols.push({ date: d, backlog: false, weekend: we });
-    }
-    if (!cols.length) {
-      cols.push({ date: null, backlog: true, weekend: false });
-    }
-
-    /* Bandas de sprint alinhadas às colunas */
-    var bands = [];
-    var i = 0;
-    while (i < cols.length) {
-      var c = cols[i];
-      if (c.backlog) {
-        var j = i;
-        while (j < cols.length && cols[j].backlog) j++;
-        bands.push({ name: "Backlog", from: i, span: j - i, backlog: true, versionId: null, startDay: null });
-        i = j;
-        continue;
-      }
-      /* encontra versão que cobre este dia */
-      var hit = null;
-      for (var vi = 0; vi < sorted.length; vi++) {
-        var p = versionPeriod(sorted[vi]);
-        if (p && c.date >= p.start && c.date <= p.due) { hit = p; break; }
-      }
-      if (!hit) {
-        /* gap / fim de semana spacer visual */
-        var j2 = i + 1;
-        while (j2 < cols.length && !cols[j2].backlog) {
-          var h2 = null;
-          for (var vj = 0; vj < sorted.length; vj++) {
-            var p2 = versionPeriod(sorted[vj]);
-            if (p2 && cols[j2].date >= p2.start && cols[j2].date <= p2.due) { h2 = p2; break; }
-          }
-          if (h2) break;
-          j2++;
-        }
-        bands.push({
-          name: "",
-          from: i,
-          span: j2 - i,
-          backlog: false,
-          versionId: null,
-          startDay: null,
-          spacer: true
-        });
-        i = j2;
-        continue;
-      }
-      var j3 = i + 1;
-      while (j3 < cols.length && !cols[j3].backlog) {
-        var still = false;
-        for (var vk = 0; vk < sorted.length; vk++) {
-          var p3 = versionPeriod(sorted[vk]);
-          if (p3 && p3.name === hit.name && cols[j3].date >= p3.start && cols[j3].date <= p3.due) {
-            still = true;
-            break;
-          }
-        }
-        if (!still) break;
-        j3++;
-      }
       bands.push({
-        name: hit.name,
-        from: i,
-        span: j3 - i,
-        backlog: false,
-        versionId: hit.id,
+        name: "Backlog",
+        from: 0,
+        span: BACKLOG_DAYS,
+        backlog: true,
+        versionId: null,
         startDay: null,
         spacer: false
       });
-      i = j3;
+      cursor = BACKLOG_DAYS;
+    }
+
+    /* Uma banda por sprint filtrada — span = dias reais (úteis se FN) */
+    sorted.forEach(function (v) {
+      var p = versionPeriod(v);
+      if (!p) return;
+      var days = daysInPeriod(p.start, p.due);
+      if (!days.length) {
+        /* fallback: pelo menos 1 coluna no due */
+        days = [p.due];
+        if (hideWeekends && isWeekend(p.due)) {
+          var d = new Date(p.due.getTime());
+          while (isWeekend(d)) d.setDate(d.getDate() - 1);
+          days = [d];
+        }
+      }
+      var from = cursor;
+      days.forEach(function (d) {
+        cols.push({ date: d, backlog: false, weekend: isWeekend(d) });
+      });
+      cursor += days.length;
+      bands.push({
+        name: v.name,
+        from: from,
+        span: days.length,
+        backlog: false,
+        versionId: v.id,
+        startDay: null,
+        spacer: false
+      });
+    });
+
+    if (!cols.length) {
+      cols.push({ date: null, backlog: true, weekend: false });
+      bands.push({ name: "Backlog", from: 0, span: 1, backlog: true, versionId: null, startDay: null, spacer: false });
     }
 
     window.__ganttCols = cols;
