@@ -1002,6 +1002,7 @@
     
     var ROW_H = 240;
     
+
     var ROW_H = 240;
     function isIssueCollapsed(issue) {
       var path = projectPath(issue);
@@ -1013,34 +1014,97 @@
     var visibleIssues = filtered.filter(function (i) { return !isIssueCollapsed(i); });
     window.__ganttVisibleIssues = visibleIssues;
 
-    /* Esquerda: 1 linha por task, mesma altura do card — alinhamento perfeito */
-    var rowsHtml = visibleIssues.map(function (i) {
-      var name = cleanSubject(i.subject || "");
-      var path = projectPath(i);
-      var leaf = path.length ? path[path.length - 1] : null;
-      var tint = leaf ? "neon-p" + neonIndex(leaf.name, 6) : "neon-p0";
-      var proj = leaf ? leaf.name : (i.project && i.project.name) || "";
-      return '<div class="gantt-row-label row-tint ' + tint + '" data-issue="' + i.id + '" title="' + escapeHtml(proj + " · " + name) + '">' +
-        '<div class="rl-id">#' + i.id + '</div>' +
-        '<div class="rl-body">' +
-          '<div class="rl-name">' + escapeHtml(name) + '</div>' +
-          '<div class="rl-proj">' + escapeHtml(proj) + '</div>' +
-        '</div></div>';
-    }).join("");
-    left.innerHTML = '<div class="left-rows" id="leftRows">' + rowsHtml + '</div>';
-    /* clique na label → destaca card */
-    left.querySelectorAll(".gantt-row-label").forEach(function (lab) {
-      lab.onclick = function () {
-        var id = lab.getAttribute("data-issue");
+    /* Sidebar árvore hierárquica recolhível (Portfólio → projetos → módulos → tasks) */
+    function buildIssueTree(list) {
+      var root = { id: "root", name: "Portfólio", children: {}, issues: [] };
+      list.forEach(function (iss) {
+        var path = projectPath(iss);
+        if (!path.length) {
+          root.issues.push(iss);
+          return;
+        }
+        var node = root;
+        path.forEach(function (p) {
+          var id = String(p.id);
+          if (!node.children[id]) {
+            node.children[id] = { id: id, name: p.name || id, children: {}, issues: [] };
+          }
+          node = node.children[id];
+        });
+        node.issues.push(iss);
+      });
+      return root;
+    }
+    function childrenArr(node) {
+      return Object.keys(node.children).map(function (k) { return node.children[k]; })
+        .sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); });
+    }
+    function renderTreeNode(node, depth) {
+      var kids = childrenArr(node);
+      var html = "";
+      kids.forEach(function (ch) {
+        var neon = "neon-p" + neonIndex(ch.name, 6);
+        var open = !collapsedProjects[String(ch.id)];
+        html += '<details data-pid="' + ch.id + '"' + (open ? " open" : "") + ">";
+        html += '<summary class="' + neon + '" title="' + escapeHtml(ch.name) + '">' + escapeHtml(ch.name) + "</summary>";
+        html += '<div class="ux-task-list">';
+        html += renderTreeNode(ch, depth + 1);
+        if (open) {
+          (ch.issues || []).forEach(function (iss) {
+            var title = cleanSubject(iss.subject || "");
+            html +=
+              '<button type="button" class="ux-task-item" data-jump="' + iss.id + '" title="' + escapeHtml(title) + '">' +
+              '<span class="task-id">#' + iss.id + "</span>" +
+              '<span class="task-title">' + escapeHtml(title) + "</span></button>";
+          });
+        }
+        html += "</div></details>";
+      });
+      if (depth === 0 && node.issues && node.issues.length) {
+        html += '<div class="ux-task-list">';
+        node.issues.forEach(function (iss) {
+          var title = cleanSubject(iss.subject || "");
+          html +=
+            '<button type="button" class="ux-task-item" data-jump="' + iss.id + '" title="' + escapeHtml(title) + '">' +
+            '<span class="task-id">#' + iss.id + "</span>" +
+            '<span class="task-title">' + escapeHtml(title) + "</span></button>";
+        });
+        html += "</div>";
+      }
+      return html;
+    }
+    var tree = buildIssueTree(filtered);
+    left.innerHTML =
+      '<div class="ux-sidebar" id="leftRows">' +
+        '<details open data-pid="portfolio">' +
+          '<summary class="neon-p0" title="Portfólio de Projetos">Portfólio de Projetos</summary>' +
+          '<div class="ux-task-list">' + renderTreeNode(tree, 0) + "</div>" +
+        "</details>" +
+      "</div>";
+
+    left.querySelectorAll("details[data-pid]").forEach(function (det) {
+      det.addEventListener("toggle", function () {
+        var pid = det.getAttribute("data-pid");
+        if (!pid || pid === "portfolio") return;
+        if (det.open) delete collapsedProjects[pid];
+        else collapsedProjects[pid] = true;
+        try { localStorage.setItem("hemopi_collapsed_proj", JSON.stringify(collapsedProjects)); } catch (e) {}
+        renderGantt();
+      });
+    });
+    left.querySelectorAll("[data-jump]").forEach(function (btn) {
+      btn.onclick = function () {
+        var id = btn.getAttribute("data-jump");
         var el = document.querySelector('.bar[data-id="' + id + '"]');
         if (el) {
           el.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
           el.style.outline = "2px solid #0052cc";
-          setTimeout(function () { el.style.outline = ""; }, 1200);
+          setTimeout(function () { el.style.outline = ""; }, 1500);
         }
+        left.querySelectorAll(".ux-task-item").forEach(function (x) { x.classList.remove("active"); });
+        btn.classList.add("active");
       };
     });
-
 
 var bands = versionBands();
     var cols = window.__ganttCols || [];
