@@ -135,30 +135,40 @@
           <button type="button" class="btn ghost" id="issueClose" title="Fechar">✕</button>
         </div>
       </div>
-      <div id="issueMeta" class="modal-sub muted"></div>
-      <div id="issueBody" class="issue-body"></div>
+      <div class="issue-meta" id="issueMeta"></div>
+      <div class="issue-body" id="issueBody">Carregando…</div>
       <div class="modal-resize" title="Redimensionar"></div>
     </div>
   </div>
 
+  <!-- Nova task (+) na barra da sprint / backlog -->
   <div id="newTaskModal" class="modal hidden">
     <div class="modal-backdrop" id="newTaskBackdrop"></div>
-    <div class="modal-card" id="newTaskCard">
-      <div class="modal-head modal-drag">
+    <div class="modal-card">
+      <div class="modal-head">
         <h2>Nova task</h2>
         <div class="modal-head-actions">
           <button type="button" class="btn ghost" id="ntCancel" title="Fechar">✕</button>
         </div>
       </div>
+      <p class="muted modal-sub">Sprint / coluna: <strong id="ntSprintLabel">—</strong></p>
       <div class="nt-form">
-        <label for="ntProject">Projeto / subprojeto</label>
-        <select id="ntProject"></select>
-        <label for="ntAssignee">Responsável</label>
-        <select id="ntAssignee"></select>
-        <label for="ntSubject">Título</label>
-        <input id="ntSubject" type="text" placeholder="[M0X][US] …"/>
-        <label for="ntDescription">Descrição detalhada</label>
-        <textarea id="ntDescription" placeholder="Escopo, fluxo, critérios de aceite…"></textarea>
+        <div>
+          <label for="ntProject">Projeto / subfilho</label>
+          <select id="ntProject"></select>
+        </div>
+        <div>
+          <label for="ntSubject">Título</label>
+          <input id="ntSubject" type="text" maxlength="255" placeholder="[HEMOPI][M0x][US] …" />
+        </div>
+        <div>
+          <label for="ntAssignee">Responsável</label>
+          <select id="ntAssignee"></select>
+        </div>
+        <div>
+          <label for="ntDescription">Descrição detalhada</label>
+          <textarea id="ntDescription" placeholder="Escopo, fluxo, critérios de aceite…"></textarea>
+        </div>
         <div class="nt-actions">
           <button type="button" class="btn ghost" id="ntCancel2">Cancelar</button>
           <button type="button" class="btn primary" id="ntSave">Criar no Redmine</button>
@@ -171,5 +181,6 @@
 </div>
 
 <script src="gantt.js"></script>
+<script src="gantt-runtime-fix.js"></script>
 </body>
 </html>
