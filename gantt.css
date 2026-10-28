@@ -875,3 +875,15 @@
 .gantt-row-track{
   background-image:repeating-linear-gradient(90deg,transparent,transparent 35px,rgba(45,58,79,.25) 35px,rgba(45,58,79,.25) 36px);
 }
+
+
+/* ========== emergency: cards sempre visíveis ========== */
+.gantt-row-track{position:relative !important;overflow:visible !important}
+.bar{
+  display:flex !important;
+  visibility:visible !important;
+  opacity:1 !important;
+  z-index:5 !important;
+  pointer-events:auto !important;
+}
+.gantt-body{position:relative}
