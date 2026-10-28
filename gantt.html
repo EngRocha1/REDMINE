@@ -177,7 +177,23 @@
     </div>
   </div>
 
-  <div id="loading" class="loading hidden">Carregando…</div>
+  
+  <!-- Modal comentário (Redmine notes) -->
+  <div id="commentModal" class="comment-modal modal-overlay" aria-hidden="true">
+    <div class="modal-content">
+      <div class="modal-header" id="cmTitle">Adicionar Comentário</div>
+      <div class="modal-subheader" id="cmSubheader">…</div>
+      <div class="modal-body">
+        <textarea id="cmText" placeholder="Digite seu comentário aqui..."></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-cancel" id="cmCancel">Cancelar</button>
+        <button type="button" class="btn btn-submit" id="cmSave">Salvar Comentário</button>
+      </div>
+    </div>
+  </div>
+
+<div id="loading" class="loading hidden">Carregando…</div>
 </div>
 
 <script src="gantt.js"></script>
