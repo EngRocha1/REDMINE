@@ -1248,6 +1248,7 @@ var bands = versionBands();
     dayHtml += "</div>";
 
     head.innerHTML = monthHtml + sprintHtml + dayHtml;
+    bindTimelineHeadActions();
 
     /* FN checkbox */
     var chk = document.getElementById("chkHideWeekends");
@@ -1837,6 +1838,44 @@ var colDates = window.__ganttColDates || [];
     }
   }
 
+
+  /** Delegação única: eye / + task / nova sprint (sobrevive a head.innerHTML) */
+  function bindTimelineHeadActions() {
+    var head = document.getElementById("timeHead");
+    if (!head || head.dataset.boundActions === "1") return;
+    head.dataset.boundActions = "1";
+    head.addEventListener("click", function (e) {
+      var eye = e.target.closest(".eye");
+      if (eye) {
+        e.preventDefault();
+        e.stopPropagation();
+        var vid = eye.getAttribute("data-vid");
+        var vname = eye.getAttribute("data-vname") || "";
+        if (vid) openKanban(+vid, vname);
+        return;
+      }
+      var addTask = e.target.closest(".sprint-task-add");
+      if (addTask) {
+        e.preventDefault();
+        e.stopPropagation();
+        openNewTaskDialog({
+          versionId: addTask.getAttribute("data-vid") ? +addTask.getAttribute("data-vid") : null,
+          versionName: addTask.getAttribute("data-vname") || "Backlog",
+          backlog: addTask.getAttribute("data-backlog") === "1"
+        });
+        return;
+      }
+      var addSprint = e.target.closest(".sprint-add, #btnNewSprint");
+      if (addSprint) {
+        e.preventDefault();
+        e.stopPropagation();
+        openNewSprintDialog();
+        return;
+      }
+    });
+  }
+
+
   function openKanban(versionId, versionName) {
     hide(document.getElementById("statusMenu"));
     hide(document.getElementById("assigneeMenu"));
@@ -2132,7 +2171,8 @@ var colDates = window.__ganttColDates || [];
     var right = document.getElementById("ganttRight");
     var panning = false, sx = 0, sy = 0, sl = 0, st = 0;
     right.addEventListener("mousedown", function (e) {
-      if (e.target.closest(".bar") || e.target.closest(".eye")) return;
+      /* não iniciar pan em botões/controles da timeline */
+      if (e.target.closest("button, a, input, select, textarea, .bar, .eye, .sprint-task-add, .sprint-add, .handle, label")) return;
       panning = true; right.classList.add("panning");
       sx = e.clientX; sy = e.clientY; sl = right.scrollLeft; st = right.scrollTop;
     });
@@ -2651,6 +2691,7 @@ async function fetchIssuesForProject(projectId) {
     console.log("[Gantt] goApp");
     var gv = document.getElementById("ganttView");
     if (gv) show(gv);
+    bindTimelineHeadActions();
     loadAll();
   }
 
