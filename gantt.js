@@ -1047,7 +1047,11 @@
     );
   }
 
+  var __renderingGantt = false;
   function renderGantt() {
+    if (__renderingGantt) return;
+    __renderingGantt = true;
+    try {
     GLOG.step("renderGantt", { filtered: filtered.length });
     computeRange();
     var left = document.getElementById("leftBody");
@@ -1136,12 +1140,14 @@
 
     left.querySelectorAll("details[data-pid]").forEach(function (det) {
       det.addEventListener("toggle", function () {
+        if (__renderingGantt) return;
         var pid = det.getAttribute("data-pid");
         if (!pid || pid === "portfolio") return;
         if (det.open) delete collapsedProjects[pid];
         else collapsedProjects[pid] = true;
         try { localStorage.setItem("hemopi_collapsed_proj", JSON.stringify(collapsedProjects)); } catch (e) {}
-        renderGantt();
+        /* re-render assíncrono para não concorrer com o evento toggle */
+        setTimeout(function () { renderGantt(); }, 0);
       });
     });
     left.querySelectorAll("[data-jump]").forEach(function (btn) {
@@ -1273,7 +1279,8 @@ var bands = versionBands();
     var btnNs = document.getElementById("btnNewSprint");
     if (btnNs) btnNs.onclick = function (e) { e.stopPropagation(); openNewSprintDialog(); };
 
-var rows = "";
+var colDates = window.__ganttColDates || [];
+    var rows = "";
     visibleIssues.forEach(function (issue) {
       var extras = "";
       bands.forEach(function (b) {
@@ -1363,6 +1370,7 @@ var rows = "";
     });
     body.innerHTML = rows;
     bindBarEvents();
+    } finally { __renderingGantt = false; }
   }
 
 
