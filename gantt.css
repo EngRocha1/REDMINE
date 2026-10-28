@@ -386,13 +386,13 @@
 
 
 /* ========== CARD STYLE (Gantt bar + Kanban) — modelo cliente ========== */
-.gantt-row-label{height:100px}
-.gantt-row-track{height:100px}
+.gantt-row-label{height:132px}
+.gantt-row-track{height:132px}
 .bar{
-  position:absolute;top:6px;bottom:6px;height:auto;min-height:88px;
+  position:absolute;top:6px;bottom:6px;height:auto;min-height:118px;
   display:flex;flex-direction:column;
   background:#ffffff;border-left:5px solid #94a3b8;border-radius:6px;
-  padding:8px 10px 8px 10px;box-shadow:0 2px 6px rgba(0,0,0,.18);
+  padding:12px 14px;box-shadow:0 2px 6px rgba(0,0,0,.18);
   box-sizing:border-box;overflow:hidden;z-index:2;min-width:160px;
   color:#172b4d;font-size:.7rem;cursor:grab;user-select:none;
 }
@@ -461,7 +461,7 @@
 .kanban-card{
   display:flex;flex-direction:column;gap:0;
   background:#fff;border-left:5px solid #94a3b8;border-radius:6px;
-  padding:12px;margin-bottom:10px;min-height:160px;
+  padding:16px;margin-bottom:12px;min-height:200px;
   box-shadow:0 2px 4px rgba(0,0,0,.08);cursor:grab;user-select:none;color:#172b4d;
 }
 .kanban-card:hover{transform:translateY(-2px);box-shadow:0 4px 8px rgba(0,0,0,.12)}
@@ -509,3 +509,78 @@
 /* Project filter tree — compact neon (dropdown) */
 .ms-option{font-size:12px}
 .ms-dot{width:3px;height:14px;border-radius:1px;flex-shrink:0}
+
+
+/* ========== Sidebar árvore recolhível (modelo cliente) ========== */
+.gantt-left{background:var(--card);width:340px}
+.gantt-left-head{display:flex;align-items:center;justify-content:space-between;gap:8px;height:auto;min-height:44px;padding:10px 12px}
+.gantt-left-head .lh-task{font-size:.7rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.ux-sidebar{padding:8px 6px 16px 4px;overflow-x:hidden}
+.ux-sidebar details{margin-top:2px}
+.ux-sidebar details details{margin-left:12px;border-left:1px solid var(--border);padding-left:4px}
+.ux-sidebar summary{
+  list-style:none;cursor:pointer;padding:7px 8px;border-radius:6px;
+  display:flex;align-items:center;font-size:13px;color:var(--text);
+  transition:background .15s;user-select:none;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  border-left:3px solid transparent;
+}
+.ux-sidebar summary::-webkit-details-marker{display:none}
+.ux-sidebar summary:hover{background:rgba(148,163,184,.12)}
+.ux-sidebar summary::before{
+  content:"";display:inline-block;flex-shrink:0;width:14px;height:14px;margin-right:6px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='9 18 15 12 9 6'%3E%3C/polyline%3E%3C/svg%3E");
+  background-size:contain;background-repeat:no-repeat;background-position:center;
+  transition:transform .2s;
+}
+.ux-sidebar details[open]>summary::before{transform:rotate(90deg)}
+.ux-sidebar summary.neon-p0{border-left-color:#00e5ff;box-shadow:-2px 0 6px -1px rgba(0,229,255,.35);font-weight:600}
+.ux-sidebar summary.neon-p1{border-left-color:#ff007f;box-shadow:-2px 0 6px -1px rgba(255,0,127,.35);font-weight:600}
+.ux-sidebar summary.neon-p2{border-left-color:#39ff14;box-shadow:-2px 0 6px -1px rgba(57,255,20,.35);font-weight:600}
+.ux-sidebar summary.neon-p3{border-left-color:#ff9900;box-shadow:-2px 0 6px -1px rgba(255,153,0,.35);font-weight:600}
+.ux-sidebar summary.neon-p4{border-left-color:#b200ff;box-shadow:-2px 0 6px -1px rgba(178,0,255,.35);font-weight:500}
+.ux-sidebar summary.neon-p5{border-left-color:#ffcc00;box-shadow:-2px 0 6px -1px rgba(255,204,0,.35);font-weight:500}
+.ux-task-list{margin:2px 0 6px 8px;display:flex;flex-direction:column;gap:2px}
+.ux-task-item{
+  display:flex;align-items:center;gap:8px;padding:8px 8px;text-decoration:none;
+  color:var(--muted);border-radius:6px;font-size:12px;transition:background .15s,color .15s;
+  border:1px solid transparent;cursor:pointer;background:transparent;width:100%;text-align:left;
+}
+.ux-task-item:hover,.ux-task-item.active{background:rgba(59,130,246,.12);color:var(--text);border-color:rgba(59,130,246,.25)}
+.ux-task-item .task-id{
+  font-family:ui-monospace,monospace;font-size:11px;color:var(--accent);
+  background:rgba(59,130,246,.12);padding:2px 6px;border-radius:4px;font-weight:600;flex-shrink:0;
+}
+.ux-task-item .task-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+
+/* Cards mais abertos */
+.bar .bar-header{margin-bottom:8px;gap:8px}
+.bar .bar-task-id{font-size:12px;padding:3px 7px}
+.bar .bar-project-name{font-size:12px;line-height:1.35;-webkit-line-clamp:2}
+.bar .comment-header-row{margin-bottom:4px}
+.bar .comment-title{font-size:11px}
+.bar .add-comment-btn{width:20px;height:20px;font-size:13px}
+.bar .bar-last-comment{font-size:11px;padding:6px 8px;margin-bottom:8px;-webkit-line-clamp:2;min-height:32px;line-height:1.35}
+.bar .bar-dates-row{font-size:11px;gap:12px;margin-bottom:4px}
+.bar .bar-status-row{font-size:11px;margin-bottom:6px}
+.bar .bar-content-bottom{padding-top:8px;margin-top:4px}
+.bar .bar-who{font-size:12px}
+.bar .icon-btn{padding:4px 7px;font-size:12px}
+
+.kanban-card .bar-header{margin-bottom:10px}
+.kanban-card .bar-task-id{font-size:13px}
+.kanban-card .bar-project-name{font-size:14px}
+.kanban-card .bar-last-comment{font-size:12px;padding:8px 10px;margin-bottom:10px;min-height:40px}
+.kanban-card .bar-dates-row{font-size:12px;margin-bottom:6px}
+.kanban-card .bar-status-row{font-size:12px;margin-bottom:8px}
+.kanban-card .bar-who{font-size:13px}
+
+/* Light theme gantt */
+[data-theme="light"] .gantt-wrap{background:var(--card);border-color:var(--border)}
+[data-theme="light"] .gantt-left{background:#fff}
+[data-theme="light"] .filter-box{background:#f4f5f7;border-color:var(--border)}
+[data-theme="light"] .gantt-row-track{background-image:repeating-linear-gradient(90deg,transparent,transparent 27px,rgba(9,30,66,.08) 27px,rgba(9,30,66,.08) 28px)}
+[data-theme="light"] .bar{box-shadow:0 2px 6px rgba(9,30,66,.12)}
+[data-theme="light"] .ux-sidebar summary:hover{background:#f4f5f7}
+[data-theme="light"] .ux-task-item:hover,[data-theme="light"] .ux-task-item.active{background:#e9f2ff}
+[data-theme="light"] .day-band,[data-theme="light"] .sprint-band{color:var(--muted)}
