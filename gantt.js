@@ -51,6 +51,11 @@
   let allProjects = []; /* árvore plana do Redmine */
   let rangeStart = null, dayCount = 0, filtered = [];
   let sel = { scope: ["all"], sprint: null, mod: null, status: null, projects: null, assignee: null };
+  let collapsedProjects = {};
+  try {
+    collapsedProjects = JSON.parse(localStorage.getItem("hemopi_collapsed_proj") || "{}") || {};
+  } catch (e) { collapsedProjects = {}; }
+
   (function restoreSharedFilters() {
     var sf = loadSharedFilters();
     if (sf.projects && sf.projects.length) {
@@ -946,54 +951,109 @@
     var body = document.getElementById("timeBody");
     var baseUrl = getCookie(C_URL).replace(/\/$/, "");
 
-    var ROW_H = 100;
-    var paths = filtered.map(projectPath);
-    var maxDepth = 0;
-    paths.forEach(function (p) { if (p.length > maxDepth) maxDepth = p.length; });
-    var railsHtml = "";
-    for (var level = 0; level < maxDepth; level++) {
-      var runStart = 0;
-      while (runStart < filtered.length) {
-        var node = paths[runStart][level];
-        var key = node ? String(node.id) : "";
-        var runEnd = runStart + 1;
-        while (runEnd < filtered.length) {
-          var same = true;
-          for (var L = 0; L <= level; L++) {
-            var a = paths[runStart][L] ? String(paths[runStart][L].id) : "";
-            var b = paths[runEnd][L] ? String(paths[runEnd][L].id) : "";
-            if (a !== b) { same = false; break; }
-          }
-          if (!same) break;
-          runEnd++;
-        }
-        if (node && key) {
-          var top = runStart * ROW_H;
-          var h = (runEnd - runStart) * ROW_H;
-          var neon = "neon-p" + neonIndex(node.name, 6);
-          railsHtml +=
-            '<div class="h-rail level-' + level + " " + neon + '" style="top:' + top + "px;height:" + h + "px;left:" + (level * 22) + 'px" title="' + escapeHtml(node.name) + '">' +
-            '<span class="h-rail-txt">' + escapeHtml(node.name) + "</span></div>";
-        }
-        runStart = runEnd;
+    var ROW_H = 132;
+    
+    var ROW_H = 132;
+    /* Issues visíveis: esconde filhos de ramos recolhidos na sidebar */
+    function isIssueCollapsed(issue) {
+      var path = projectPath(issue);
+      for (var ci = 0; ci < path.length; ci++) {
+        if (path[ci] && collapsedProjects[String(path[ci].id)]) return true;
       }
+      return false;
     }
-    var padLeft = Math.max(0, maxDepth * 22);
-    var rowsHtml = filtered.map(function (i, idx) {
-      var name = cleanSubject(i.subject);
-      var leaf = paths[idx].length ? paths[idx][paths[idx].length - 1] : null;
-      var tint = leaf ? "neon-p" + neonIndex(leaf.name, 6) : "neon-p0";
-      return '<div class="gantt-row-label row-tint ' + tint + '" title="' + escapeHtml(projectLabel(i) + " · " + name) + '">' +
-        '<a href="' + baseUrl + "/issues/" + i.id + '" target="_blank">#' + i.id + "</a>" +
-        '<span class="name">' + escapeHtml(name) + "</span></div>";
-    }).join("");
-    left.innerHTML =
-      '<div class="left-hier">' +
-        '<div class="left-hier-rails">' + railsHtml + "</div>" +
-        '<div class="left-hier-rows" style="padding-left:' + padLeft + 'px">' + rowsHtml + "</div>" +
-      "</div>";
+    var visibleIssues = filtered.filter(function (i) { return !isIssueCollapsed(i); });
+    window.__ganttVisibleIssues = visibleIssues;
 
-    var bands = versionBands();
+    /* Árvore hierárquica (details/summary) a partir das issues filtradas */
+    function buildIssueTree(list) {
+      var root = { id: "root", name: "Portfólio", children: {}, issues: [] };
+      list.forEach(function (iss) {
+        var path = projectPath(iss);
+        if (!path.length) {
+          root.issues.push(iss);
+          return;
+        }
+        var node = root;
+        path.forEach(function (p) {
+          var id = String(p.id);
+          if (!node.children[id]) {
+            node.children[id] = { id: id, name: p.name || id, children: {}, issues: [] };
+          }
+          node = node.children[id];
+        });
+        node.issues.push(iss);
+      });
+      return root;
+    }
+    function childrenArr(node) {
+      return Object.keys(node.children).map(function (k) { return node.children[k]; })
+        .sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); });
+    }
+    function renderTreeNode(node, depth) {
+      var kids = childrenArr(node);
+      var html = "";
+      kids.forEach(function (ch) {
+        var neon = "neon-p" + neonIndex(ch.name, 6);
+        var open = !collapsedProjects[String(ch.id)];
+        html += "<details data-pid=\"" + ch.id + "\"" + (open ? " open" : "") + ">";
+        html += "<summary class=\"" + neon + "\" title=\"" + escapeHtml(ch.name) + "\">" + escapeHtml(ch.name) + "</summary>";
+        html += '<div class="ux-task-list">';
+        html += renderTreeNode(ch, depth + 1);
+        (ch.issues || []).forEach(function (iss) {
+          if (isIssueCollapsed(iss) && collapsedProjects[String(ch.id)]) return;
+          if (collapsedProjects[String(ch.id)]) return;
+          var title = cleanSubject(iss.subject || "");
+          html += '<button type="button" class="ux-task-item" data-jump="' + iss.id + '" title="' + escapeHtml(title) + '">' +
+            '<span class="task-id">#' + iss.id + '</span>' +
+            '<span class="task-title">' + escapeHtml(title) + "</span></button>";
+        });
+        html += "</div></details>";
+      });
+      if (depth === 0 && node.issues && node.issues.length) {
+        html += '<div class="ux-task-list">';
+        node.issues.forEach(function (iss) {
+          var title = cleanSubject(iss.subject || "");
+          html += '<button type="button" class="ux-task-item" data-jump="' + iss.id + '" title="' + escapeHtml(title) + '">' +
+            '<span class="task-id">#' + iss.id + '</span>' +
+            '<span class="task-title">' + escapeHtml(title) + "</span></button>";
+        });
+        html += "</div>";
+      }
+      return html;
+    }
+    var tree = buildIssueTree(filtered);
+    var treeHtml = '<div class="ux-sidebar">' +
+      '<details open data-pid="portfolio">' +
+        '<summary class="neon-p0" title="Portfólio de Projetos">Portfólio de Projetos</summary>' +
+        '<div class="ux-task-list">' + renderTreeNode(tree, 0) + "</div>" +
+      "</details></div>";
+    left.innerHTML = treeHtml;
+    left.querySelectorAll("details[data-pid]").forEach(function (det) {
+      det.addEventListener("toggle", function () {
+        var pid = det.getAttribute("data-pid");
+        if (!pid || pid === "portfolio") return;
+        if (det.open) delete collapsedProjects[pid];
+        else collapsedProjects[pid] = true;
+        try { localStorage.setItem("hemopi_collapsed_proj", JSON.stringify(collapsedProjects)); } catch (e) {}
+        renderGantt();
+      });
+    });
+    left.querySelectorAll("[data-jump]").forEach(function (btn) {
+      btn.onclick = function () {
+        var id = btn.getAttribute("data-jump");
+        var el = document.querySelector('.bar[data-id="' + id + '"]');
+        if (el) {
+          el.scrollIntoView({ block: "center", inline: "center", behavior: "smooth" });
+          el.style.outline = "2px solid #0052cc";
+          setTimeout(function () { el.style.outline = ""; }, 1500);
+        }
+        left.querySelectorAll(".ux-task-item").forEach(function (x) { x.classList.remove("active"); });
+        btn.classList.add("active");
+      };
+    });
+
+var bands = versionBands();
     var visualDays = window.__ganttVisualDays || dayCount;
     var sprintHtml = '<div class="sprint-band" style="width:' + (visualDays * DAY_W + 36) + 'px">';
     bands.forEach(function (b) {
@@ -1058,7 +1118,7 @@
     if (btnNs) btnNs.onclick = function (e) { e.stopPropagation(); openNewSprintDialog(); };
 
 var rows = "";
-    filtered.forEach(function (issue) {
+    visibleIssues.forEach(function (issue) {
       var extras = "";
       bands.forEach(function (b) {
         if (b.backlog) extras += '<div class="bl-zone" style="left:' + b.from * DAY_W + 'px;width:' + b.span * DAY_W + 'px"></div>';
@@ -2276,6 +2336,30 @@ async function fetchIssuesForProject(projectId) {
   }
 
   /** Sem login próprio: usa cookies do dashboard; se faltar, volta para index.html */
+  
+  function applyTheme(theme) {
+    var t = theme === "light" ? "light" : "dark";
+    if (t === "light") document.documentElement.setAttribute("data-theme", "light");
+    else document.documentElement.removeAttribute("data-theme");
+    try { localStorage.setItem("hemopi_theme", t); } catch (e) {}
+    var b = document.getElementById("btnTheme");
+    if (b) {
+      b.textContent = t === "light" ? "🌙" : "☀️";
+      b.title = t === "light" ? "Modo escuro" : "Modo claro";
+    }
+  }
+  function initTheme() {
+    var t = "dark";
+    try { t = localStorage.getItem("hemopi_theme") || "dark"; } catch (e) {}
+    applyTheme(t);
+    var b = document.getElementById("btnTheme");
+    if (b) b.onclick = function () {
+      var cur = "dark";
+      try { cur = localStorage.getItem("hemopi_theme") || "dark"; } catch (e) {}
+      applyTheme(cur === "light" ? "dark" : "light");
+    };
+  }
+
   function goLogin() {
     console.log("[Gantt] sem sessão → index.html");
     window.location.href = "index.html";
