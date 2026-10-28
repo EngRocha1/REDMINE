@@ -625,7 +625,7 @@
     el.innerHTML = items.map(function (it) {
       const val = typeof it === "string" ? it : it.v;
       const lab = typeof it === "string" ? it : it.l;
-      const on = selectedSet === null || selectedSet.has(val);
+      const on = selectedSet !== null && selectedSet.has(val); /* vazio por default */
       return '<button type="button" class="chip' + (on ? " on" : "") + '" data-k="' + key + '" data-v="' + val + '">' + lab + "</button>";
     }).join("");
     el.querySelectorAll(".chip").forEach(function (btn) {
@@ -642,9 +642,11 @@
           }
         } else {
           const allVals = items.map(function (x) { return typeof x === "string" ? x : x.v; });
-          var set = sel[k] === null ? new Set(allVals) : new Set(sel[k]);
-          if (set.has(v)) set.delete(v); else set.add(v);
-          if (set.size === 0 || set.size === allVals.length) sel[k] = null;
+          /* null / vazio = nenhum selecionado (mostra tudo no Gantt) */
+          var set = (sel[k] === null || !sel[k] || !sel[k].length) ? new Set() : new Set(sel[k].map(String));
+          var vs = String(v);
+          if (set.has(vs)) set.delete(vs); else set.add(vs);
+          if (set.size === 0) sel[k] = null; /* nenhum chip = sem restrição */
           else sel[k] = Array.from(set);
           if (k === "assignee" || k === "mod") {
             saveSharedFilters(k === "assignee" ? { assignee: sel.assignee } : { mod: sel.mod });
@@ -801,7 +803,7 @@
         if (!sel.projects.has(pid) && !sel.projects.has(String(pid))) return false;
       }
       if (sel.scope.indexOf("all") < 0 && sel.scope.indexOf(getScope(i)) < 0) return false;
-      if (sel.sprint !== null && sel.sprint.indexOf(sprintName(i)) < 0) return false;
+      if (sel.sprint !== null && sel.sprint.length && sel.sprint.indexOf(sprintName(i)) < 0) return false;
       /* módulo dinâmico: id de projeto filho (ou ancestral na path) */
       if (sel.mod !== null) {
         var path = projectPath(i);
@@ -820,7 +822,7 @@
         });
         if (!ok) return false;
       }
-      if (sel.assignee !== null) {
+      if (sel.assignee !== null && sel.assignee.length) {
         var aid = i.assigned_to && i.assigned_to.id;
         var wantNone = sel.assignee.indexOf("none") >= 0 || sel.assignee.indexOf(null) >= 0;
         var matchId = aid != null && (sel.assignee.indexOf(aid) >= 0 || sel.assignee.indexOf(String(aid)) >= 0);
@@ -1674,7 +1676,7 @@ var rows = "";
         if (!hit) return false;
       }
       /* desenvolvedor */
-      if (sel.assignee !== null) {
+      if (sel.assignee !== null && sel.assignee.length) {
         var aid = i.assigned_to && i.assigned_to.id;
         var wantNone = sel.assignee.indexOf("none") >= 0 || sel.assignee.indexOf(null) >= 0;
         var matchId = aid != null && (sel.assignee.indexOf(aid) >= 0 || sel.assignee.indexOf(String(aid)) >= 0);
@@ -1846,14 +1848,16 @@ var rows = "";
   document.getElementById("issueClose").onclick = function () { hide(document.getElementById("issueModal")); };
   document.getElementById("issueBackdrop").onclick = function () { hide(document.getElementById("issueModal")); };
 
-  /* Filter group: select all / clear */
-  document.querySelectorAll(".flt-act").forEach(function (btn) {
+  /* Filter group: select all / clear (ignora box-toggle) */
+  document.querySelectorAll(".flt-act[data-act]").forEach(function (btn) {
     btn.addEventListener("click", function (e) {
       e.stopPropagation();
+      if (btn.classList.contains("box-toggle")) return;
       var box = btn.closest(".filter-box");
       if (!box) return;
       var key = box.dataset.filter;
       var act = btn.dataset.act;
+      if (!act) return;
       if (key === "menuStatus") {
         var inputs = document.querySelectorAll("#menuStatusChecks input");
         inputs.forEach(function (inp) {
@@ -1877,12 +1881,24 @@ var rows = "";
         applyFilters();
         return;
       }
-      /* sprint / mod / status: null = all selected */
+      if (key === "mod") {
+        /* checkboxes de projeto/módulo */
+        box.querySelectorAll('input[type="checkbox"]').forEach(function (cb) {
+          cb.checked = act === "all";
+        });
+        /* projAll / projNone se existirem */
+        var pa = document.getElementById(act === "all" ? "projAll" : "projNone");
+        if (pa) pa.click();
+        return;
+      }
+      /* sprint / status / assignee: all = seleciona todos os chips; none = vazio (sem restrição visual off) */
       if (act === "all") {
-        sel[key] = null;
+        var chips = box.querySelectorAll(".chip");
+        var vals = [];
+        chips.forEach(function (c) { if (c.dataset.v) vals.push(c.dataset.v); });
+        sel[key] = vals.length ? vals : null;
       } else {
-        /* keep one item so filter doesn't go empty oddly — use empty set meaning none */
-        sel[key] = [];
+        sel[key] = null; /* limpo = chips off, sem filtro */
       }
       fillChips();
       applyFilters();
@@ -1905,9 +1921,8 @@ var rows = "";
   var ntBackdrop = document.getElementById("newTaskBackdrop");
   if (ntBackdrop) ntBackdrop.onclick = function () { hide(document.getElementById("newTaskModal")); };
 
-  document.getElementById("btnToggleFilters").onclick = function () {
-    document.getElementById("filterPanel").classList.toggle("collapsed");
-  };
+  /* btnToggleFilters: ver initFilterPanelUX */
+
 
   (function bindPan() {
     var right = document.getElementById("ganttRight");
@@ -2289,6 +2304,127 @@ async function fetchIssuesForProject(projectId) {
       b.title = t === "light" ? "Modo escuro" : "Modo claro";
     }
   }
+  
+  function initFilterPanelUX() {
+    var btnToggle = document.getElementById("btnToggleFilters");
+    var filterBody = document.getElementById("filterBody");
+    var panel = document.getElementById("filterPanel");
+    if (!btnToggle || !filterBody) return;
+
+    /* Mobile: painel fechado por default */
+    if (window.innerWidth < 1024) {
+      btnToggle.setAttribute("aria-expanded", "false");
+      btnToggle.classList.add("closed");
+      filterBody.classList.add("hidden");
+    }
+
+    btnToggle.onclick = function () {
+      var open = btnToggle.getAttribute("aria-expanded") === "true";
+      btnToggle.setAttribute("aria-expanded", open ? "false" : "true");
+      btnToggle.classList.toggle("closed", open);
+      filterBody.classList.toggle("hidden", open);
+      if (panel) panel.classList.toggle("collapsed", open);
+    };
+
+    /* Minimizar/expandir em sincronia na mesma linha (offsetTop) */
+    document.querySelectorAll(".box-toggle").forEach(function (btn) {
+      btn.onclick = function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var currentBox = btn.closest(".filter-box");
+        if (!currentBox) return;
+        var isMin = currentBox.classList.contains("minimized");
+        var rowTop = currentBox.offsetTop;
+        document.querySelectorAll(".filter-box").forEach(function (box) {
+          if (box.offsetTop !== rowTop) return;
+          if (isMin) {
+            box.classList.remove("minimized");
+            box.classList.add("expanded");
+          } else {
+            box.classList.add("minimized");
+            box.classList.remove("expanded");
+          }
+        });
+      };
+    });
+
+    /* data-act all/none por caixa — delegação */
+    document.querySelectorAll(".filter-box").forEach(function (box) {
+      var btnAll = box.querySelector('[data-act="all"]');
+      var btnNone = box.querySelector('[data-act="none"]');
+      var key = box.getAttribute("data-filter");
+      if (btnAll) {
+        btnAll.onclick = function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (key === "menuStatus") {
+            box.querySelectorAll('input[type="checkbox"]').forEach(function (cb) {
+              cb.checked = true;
+              if (cb.dataset.sname && menuVisible) menuVisible.add(cb.dataset.sname);
+            });
+            return;
+          }
+          if (key === "mod") {
+            box.querySelectorAll('input[type="checkbox"]').forEach(function (cb) { cb.checked = true; });
+            /* dispara lógica existente se houver */
+            var ev = box.querySelector('[data-act="all"]');
+            return;
+          }
+          /* chips: seleciona todos os valores e aplica */
+          var chips = box.querySelectorAll(".chip");
+          var vals = [];
+          chips.forEach(function (c) { if (c.dataset.v) vals.push(c.dataset.v); });
+          if (key === "sprint") sel.sprint = vals.length ? vals : null;
+          else if (key === "status") sel.status = vals.length ? vals : null;
+          else if (key === "assignee") sel.assignee = vals.length ? vals : null;
+          fillChips();
+          applyFilters();
+        };
+      }
+      if (btnNone) {
+        btnNone.onclick = function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (key === "menuStatus") {
+            box.querySelectorAll('input[type="checkbox"]').forEach(function (cb) {
+              cb.checked = false;
+              if (cb.dataset.sname && menuVisible) menuVisible.delete(cb.dataset.sname);
+            });
+            return;
+          }
+          if (key === "sprint") sel.sprint = null;
+          else if (key === "status") sel.status = null;
+          else if (key === "assignee") sel.assignee = null;
+          else if (key === "mod") {
+            box.querySelectorAll('input[type="checkbox"]').forEach(function (cb) { cb.checked = false; });
+          }
+          fillChips();
+          applyFilters();
+        };
+      }
+    });
+
+    var btnClear = document.getElementById("btnClear");
+    if (btnClear) {
+      btnClear.onclick = function () {
+        sel.sprint = null;
+        sel.status = null;
+        sel.assignee = null;
+        sel.mod = null;
+        sel.scope = ["all"];
+        try { clearSharedFilters(); } catch (err) {}
+        document.querySelectorAll(".filter-box input[type='checkbox']").forEach(function (cb) {
+          if (cb.closest('[data-filter="menuStatus"]')) return; /* menu status independente */
+          cb.checked = false;
+        });
+        fillChips();
+        applyFilters();
+        toast("Filtros limpos");
+      };
+    }
+  }
+
+
   function initTheme() {
     var t = "dark";
     try { t = localStorage.getItem("hemopi_theme") || "dark"; } catch (e) {}
