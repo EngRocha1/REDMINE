@@ -28,9 +28,9 @@
   async function allPages(pathBase) {
     var out = [], offset = 0;
     for (;;) {
-      var sep = pathBase.indexOf("?") >= 0 ? "&" : "?";
-      var d = await api("GET", pathBase + sep + "limit=100&offset=" + offset);
-      var batch = d.issues || d.projects || d.versions || [];
+      var d = await api("GET", pathBase + (pathBase.indexOf("?") >= 0 ? "&" : "?") + "limit=100&offset=" + offset);
+      var key = d.issues ? "issues" : d.projects ? "projects" : d.versions ? "versions" : null;
+      var batch = key ? d[key] || [] : [];
       out = out.concat(batch);
       if (batch.length < 100) break;
       offset += 100;
