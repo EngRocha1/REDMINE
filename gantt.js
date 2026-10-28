@@ -44,7 +44,7 @@
   function clearSharedFilters() {
     try { localStorage.removeItem(LS_FILTERS); } catch (e) {}
   }
-  const DAY_W = 48, BACKLOG_DAYS = 7;
+  const DAY_W = 36, BACKLOG_DAYS = 3;
   const DEFAULT_MENU_HIDE = ["Desenvolvimento: Em Deploy", "Fechada"];
 
   let allIssues = [], versions = [], statuses = [], projectMembers = [];
@@ -76,6 +76,13 @@
   })();
   /* projects: null = todos sob a raiz; Set de ids selecionados */
   let menuVisible = null;
+  let hideWeekends = true;
+  try {
+    var hw = localStorage.getItem("hemopi_hide_weekends");
+    if (hw === "0") hideWeekends = false;
+    else if (hw === "1") hideWeekends = true;
+  } catch (e) {}
+
 
   function setCookie(n, v, days) {
     const d = new Date(); d.setTime(d.getTime() + (days || 30) * 864e5);
@@ -533,6 +540,10 @@
   }
 
   function isBacklogIssue(i) {
+    var st = ((i.status && i.status.name) || "").toLowerCase();
+    if (st.indexOf("nova") >= 0 && st.indexOf("desenvolvimento") < 0) return true;
+    if (st === "nova") return true;
+    if (!i.start_date && !i.due_date) return true;
     return sprintName(i) === "Backlog";
   }
 
@@ -870,79 +881,107 @@
     dayCount = BACKLOG_DAYS + Math.max(14, Math.round((rangeEnd - rangeStart) / 864e5) + 1);
   }
 
+
   function versionBands() {
     var sorted = versions.slice().filter(function (v) { return v.due_date; }).sort(function (a, b) {
       return a.due_date < b.due_date ? -1 : 1;
     });
-    if (sel.sprint !== null) {
+    if (sel.sprint !== null && sel.sprint.length) {
       sorted = sorted.filter(function (v) { return sel.sprint.indexOf(v.name) >= 0; });
     }
 
-    // raw segments in real calendar days (0 = first day after backlog offset)
-    var raw = [];
-    if (sel.sprint === null || sel.sprint.indexOf("Backlog") >= 0) {
-      raw.push({ name: "Backlog", span: BACKLOG_DAYS, backlog: true, versionId: null, startDay: null });
+    /* Colunas: backlog + cada dia real do range (opcionalmente só úteis) */
+    var cols = [];
+    var includeBacklog = !sel.sprint || !sel.sprint.length || sel.sprint.indexOf("Backlog") >= 0;
+    if (includeBacklog) {
+      for (var bi = 0; bi < BACKLOG_DAYS; bi++) {
+        cols.push({ date: null, backlog: true, weekend: false });
+      }
     }
 
-    var day = 0;
-    var maxReal = Math.max(0, dayCount - BACKLOG_DAYS);
-    while (day < maxReal) {
+    var maxReal = Math.max(0, dayCount - (includeBacklog ? 0 : 0));
+    /* rangeStart..rangeStart+dayCount covers the calendar */
+    for (var day = 0; day < dayCount; day++) {
       var d = addDays(rangeStart, day);
+      var we = isWeekend(d);
+      if (hideWeekends && we) continue;
+      cols.push({ date: d, backlog: false, weekend: we });
+    }
+    if (!cols.length) {
+      cols.push({ date: null, backlog: true, weekend: false });
+    }
+
+    /* Bandas de sprint alinhadas às colunas */
+    var bands = [];
+    var i = 0;
+    while (i < cols.length) {
+      var c = cols[i];
+      if (c.backlog) {
+        var j = i;
+        while (j < cols.length && cols[j].backlog) j++;
+        bands.push({ name: "Backlog", from: i, span: j - i, backlog: true, versionId: null, startDay: null });
+        i = j;
+        continue;
+      }
+      /* encontra versão que cobre este dia */
       var hit = null;
       for (var vi = 0; vi < sorted.length; vi++) {
         var p = versionPeriod(sorted[vi]);
-        if (p && d >= p.start && d <= p.due) { hit = p; break; }
+        if (p && c.date >= p.start && c.date <= p.due) { hit = p; break; }
       }
       if (!hit) {
-        if (sel.sprint === null) {
-          var j0 = day + 1;
-          while (j0 < maxReal) {
-            var d0 = addDays(rangeStart, j0);
-            var h0 = null;
-            for (var k = 0; k < sorted.length; k++) {
-              var p0 = versionPeriod(sorted[k]);
-              if (p0 && d0 >= p0.start && d0 <= p0.due) { h0 = p0; break; }
-            }
-            if (h0) break;
-            j0++;
+        /* gap / fim de semana spacer visual */
+        var j2 = i + 1;
+        while (j2 < cols.length && !cols[j2].backlog) {
+          var h2 = null;
+          for (var vj = 0; vj < sorted.length; vj++) {
+            var p2 = versionPeriod(sorted[vj]);
+            if (p2 && cols[j2].date >= p2.start && cols[j2].date <= p2.due) { h2 = p2; break; }
           }
-          raw.push({ name: "—", span: j0 - day, backlog: false, versionId: null, startDay: day });
-          day = j0;
-        } else {
-          day++;
+          if (h2) break;
+          j2++;
         }
+        bands.push({
+          name: "",
+          from: i,
+          span: j2 - i,
+          backlog: false,
+          versionId: null,
+          startDay: null,
+          spacer: true
+        });
+        i = j2;
         continue;
       }
-      var j = day + 1;
-      while (j < maxReal) {
-        var d2 = addDays(rangeStart, j);
-        var hit2 = null;
-        for (var vj = 0; vj < sorted.length; vj++) {
-          var p2 = versionPeriod(sorted[vj]);
-          if (p2 && d2 >= p2.start && d2 <= p2.due) { hit2 = p2; break; }
+      var j3 = i + 1;
+      while (j3 < cols.length && !cols[j3].backlog) {
+        var still = false;
+        for (var vk = 0; vk < sorted.length; vk++) {
+          var p3 = versionPeriod(sorted[vk]);
+          if (p3 && p3.name === hit.name && cols[j3].date >= p3.start && cols[j3].date <= p3.due) {
+            still = true;
+            break;
+          }
         }
-        if (!hit2 || hit2.name !== hit.name) break;
-        j++;
+        if (!still) break;
+        j3++;
       }
-      raw.push({ name: hit.name, span: j - day, backlog: false, versionId: hit.id, startDay: day });
-      day = j;
+      bands.push({
+        name: hit.name,
+        from: i,
+        span: j3 - i,
+        backlog: false,
+        versionId: hit.id,
+        startDay: null,
+        spacer: false
+      });
+      i = j3;
     }
 
-    var bands = [];
-    var cursor = 0;
-    raw.forEach(function (b) {
-      bands.push({
-        name: b.name,
-        from: cursor,
-        span: b.span,
-        backlog: !!b.backlog,
-        versionId: b.versionId || null,
-        startDay: b.startDay
-      });
-      cursor += b.span;
-    });
-    window.__ganttVisualDays = cursor || 1;
+    window.__ganttCols = cols;
+    window.__ganttVisualDays = cols.length;
     window.__ganttBands = bands;
+    window.__ganttColDates = cols.map(function (c) { return c.date; });
     return bands;
   }
 
@@ -997,10 +1036,56 @@
       };
     });
 
+
 var bands = versionBands();
-    var visualDays = window.__ganttVisualDays || dayCount;
-    var sprintHtml = '<div class="sprint-band" style="width:' + (visualDays * DAY_W + 36) + 'px">';
+    var cols = window.__ganttCols || [];
+    var visualDays = cols.length || window.__ganttVisualDays || 1;
+    var totalW = visualDays * DAY_W;
+
+    /* —— MONTH BAND —— */
+    var monthHtml = '<div class="month-band" style="width:' + totalW + 'px">';
+    /* checkbox FN na primeira fatia (backlog width or first month) */
+    var blSpan = 0;
+    for (var mi = 0; mi < cols.length; mi++) {
+      if (cols[mi].backlog) blSpan++;
+      else break;
+    }
+    if (blSpan < 1) blSpan = 1;
+    monthHtml +=
+      '<div class="month-group-header month-fn" style="width:' + (blSpan * DAY_W) + 'px" data-days="' + blSpan + '">' +
+        '<label title="Ocultar finais de semana (só dias úteis)">' +
+          '<input type="checkbox" id="chkHideWeekends"' + (hideWeekends ? " checked" : "") + '> FN' +
+        "</label></div>";
+    var mStart = blSpan;
+    while (mStart < cols.length) {
+      if (!cols[mStart].date) { mStart++; continue; }
+      var y = cols[mStart].date.getFullYear();
+      var m = cols[mStart].date.getMonth();
+      var mEnd = mStart + 1;
+      while (mEnd < cols.length && cols[mEnd].date &&
+             cols[mEnd].date.getFullYear() === y && cols[mEnd].date.getMonth() === m) {
+        mEnd++;
+      }
+      var mNames = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+      var label = mNames[m] + " / " + y;
+      var spanM = mEnd - mStart;
+      monthHtml +=
+        '<div class="month-group-header" style="width:' + (spanM * DAY_W) + 'px" data-days="' + spanM + '">' +
+        escapeHtml(label) + "</div>";
+      mStart = mEnd;
+    }
+    monthHtml += "</div>";
+
+    /* —— SPRINT BAND —— */
+    var sprintHtml = '<div class="sprint-band" style="width:' + (totalW + 36) + 'px">';
     bands.forEach(function (b) {
+      var w = b.span * DAY_W;
+      if (b.spacer) {
+        sprintHtml +=
+          '<div class="sprint-cell weekend-spacer" style="width:' + w + 'px" data-days="' + b.span + '">' +
+          '<div class="sprint-actions"><button type="button" class="sprint-task-add" data-vid="" data-vname="Backlog" data-backlog="1" title="Nova task">+</button></div></div>';
+        return;
+      }
       var eye = b.backlog || !b.versionId ? "" :
         '<button type="button" class="eye" data-vid="' + b.versionId + '" data-vname="' + escapeHtml(b.name) + '" title="Kanban">👁</button>';
       var plus =
@@ -1008,39 +1093,45 @@ var bands = versionBands();
         '" data-vname="' + escapeHtml(b.name || "Backlog") +
         '" data-backlog="' + (b.backlog ? "1" : "0") +
         '" title="Nova task nesta coluna">+</button>';
+      var title = b.backlog ? "Backlog" : (b.name + (b.span ? " (" + b.span + "d)" : ""));
       sprintHtml +=
         '<div class="sprint-cell' + (b.backlog ? " backlog-band" : "") +
-        '" style="width:' + b.span * DAY_W + 'px"><span>' + escapeHtml(b.name) +
-        "</span>" + eye + plus + "</div>";
+        '" style="width:' + w + 'px" data-days="' + b.span + '">' +
+        '<span class="sprint-title">' + escapeHtml(title) + "</span>" +
+        '<div class="sprint-actions">' + eye + plus + "</div></div>";
     });
     sprintHtml += '<button type="button" class="sprint-add" id="btnNewSprint" title="Nova sprint">＋</button></div>';
 
+    /* —— DAY BAND —— */
     var today = new Date(); today.setHours(0, 0, 0, 0);
-    var colDates = [];
-    bands.forEach(function (b) {
-      if (b.backlog) {
-        for (var bi = 0; bi < b.span; bi++) colDates.push(null);
+    var dayHtml = '<div class="day-band" style="width:' + totalW + 'px">';
+    for (var di = 0; di < cols.length; di++) {
+      var col = cols[di];
+      if (!col.date) {
+        dayHtml += '<div class="day-cell backlog-day" data-is-weekend="false">·</div>';
       } else {
-        for (var si = 0; si < b.span; si++) {
-          colDates.push(b.startDay != null ? addDays(rangeStart, b.startDay + si) : null);
-        }
-      }
-    });
-    window.__ganttColDates = colDates;
-
-    var dayHtml = '<div class="day-band" style="width:' + visualDays * DAY_W + 'px">';
-    for (var di = 0; di < colDates.length; di++) {
-      var d = colDates[di];
-      if (!d) dayHtml += '<div class="day-cell backlog-day">·</div>';
-      else {
         var cls = ["day-cell"];
-        if (isWeekend(d)) cls.push("weekend");
-        if (fmtYMD(d) === fmtYMD(today)) cls.push("today");
-        dayHtml += '<div class="' + cls.join(" ") + '">' + d.getDate() + "</div>";
+        if (col.weekend) cls.push("weekend");
+        if (fmtYMD(col.date) === fmtYMD(today)) cls.push("today");
+        dayHtml +=
+          '<div class="' + cls.join(" ") + '" data-is-weekend="' + (col.weekend ? "true" : "false") + '">' +
+          col.date.getDate() + "</div>";
       }
     }
     dayHtml += "</div>";
-    head.innerHTML = sprintHtml + dayHtml;
+
+    head.innerHTML = monthHtml + sprintHtml + dayHtml;
+
+    /* FN checkbox */
+    var chk = document.getElementById("chkHideWeekends");
+    if (chk) {
+      chk.onchange = function () {
+        hideWeekends = !!chk.checked;
+        try { localStorage.setItem("hemopi_hide_weekends", hideWeekends ? "1" : "0"); } catch (e) {}
+        renderGantt();
+      };
+    }
+
 
     head.querySelectorAll(".eye").forEach(function (btn) {
       btn.onclick = function (e) {
@@ -1128,7 +1219,7 @@ var rows = "";
       }
       if (i0 != null && i0 >= 0) {
         var leftPx = i0 * DAY_W + 1;
-        var widthPx = Math.max(DAY_W * 5 - 2, (i1 - i0 + 1) * DAY_W - 2); /* min ~5 dias para card legível */
+        var widthPx = Math.max(DAY_W * 2 - 2, (i1 - i0 + 1) * DAY_W - 2);
         var label = "#" + issue.id + " · " + shortStatus(issue.status.name);
         var who = (issue.assigned_to && issue.assigned_to.name) ? issue.assigned_to.name : "sem responsável";
         var whoShort = who.length > 22 ? who.slice(0, 20) + "…" : who;
@@ -1137,7 +1228,7 @@ var rows = "";
         var dStart = fmtDateBR(issue.start_date);
         var dEnd = fmtDateBR(issue.due_date);
         var lastC = lastCommentText(issue);
-        bar = '<div class="bar ' + statusClass(issue.status.name) + '" data-id="' + issue.id + '" style="left:' + leftPx + 'px;width:' + Math.max(widthPx, 320) + 'px" title="' + escapeHtml(subj) + ' · ' + who.replace(/"/g, "") + '">' +
+        bar = '<div class="bar ' + statusClass(issue.status.name) + '" data-id="' + issue.id + '" style="left:' + leftPx + 'px;width:' + Math.max(widthPx, DAY_W * 2 - 2) + 'px" title="' + escapeHtml(subj) + ' · ' + who.replace(/"/g, "") + '">' +
           '<div class="handle left" data-edge="left"></div>' +
           '<div class="bar-header">' +
             '<span class="bar-task-id">#' + issue.id + '</span>' +
