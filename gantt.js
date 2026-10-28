@@ -990,6 +990,63 @@
     return bands;
   }
 
+
+  /** HTML interno do card (Gantt + Kanban) — fonte única */
+  function buildCardInnerHTML(issue) {
+    var who = (issue.assigned_to && issue.assigned_to.name) ? issue.assigned_to.name : "sem responsável";
+    var whoShort = who.length > 22 ? who.slice(0, 20) + "…" : who;
+    var subj = cleanSubject(issue.subject || "");
+    var stLab = shortStatus((issue.status && issue.status.name) || "");
+    var dStart = fmtDateBR(issue.start_date);
+    var dEnd = fmtDateBR(issue.due_date);
+    var lastC = lastCommentText(issue);
+    return (
+      '<div class="bar-header">' +
+        '<span class="bar-task-id">#' + issue.id + '</span>' +
+        '<div class="bar-project-name" title="' + escapeHtml(subj) + '">' + escapeHtml(subj) + '</div>' +
+      '</div>' +
+      '<div class="comment-header-row">' +
+        '<span class="comment-title">Último Comentário:</span>' +
+        '<button type="button" class="add-comment-btn" data-comment="' + issue.id + '" title="Adicionar comentário">+</button>' +
+      '</div>' +
+      '<div class="bar-last-comment" title="' + escapeHtml(lastC) + '">' + escapeHtml(lastC) + '</div>' +
+      '<div class="bar-dates-row">' +
+        '<span>Início: <strong class="val-start">' + dStart + '</strong></span>' +
+        '<span>Fim: <strong class="val-end">' + dEnd + '</strong></span>' +
+      '</div>' +
+      '<div class="bar-status-row">Status: ' + escapeHtml(stLab) + '</div>' +
+      '<div class="bar-content-bottom">' +
+        '<span class="bar-who" title="' + escapeHtml(who) + '">' + escapeHtml(whoShort) + '</span>' +
+        '<span class="bar-actions">' +
+          '<button type="button" class="icon-btn eye-btn" title="Ver descrição">👁</button>' +
+          '<button type="button" class="icon-btn status-btn" title="Alterar status">☰</button>' +
+          '<button type="button" class="icon-btn person-btn" title="Responsável: ' + escapeHtml(who) + '">👤</button>' +
+        '</span>' +
+      '</div>'
+    );
+  }
+  function buildGanttBarHTML(issue, leftPx, widthPx) {
+    var who = (issue.assigned_to && issue.assigned_to.name) || "sem responsável";
+    var subj = cleanSubject(issue.subject || "");
+    var w = Math.max(widthPx, DAY_W * 2 - 2);
+    return (
+      '<div class="bar ' + statusClass(issue.status && issue.status.name) + '" data-id="' + issue.id +
+      '" style="left:' + leftPx + 'px;width:' + w + 'px" title="' + escapeHtml(subj) + ' · ' + escapeHtml(who) + '">' +
+        '<div class="handle left" data-edge="left"></div>' +
+        buildCardInnerHTML(issue) +
+        '<div class="handle right" data-edge="right"></div>' +
+      '</div>'
+    );
+  }
+  function buildKanbanCardHTML(issue) {
+    return (
+      '<div class="kanban-card bar ' + statusClass(issue.status && issue.status.name) +
+      '" draggable="true" data-id="' + issue.id + '">' +
+        buildCardInnerHTML(issue) +
+      '</div>'
+    );
+  }
+
   function renderGantt() {
     GLOG.step("renderGantt", { filtered: filtered.length });
     computeRange();
@@ -997,11 +1054,6 @@
     var head = document.getElementById("timeHead");
     var body = document.getElementById("timeBody");
     var baseUrl = getCookie(C_URL).replace(/\/$/, "");
-
-    var ROW_H = 240;
-    
-    var ROW_H = 240;
-    
 
     var ROW_H = 240;
     function isIssueCollapsed(issue) {
@@ -1305,31 +1357,7 @@ var rows = "";
         var dStart = fmtDateBR(issue.start_date);
         var dEnd = fmtDateBR(issue.due_date);
         var lastC = lastCommentText(issue);
-        bar = '<div class="bar ' + statusClass(issue.status.name) + '" data-id="' + issue.id + '" style="left:' + leftPx + 'px;width:' + Math.max(widthPx, DAY_W * 2 - 2) + 'px" title="' + escapeHtml(subj) + ' · ' + who.replace(/"/g, "") + '">' +
-          '<div class="handle left" data-edge="left"></div>' +
-          '<div class="bar-header">' +
-            '<span class="bar-task-id">#' + issue.id + '</span>' +
-            '<div class="bar-project-name" title="' + escapeHtml(subj) + '">' + escapeHtml(subj) + '</div>' +
-          '</div>' +
-          '<div class="comment-header-row">' +
-            '<span class="comment-title">Último Comentário:</span>' +
-            '<button type="button" class="add-comment-btn" data-comment="' + issue.id + '" title="Adicionar comentário">+</button>' +
-          '</div>' +
-          '<div class="bar-last-comment" title="' + escapeHtml(lastC) + '">' + escapeHtml(lastC) + '</div>' +
-          '<div class="bar-dates-row">' +
-            '<span>Início: <strong class="val-start">' + dStart + '</strong></span>' +
-            '<span>Fim: <strong class="val-end">' + dEnd + '</strong></span>' +
-          '</div>' +
-          '<div class="bar-status-row">Status: ' + escapeHtml(stLab) + '</div>' +
-          '<div class="bar-content-bottom">' +
-            '<span class="bar-who" title="' + escapeHtml(who) + '">' + escapeHtml(whoShort) + '</span>' +
-            '<span class="bar-actions">' +
-              '<button type="button" class="icon-btn eye-btn" title="Ver descrição">👁</button>' +
-              '<button type="button" class="icon-btn status-btn" title="Alterar status">☰</button>' +
-              '<button type="button" class="icon-btn person-btn" title="Responsável: ' + who.replace(/"/g, "") + '">👤</button>' +
-            '</span>' +
-          '</div>' +
-          '<div class="handle right" data-edge="right"></div></div>';
+        bar = buildGanttBarHTML(issue, leftPx, widthPx);
       }
       rows += '<div class="gantt-row-track" style="width:' + visualDays * DAY_W + 'px">' + extras + bar + "</div>";
     });
@@ -2631,14 +2659,7 @@ async function fetchIssuesForProject(projectId) {
   if (btnLogout) btnLogout.onclick = function () { clearAuth(); goLogin(); };
   var btnRefresh = document.getElementById("btnRefresh");
   if (btnRefresh) btnRefresh.onclick = function () { loadAll(); };
-  var btnClear = document.getElementById("btnClear");
-  if (btnClear) {
-    btnClear.onclick = function () {
-      sel = { scope: ["all"], sprint: null, mod: null, status: null, projects: null, assignee: null };
-      renderProjTree();
-      fillChips(); applyFilters();
-    };
-  }
+  /* btnClear: tratado em initFilterPanelUX (única fonte) */
   var btnToday = document.getElementById("btnToday");
   if (btnToday) {
     btnToday.onclick = function () {
