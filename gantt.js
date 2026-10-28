@@ -540,11 +540,14 @@
   }
 
   function isBacklogIssue(i) {
-    var st = ((i.status && i.status.name) || "").toLowerCase();
-    if (st.indexOf("nova") >= 0 && st.indexOf("desenvolvimento") < 0) return true;
+    var st = ((i.status && i.status.name) || "").toLowerCase().replace(/^desenvolvimento:\s*/, "");
+    /* Status Nova (puro) → Backlog */
     if (st === "nova") return true;
-    if (!i.start_date && !i.due_date) return true;
-    return sprintName(i) === "Backlog";
+    /* Sem datas E sem versão → Backlog */
+    if (!i.start_date && !i.due_date && !(i.fixed_version && i.fixed_version.id)) return true;
+    /* Sprint efetiva Backlog */
+    if (sprintName(i) === "Backlog" && !i.start_date && !i.due_date) return true;
+    return false;
   }
 
   /** Issue pertence à sprint (versionId) por versão explícita OU data na semana da sprint */
@@ -617,8 +620,10 @@
 
   function versionPeriod(v) {
     if (!v || !v.due_date) return null;
-    const due = parseYMD(v.due_date);
-    const start = v.start_date ? parseYMD(v.start_date) : addDays(due, -4);
+    var due = parseYMD(v.due_date);
+    if (!due) return null;
+    /* se não há start_date: assume sprint de até 14 dias (2 semanas) terminando no due */
+    var start = v.start_date ? parseYMD(v.start_date) : addDays(due, -13);
     return { id: v.id, name: v.name, start: start, due: due };
   }
 
@@ -816,14 +821,14 @@
       if (sel.scope.indexOf("all") < 0 && sel.scope.indexOf(getScope(i)) < 0) return false;
       if (sel.sprint !== null && sel.sprint.length && sel.sprint.indexOf(sprintName(i)) < 0) return false;
       /* módulo dinâmico: id de projeto filho (ou ancestral na path) */
-      if (sel.mod !== null) {
+      if (sel.mod !== null && sel.mod.length) {
         var path = projectPath(i);
         var hit = path.some(function (p) {
           return sel.mod.indexOf(String(p.id)) >= 0 || sel.mod.indexOf(p.id) >= 0 || sel.mod.indexOf(p.name) >= 0;
         });
         if (!hit) return false;
       }
-      if (sel.status !== null) {
+      if (sel.status !== null && sel.status.length) {
         var sn = (i.status && i.status.name) || "";
         var ok = sel.status.some(function (s) {
           var a = String(s), b = sn;
@@ -899,10 +904,11 @@
       }
     }
 
-    var maxReal = Math.max(0, dayCount - (includeBacklog ? 0 : 0));
-    /* rangeStart..rangeStart+dayCount covers the calendar */
-    for (var day = 0; day < dayCount; day++) {
+    /* Calendário contínuo a partir de rangeStart (dayCount dias corridos) */
+    var calDays = Math.max(14, dayCount | 0);
+    for (var day = 0; day < calDays; day++) {
       var d = addDays(rangeStart, day);
+      if (!d) continue;
       var we = isWeekend(d);
       if (hideWeekends && we) continue;
       cols.push({ date: d, backlog: false, weekend: we });
@@ -1166,11 +1172,16 @@ var rows = "";
       function findCol(date) {
         if (!date) return -1;
         var best = -1;
+        var first = -1;
         for (var ci = 0; ci < colDates.length; ci++) {
-          if (colDates[ci] && fmtYMD(colDates[ci]) === fmtYMD(date)) return ci;
-          if (colDates[ci] && colDates[ci] <= date) best = ci;
+          if (!colDates[ci]) continue;
+          if (first < 0) first = ci;
+          if (fmtYMD(colDates[ci]) === fmtYMD(date)) return ci;
+          if (colDates[ci] <= date) best = ci;
         }
-        return best;
+        if (best >= 0) return best;
+        /* data antes do range → primeira coluna com data */
+        return first;
       }
       if (isBacklogIssue(issue)) {
         var bl = null;
@@ -1217,6 +1228,9 @@ var rows = "";
           if (i1 < i0) { var t = i0; i0 = i1; i1 = t; }
         }
       }
+      /* fallback: nunca deixar card sem posição */
+      if (i0 == null || i0 < 0) { i0 = 0; i1 = Math.max(1, (i1 > 0 ? i1 : 2)); }
+      if (i1 == null || i1 < i0) i1 = i0 + 1;
       if (i0 != null && i0 >= 0) {
         var leftPx = i0 * DAY_W + 1;
         var widthPx = Math.max(DAY_W * 2 - 2, (i1 - i0 + 1) * DAY_W - 2);
@@ -1759,7 +1773,7 @@ var rows = "";
         if (pid == null || (!sel.projects.has(pid) && !sel.projects.has(String(pid)))) return false;
       }
       /* subprojetos/módulos dinâmicos (ids da árvore, não getMod M01) */
-      if (sel.mod !== null) {
+      if (sel.mod !== null && sel.mod.length) {
         var path = projectPath(i);
         var hit = path.some(function (p) {
           return sel.mod.indexOf(String(p.id)) >= 0 || sel.mod.indexOf(p.id) >= 0 || sel.mod.indexOf(p.name) >= 0;
@@ -2366,6 +2380,7 @@ async function fetchIssuesForProject(projectId) {
       });
       renderProjTree();
       fillChips();
+      try { initFilterPanelUX(); } catch (e) {}
       applyFilters();
       if (filtered.length === 0 && allIssues.length > 0) {
         console.warn("[Gantt] 0 filtered of", allIssues.length, "— soft reset filters");
