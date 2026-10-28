@@ -32,64 +32,79 @@
 
   <div class="filter-panel" id="filterPanel">
     <button type="button" class="filter-toggle" id="btnToggleFilters" aria-expanded="true">
-      <span>Filtros</span>
+      <span>Filtros Avançados</span>
       <span id="fltCount" class="muted"></span>
       <span class="chevron" id="filterChevron">▾</span>
     </button>
     <div class="filter-body" id="filterBody">
-      <div class="filter-box" data-filter="sprint">
+      <div class="filter-box minimized" data-filter="sprint">
         <div class="filter-box-title">
           <span>Sprint</span>
           <span class="filter-box-actions">
+            <button type="button" class="flt-act box-toggle" title="Expandir/Minimizar">▾</button>
             <button type="button" class="flt-act" data-act="all" title="Selecionar todos">☑</button>
             <button type="button" class="flt-act" data-act="none" title="Limpar seleção">☐</button>
           </span>
         </div>
-        <div class="chips" id="chipsSprint"></div>
+        <div class="box-content-scroll">
+          <div class="chips" id="chipsSprint"></div>
+        </div>
       </div>
-      <div class="filter-box" data-filter="mod">
+      <div class="filter-box minimized" data-filter="mod">
         <div class="filter-box-title">
-          <span>Subprojetos / módulos</span>
+          <span>Subprojetos</span>
           <span class="filter-box-actions">
+            <button type="button" class="flt-act box-toggle" title="Expandir/Minimizar">▾</button>
             <button type="button" class="flt-act" data-act="all" title="Selecionar todos">☑</button>
             <button type="button" class="flt-act" data-act="none" title="Limpar seleção">☐</button>
           </span>
         </div>
-        <div class="mod-ms" id="modMs"></div>
+        <div class="box-content-scroll">
+          <div class="mod-ms" id="modMs"></div>
+        </div>
       </div>
-      <div class="filter-box" data-filter="status">
+      <div class="filter-box minimized" data-filter="status">
         <div class="filter-box-title">
-          <span>Status (visão)</span>
+          <span>Status (Visão)</span>
           <span class="filter-box-actions">
+            <button type="button" class="flt-act box-toggle" title="Expandir/Minimizar">▾</button>
             <button type="button" class="flt-act" data-act="all" title="Selecionar todos">☑</button>
             <button type="button" class="flt-act" data-act="none" title="Limpar seleção">☐</button>
           </span>
         </div>
-        <div class="chips" id="chipsStatus"></div>
+        <div class="box-content-scroll">
+          <div class="chips" id="chipsStatus"></div>
+        </div>
       </div>
-      <div class="filter-box" data-filter="menuStatus">
+      <div class="filter-box minimized" data-filter="menuStatus">
         <div class="filter-box-title">
-          <span>Menu — status visíveis</span>
+          <span>Status Visíveis</span>
           <span class="filter-box-actions">
+            <button type="button" class="flt-act box-toggle" title="Expandir/Minimizar">▾</button>
             <button type="button" class="flt-act" data-act="all" title="Marcar todos">☑</button>
             <button type="button" class="flt-act" data-act="none" title="Desmarcar todos">☐</button>
           </span>
         </div>
-        <div class="menu-checks" id="menuStatusChecks"></div>
+        <div class="box-content-scroll">
+          <div class="menu-checks" id="menuStatusChecks"></div>
+        </div>
       </div>
-      <div class="filter-box" data-filter="assignee">
+      <div class="filter-box minimized" data-filter="assignee">
         <div class="filter-box-title">
           <span>Desenvolvedor</span>
           <span class="filter-box-actions">
+            <button type="button" class="flt-act box-toggle" title="Expandir/Minimizar">▾</button>
             <button type="button" class="flt-act" data-act="all" title="Selecionar todos">☑</button>
             <button type="button" class="flt-act" data-act="none" title="Limpar seleção">☐</button>
           </span>
         </div>
-        <div class="chips" id="chipsAssignee"></div>
+        <div class="box-content-scroll">
+          <div class="chips" id="chipsAssignee"></div>
+        </div>
       </div>
-      <div class="filter-footer">
-        <button id="btnClear" class="btn ghost">Limpar filtros</button>
-      </div>
+    </div>
+    <div class="filter-footer">
+      <button type="button" id="btnClear" class="btn ghost">Limpar todos os filtros</button>
     </div>
   </div>
 
