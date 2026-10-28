@@ -44,7 +44,7 @@
   function clearSharedFilters() {
     try { localStorage.removeItem(LS_FILTERS); } catch (e) {}
   }
-  const DAY_W = 28, BACKLOG_DAYS = 7;
+  const DAY_W = 48, BACKLOG_DAYS = 7;
   const DEFAULT_MENU_HIDE = ["Desenvolvimento: Em Deploy", "Fechada"];
 
   let allIssues = [], versions = [], statuses = [], projectMembers = [];
@@ -554,12 +554,13 @@
   function statusClass(name) {
     const s = (name || "").toLowerCase();
     if (s.indexOf("nova") >= 0) return "st-nova";
-    if (s.indexOf("valida") >= 0) return "st-valid";
-    if (s.indexOf("planej") >= 0) return "st-plan";
-    if (s.indexOf("andamento") >= 0) return "st-and";
-    if (s.indexOf("pagamento") >= 0) return "st-pag";
-    if (s.indexOf("deploy") >= 0) return "st-and";
-    if (s.indexOf("resolv") >= 0 || s.indexOf("fechad") >= 0) return "st-done";
+    if (s.indexOf("valida") >= 0) return "st-validacao";
+    if (s.indexOf("planej") >= 0) return "st-planejamento";
+    if (s.indexOf("andamento") >= 0) return "st-andamento";
+    if (s.indexOf("pagamento") >= 0) return "st-pagamento";
+    if (s.indexOf("deploy") >= 0) return "st-andamento";
+    if (s.indexOf("resolv") >= 0) return "st-resolvida";
+    if (s.indexOf("fechad") >= 0 || s.indexOf("finaliz") >= 0) return "st-finalizado";
     return "st-other";
   }
   function fmtDateBR(ymd) {
@@ -951,10 +952,11 @@
     var body = document.getElementById("timeBody");
     var baseUrl = getCookie(C_URL).replace(/\/$/, "");
 
-    var ROW_H = 132;
+    var ROW_H = 240;
     
-    var ROW_H = 132;
-    /* Issues visíveis: esconde filhos de ramos recolhidos na sidebar */
+    var ROW_H = 240;
+    
+    var ROW_H = 240;
     function isIssueCollapsed(issue) {
       var path = projectPath(issue);
       for (var ci = 0; ci < path.length; ci++) {
@@ -965,91 +967,31 @@
     var visibleIssues = filtered.filter(function (i) { return !isIssueCollapsed(i); });
     window.__ganttVisibleIssues = visibleIssues;
 
-    /* Árvore hierárquica (details/summary) a partir das issues filtradas */
-    function buildIssueTree(list) {
-      var root = { id: "root", name: "Portfólio", children: {}, issues: [] };
-      list.forEach(function (iss) {
-        var path = projectPath(iss);
-        if (!path.length) {
-          root.issues.push(iss);
-          return;
-        }
-        var node = root;
-        path.forEach(function (p) {
-          var id = String(p.id);
-          if (!node.children[id]) {
-            node.children[id] = { id: id, name: p.name || id, children: {}, issues: [] };
-          }
-          node = node.children[id];
-        });
-        node.issues.push(iss);
-      });
-      return root;
-    }
-    function childrenArr(node) {
-      return Object.keys(node.children).map(function (k) { return node.children[k]; })
-        .sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); });
-    }
-    function renderTreeNode(node, depth) {
-      var kids = childrenArr(node);
-      var html = "";
-      kids.forEach(function (ch) {
-        var neon = "neon-p" + neonIndex(ch.name, 6);
-        var open = !collapsedProjects[String(ch.id)];
-        html += "<details data-pid=\"" + ch.id + "\"" + (open ? " open" : "") + ">";
-        html += "<summary class=\"" + neon + "\" title=\"" + escapeHtml(ch.name) + "\">" + escapeHtml(ch.name) + "</summary>";
-        html += '<div class="ux-task-list">';
-        html += renderTreeNode(ch, depth + 1);
-        (ch.issues || []).forEach(function (iss) {
-          if (isIssueCollapsed(iss) && collapsedProjects[String(ch.id)]) return;
-          if (collapsedProjects[String(ch.id)]) return;
-          var title = cleanSubject(iss.subject || "");
-          html += '<button type="button" class="ux-task-item" data-jump="' + iss.id + '" title="' + escapeHtml(title) + '">' +
-            '<span class="task-id">#' + iss.id + '</span>' +
-            '<span class="task-title">' + escapeHtml(title) + "</span></button>";
-        });
-        html += "</div></details>";
-      });
-      if (depth === 0 && node.issues && node.issues.length) {
-        html += '<div class="ux-task-list">';
-        node.issues.forEach(function (iss) {
-          var title = cleanSubject(iss.subject || "");
-          html += '<button type="button" class="ux-task-item" data-jump="' + iss.id + '" title="' + escapeHtml(title) + '">' +
-            '<span class="task-id">#' + iss.id + '</span>' +
-            '<span class="task-title">' + escapeHtml(title) + "</span></button>";
-        });
-        html += "</div>";
-      }
-      return html;
-    }
-    var tree = buildIssueTree(filtered);
-    var treeHtml = '<div class="ux-sidebar">' +
-      '<details open data-pid="portfolio">' +
-        '<summary class="neon-p0" title="Portfólio de Projetos">Portfólio de Projetos</summary>' +
-        '<div class="ux-task-list">' + renderTreeNode(tree, 0) + "</div>" +
-      "</details></div>";
-    left.innerHTML = treeHtml;
-    left.querySelectorAll("details[data-pid]").forEach(function (det) {
-      det.addEventListener("toggle", function () {
-        var pid = det.getAttribute("data-pid");
-        if (!pid || pid === "portfolio") return;
-        if (det.open) delete collapsedProjects[pid];
-        else collapsedProjects[pid] = true;
-        try { localStorage.setItem("hemopi_collapsed_proj", JSON.stringify(collapsedProjects)); } catch (e) {}
-        renderGantt();
-      });
-    });
-    left.querySelectorAll("[data-jump]").forEach(function (btn) {
-      btn.onclick = function () {
-        var id = btn.getAttribute("data-jump");
+    /* Esquerda: 1 linha por task, mesma altura do card — alinhamento perfeito */
+    var rowsHtml = visibleIssues.map(function (i) {
+      var name = cleanSubject(i.subject || "");
+      var path = projectPath(i);
+      var leaf = path.length ? path[path.length - 1] : null;
+      var tint = leaf ? "neon-p" + neonIndex(leaf.name, 6) : "neon-p0";
+      var proj = leaf ? leaf.name : (i.project && i.project.name) || "";
+      return '<div class="gantt-row-label row-tint ' + tint + '" data-issue="' + i.id + '" title="' + escapeHtml(proj + " · " + name) + '">' +
+        '<div class="rl-id">#' + i.id + '</div>' +
+        '<div class="rl-body">' +
+          '<div class="rl-name">' + escapeHtml(name) + '</div>' +
+          '<div class="rl-proj">' + escapeHtml(proj) + '</div>' +
+        '</div></div>';
+    }).join("");
+    left.innerHTML = '<div class="left-rows" id="leftRows">' + rowsHtml + '</div>';
+    /* clique na label → destaca card */
+    left.querySelectorAll(".gantt-row-label").forEach(function (lab) {
+      lab.onclick = function () {
+        var id = lab.getAttribute("data-issue");
         var el = document.querySelector('.bar[data-id="' + id + '"]');
         if (el) {
-          el.scrollIntoView({ block: "center", inline: "center", behavior: "smooth" });
+          el.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
           el.style.outline = "2px solid #0052cc";
-          setTimeout(function () { el.style.outline = ""; }, 1500);
+          setTimeout(function () { el.style.outline = ""; }, 1200);
         }
-        left.querySelectorAll(".ux-task-item").forEach(function (x) { x.classList.remove("active"); });
-        btn.classList.add("active");
       };
     });
 
@@ -1184,7 +1126,7 @@ var rows = "";
       }
       if (i0 != null && i0 >= 0) {
         var leftPx = i0 * DAY_W + 1;
-        var widthPx = Math.max(DAY_W * 2 - 2, (i1 - i0 + 1) * DAY_W - 2);
+        var widthPx = Math.max(DAY_W * 5 - 2, (i1 - i0 + 1) * DAY_W - 2); /* min ~5 dias para card legível */
         var label = "#" + issue.id + " · " + shortStatus(issue.status.name);
         var who = (issue.assigned_to && issue.assigned_to.name) ? issue.assigned_to.name : "sem responsável";
         var whoShort = who.length > 22 ? who.slice(0, 20) + "…" : who;
@@ -1193,7 +1135,7 @@ var rows = "";
         var dStart = fmtDateBR(issue.start_date);
         var dEnd = fmtDateBR(issue.due_date);
         var lastC = lastCommentText(issue);
-        bar = '<div class="bar ' + statusClass(issue.status.name) + '" data-id="' + issue.id + '" style="left:' + leftPx + 'px;width:' + Math.max(widthPx, 200) + 'px" title="' + escapeHtml(subj) + ' · ' + who.replace(/"/g, "") + '">' +
+        bar = '<div class="bar ' + statusClass(issue.status.name) + '" data-id="' + issue.id + '" style="left:' + leftPx + 'px;width:' + Math.max(widthPx, 320) + 'px" title="' + escapeHtml(subj) + ' · ' + who.replace(/"/g, "") + '">' +
           '<div class="handle left" data-edge="left"></div>' +
           '<div class="bar-header">' +
             '<span class="bar-task-id">#' + issue.id + '</span>' +
@@ -1984,11 +1926,10 @@ var rows = "";
   })();
 
   document.getElementById("ganttRight").addEventListener("scroll", function () {
-    document.getElementById("leftBody").scrollTop = document.getElementById("ganttRight").scrollTop;
+    var lb = document.getElementById("leftBody");
+    if (lb) lb.scrollTop = document.getElementById("ganttRight").scrollTop;
   });
-  document.getElementById("leftBody").addEventListener("scroll", function () {
-    document.getElementById("ganttRight").scrollTop = document.getElementById("leftBody").scrollTop;
-  });
+  /* sidebar NÃO tem scroll próprio — só acompanha o Gantt à direita */
 
   function buildProjectTree(flat) {
     var byId = {};
