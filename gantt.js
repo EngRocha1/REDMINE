@@ -557,6 +557,18 @@
     if (s.indexOf("resolv") >= 0 || s.indexOf("fechad") >= 0) return "st-done";
     return "st-other";
   }
+  function fmtDateBR(ymd) {
+    if (!ymd) return "—";
+    var m = String(ymd).match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return String(ymd);
+    return m[3] + "/" + m[2] + "/" + m[1];
+  }
+  function lastCommentText(issue) {
+    if (issue.__lastComment) return issue.__lastComment;
+    var d = (issue.description || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    if (d) return d.length > 120 ? d.slice(0, 117) + "…" : d;
+    return "Sem comentários ainda.";
+  }
   function shortStatus(name) {
     return (name || "").replace(/^Desenvolvimento:\s*/, "");
   }
@@ -934,7 +946,7 @@
     var body = document.getElementById("timeBody");
     var baseUrl = getCookie(C_URL).replace(/\/$/, "");
 
-    var ROW_H = 36;
+    var ROW_H = 100;
     var paths = filtered.map(projectPath);
     var maxDepth = 0;
     paths.forEach(function (p) { if (p.length > maxDepth) maxDepth = p.length; });
@@ -1116,15 +1128,36 @@ var rows = "";
         var label = "#" + issue.id + " · " + shortStatus(issue.status.name);
         var who = (issue.assigned_to && issue.assigned_to.name) ? issue.assigned_to.name : "sem responsável";
         var whoShort = who.length > 22 ? who.slice(0, 20) + "…" : who;
-        bar = '<div class="bar ' + statusClass(issue.status.name) + '" data-id="' + issue.id + '" style="left:' + leftPx + 'px;width:' + widthPx + 'px" title="' + label + " · " + who.replace(/"/g, "") + '">' +
+        var subj = cleanSubject(issue.subject || "");
+        var stLab = shortStatus((issue.status && issue.status.name) || "");
+        var dStart = fmtDateBR(issue.start_date);
+        var dEnd = fmtDateBR(issue.due_date);
+        var lastC = lastCommentText(issue);
+        bar = '<div class="bar ' + statusClass(issue.status.name) + '" data-id="' + issue.id + '" style="left:' + leftPx + 'px;width:' + Math.max(widthPx, 200) + 'px" title="' + escapeHtml(subj) + ' · ' + who.replace(/"/g, "") + '">' +
           '<div class="handle left" data-edge="left"></div>' +
-          '<span class="bar-label">' + label + '</span>' +
-          '<span class="bar-who"><span class="who-name">' + escapeHtml(whoShort) + '</span></span>' +
-          '<span class="bar-actions">' +
-          '<button type="button" class="icon-btn eye-btn" title="Ver descrição">👁</button>' +
-          '<button type="button" class="icon-btn status-btn" title="Alterar status">☰</button>' +
-          '<button type="button" class="icon-btn person-btn" title="Responsável: ' + who.replace(/"/g, "") + '">👤</button>' +
-          '</span><div class="handle right" data-edge="right"></div></div>';
+          '<div class="bar-header">' +
+            '<span class="bar-task-id">#' + issue.id + '</span>' +
+            '<div class="bar-project-name" title="' + escapeHtml(subj) + '">' + escapeHtml(subj) + '</div>' +
+          '</div>' +
+          '<div class="comment-header-row">' +
+            '<span class="comment-title">Último Comentário:</span>' +
+            '<button type="button" class="add-comment-btn" data-comment="' + issue.id + '" title="Adicionar comentário">+</button>' +
+          '</div>' +
+          '<div class="bar-last-comment" title="' + escapeHtml(lastC) + '">' + escapeHtml(lastC) + '</div>' +
+          '<div class="bar-dates-row">' +
+            '<span>Início: <strong class="val-start">' + dStart + '</strong></span>' +
+            '<span>Fim: <strong class="val-end">' + dEnd + '</strong></span>' +
+          '</div>' +
+          '<div class="bar-status-row">Status: ' + escapeHtml(stLab) + '</div>' +
+          '<div class="bar-content-bottom">' +
+            '<span class="bar-who" title="' + escapeHtml(who) + '">' + escapeHtml(whoShort) + '</span>' +
+            '<span class="bar-actions">' +
+              '<button type="button" class="icon-btn eye-btn" title="Ver descrição">👁</button>' +
+              '<button type="button" class="icon-btn status-btn" title="Alterar status">☰</button>' +
+              '<button type="button" class="icon-btn person-btn" title="Responsável: ' + who.replace(/"/g, "") + '">👤</button>' +
+            '</span>' +
+          '</div>' +
+          '<div class="handle right" data-edge="right"></div></div>';
       }
       rows += '<div class="gantt-row-track" style="width:' + visualDays * DAY_W + 'px">' + extras + bar + "</div>";
     });
@@ -1132,7 +1165,61 @@ var rows = "";
     bindBarEvents();
   }
 
+
+  var __commentIssueId = null;
+  function openCommentModal(issueId) {
+    var issue = allIssues.find(function (x) { return String(x.id) === String(issueId); });
+    if (!issue) { toast("Task #" + issueId + " não encontrada", true); return; }
+    __commentIssueId = issue.id;
+    var modal = document.getElementById("commentModal");
+    var title = document.getElementById("cmTitle");
+    var sub = document.getElementById("cmSubheader");
+    var ta = document.getElementById("cmText");
+    if (!modal || !title || !sub || !ta) return;
+    title.textContent = "Adicionar Comentário à Task #" + issue.id;
+    var who = (issue.assigned_to && issue.assigned_to.name) || "Sem responsável";
+    sub.innerHTML =
+      "<strong>Projeto:</strong> " + escapeHtml(cleanSubject(issue.subject || "")) + "<br>" +
+      "<strong>Período:</strong> " + fmtDateBR(issue.start_date) + " até " + fmtDateBR(issue.due_date) + "<br>" +
+      "<strong>Status:</strong> " + escapeHtml(shortStatus((issue.status && issue.status.name) || "")) +
+      " | <strong>Responsável:</strong> " + escapeHtml(who);
+    ta.value = "";
+    modal.classList.add("open");
+    ta.focus();
+  }
+  function closeCommentModal() {
+    var modal = document.getElementById("commentModal");
+    if (modal) modal.classList.remove("open");
+    __commentIssueId = null;
+  }
+  async function submitComment() {
+    var ta = document.getElementById("cmText");
+    var texto = ta ? ta.value.trim() : "";
+    if (!texto) { toast("Digite um comentário", true); return; }
+    if (!__commentIssueId) return;
+    try {
+      await api("PUT", "/issues/" + __commentIssueId + ".json", { issue: { notes: texto } });
+      var issue = allIssues.find(function (x) { return x.id === __commentIssueId; });
+      if (issue) issue.__lastComment = texto;
+      toast("Comentário salvo em #" + __commentIssueId);
+      closeCommentModal();
+      applyFilters();
+    } catch (e) {
+      toast("Falha ao comentar: " + e.message, true);
+    }
+  }
+  function bindCommentButtons(root) {
+    (root || document).querySelectorAll("[data-comment]").forEach(function (btn) {
+      btn.onclick = function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        openCommentModal(btn.getAttribute("data-comment"));
+      };
+    });
+  }
+
   function bindBarEvents() {
+    bindCommentButtons(document);
     document.querySelectorAll(".bar").forEach(function (bar) {
       var id = +bar.dataset.id;
       var eyeBtn = bar.querySelector(".eye-btn");
@@ -1627,15 +1714,26 @@ var rows = "";
           var who = (i.assigned_to && i.assigned_to.name) || "sem responsável";
           var whoShort = who.length > 22 ? who.slice(0, 20) + "…" : who;
           var stName = (i.status && i.status.name) || "";
+          var subjK = cleanSubject(i.subject || "");
+          var lastCK = lastCommentText(i);
           return '<div class="kanban-card ' + statusClass(stName) + '" draggable="true" data-id="' + i.id + '">' +
-            '<div class="kc-top">' +
-              '<span class="kc-id">#' + i.id + '</span>' +
-              '<span class="kc-st">' + escapeHtml(shortStatus(stName)) + '</span>' +
+            '<div class="bar-header">' +
+              '<span class="bar-task-id">#' + i.id + '</span>' +
+              '<div class="bar-project-name" title="' + escapeHtml(subjK) + '">' + escapeHtml(subjK) + '</div>' +
             '</div>' +
-            '<div class="kc-subject">' + escapeHtml(cleanSubject(i.subject)) + '</div>' +
-            '<div class="kc-footer">' +
-              '<span class="kc-who" title="' + escapeHtml(who) + '">' + escapeHtml(whoShort) + '</span>' +
-              '<span class="kc-actions">' +
+            '<div class="comment-header-row">' +
+              '<span class="comment-title">Último Comentário:</span>' +
+              '<button type="button" class="add-comment-btn" data-comment="' + i.id + '" title="Adicionar comentário">+</button>' +
+            '</div>' +
+            '<div class="bar-last-comment" title="' + escapeHtml(lastCK) + '">' + escapeHtml(lastCK) + '</div>' +
+            '<div class="bar-dates-row">' +
+              '<span>Início: <strong class="val-start">' + fmtDateBR(i.start_date) + '</strong></span>' +
+              '<span>Fim: <strong class="val-end">' + fmtDateBR(i.due_date) + '</strong></span>' +
+            '</div>' +
+            '<div class="bar-status-row">Status: ' + escapeHtml(shortStatus(stName)) + '</div>' +
+            '<div class="bar-content-bottom">' +
+              '<span class="bar-who" title="' + escapeHtml(who) + '">' + escapeHtml(whoShort) + '</span>' +
+              '<span class="bar-actions">' +
                 '<button type="button" class="icon-btn eye-btn" title="Ver descrição">👁</button>' +
                 '<button type="button" class="icon-btn status-btn" title="Alterar status">☰</button>' +
                 '<button type="button" class="icon-btn person-btn" title="Responsável: ' + escapeHtml(who) + '">👤</button>' +
@@ -1658,6 +1756,7 @@ var rows = "";
     }
 
     var dragId = null;
+    bindCommentButtons(board);
     board.querySelectorAll(".kanban-card").forEach(function (card) {
       card.addEventListener("dragstart", function (ev) {
         if (ev.target.closest && ev.target.closest(".icon-btn")) { ev.preventDefault(); return; }
@@ -2226,4 +2325,14 @@ async function fetchIssuesForProject(projectId) {
     hide(document.getElementById("cookieBanner"));
     goApp();
   }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    var c = document.getElementById("cmCancel");
+    var s = document.getElementById("cmSave");
+    var m = document.getElementById("commentModal");
+    if (c) c.onclick = closeCommentModal;
+    if (s) s.onclick = function () { submitComment(); };
+    if (m) m.addEventListener("click", function (e) { if (e.target === m) closeCommentModal(); });
+  });
+
 })();
