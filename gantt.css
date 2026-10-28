@@ -887,3 +887,112 @@
   pointer-events:auto !important;
 }
 .gantt-body{position:relative}
+
+
+/* ========== REFATOR: cards coloridos — fonte única (sem conflitos) ========== */
+/* Anula fundos sólidos antigos que sobrescreviam o card branco + borda de status */
+.bar.st-nova,
+.bar.st-valid,
+.bar.st-validacao,
+.bar.st-plan,
+.bar.st-planejamento,
+.bar.st-and,
+.bar.st-andamento,
+.bar.st-pag,
+.bar.st-pagamento,
+.bar.st-done,
+.bar.st-resolvida,
+.bar.st-finalizado,
+.bar.st-other{
+  color:#172b4d !important;
+  background-image:none !important;
+}
+
+.bar{
+  display:flex !important;
+  flex-direction:column !important;
+  position:absolute !important;
+  top:8px !important;
+  bottom:8px !important;
+  height:auto !important;
+  min-height:200px !important;
+  box-sizing:border-box !important;
+  background:#ffffff !important;
+  border:none !important;
+  border-left:5px solid #94a3b8 !important;
+  border-radius:6px !important;
+  padding:12px 14px !important;
+  box-shadow:0 2px 6px rgba(0,0,0,.14) !important;
+  overflow:hidden !important;
+  z-index:5 !important;
+  font-size:13px !important;
+  color:#172b4d !important;
+  cursor:grab;
+}
+.bar:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.18) !important}
+
+/* Paleta por status (borda + fundo suave) */
+.bar.st-andamento,.bar.st-and{border-left-color:#ff9800 !important;background:#fff9f2 !important}
+.bar.st-planejamento,.bar.st-plan{border-left-color:#9c27b0 !important;background:#faf2fc !important}
+.bar.st-validacao,.bar.st-valid{border-left-color:#4caf50 !important;background:#f2fbf3 !important}
+.bar.st-nova{border-left-color:#2196f3 !important;background:#f2f8fd !important}
+.bar.st-resolvida,.bar.st-done{border-left-color:#b0bec5 !important;background:#f7f9fa !important}
+.bar.st-finalizado{border-left-color:#546e7a !important;background:#eceff1 !important}
+.bar.st-pagamento,.bar.st-pag{border-left-color:#0891b2 !important;background:#ecfeff !important}
+.bar.st-other{border-left-color:#78909c !important;background:#f8fafc !important}
+
+.bar .bar-header{display:flex;align-items:flex-start;gap:8px;margin-bottom:10px}
+.bar .bar-task-id{
+  font-weight:700;font-size:13px;color:#5e6c84;white-space:nowrap;
+  background:rgba(0,0,0,.06);padding:2px 6px;border-radius:3px;flex-shrink:0;
+}
+.bar .bar-project-name{
+  font-weight:600;font-size:13px;line-height:1.35;color:#172b4d;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;
+}
+.bar .comment-header-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.bar .comment-title{font-size:11px;font-weight:700;color:#4a5568}
+.bar .add-comment-btn{
+  background:#0052cc;color:#fff;border:none;border-radius:50%;
+  width:20px;height:20px;font-size:13px;font-weight:700;cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;line-height:1;padding:0;flex-shrink:0;
+}
+.bar .add-comment-btn:hover{background:#0065ff}
+.bar .bar-last-comment{
+  font-size:12px;color:#5e6c84;background:rgba(0,0,0,.04);border-radius:4px;
+  padding:6px 8px;margin-bottom:10px;line-height:1.35;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:32px;
+}
+.bar .bar-dates-row{display:flex;flex-wrap:wrap;gap:10px;font-size:11px;color:#5e6c84;margin-top:auto;margin-bottom:4px}
+.bar .bar-dates-row strong{color:#172b4d}
+.bar .bar-status-row{font-size:11px;text-transform:uppercase;letter-spacing:.4px;font-weight:700;margin-bottom:6px}
+.bar.st-andamento .bar-status-row,.bar.st-and .bar-status-row{color:#e65100}
+.bar.st-planejamento .bar-status-row,.bar.st-plan .bar-status-row{color:#6a1b9a}
+.bar.st-validacao .bar-status-row,.bar.st-valid .bar-status-row{color:#2e7d32}
+.bar.st-nova .bar-status-row{color:#1565c0}
+.bar.st-resolvida .bar-status-row,.bar.st-done .bar-status-row{color:#546e7a}
+.bar.st-finalizado .bar-status-row{color:#263238}
+.bar.st-pagamento .bar-status-row,.bar.st-pag .bar-status-row{color:#0e7490}
+
+.bar .bar-content-bottom{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  border-top:1px dashed rgba(0,0,0,.1);padding-top:8px;
+}
+.bar .bar-who{font-size:12px;font-weight:500;color:#4a5568;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+.bar .bar-actions{display:flex !important;gap:4px;flex-shrink:0;opacity:1 !important;position:static !important}
+.bar .icon-btn{
+  background:#f4f5f7 !important;border:1px solid #ddd !important;border-radius:4px !important;
+  cursor:pointer;padding:4px 7px !important;font-size:12px !important;color:#334155 !important;
+  width:auto !important;height:auto !important;opacity:1 !important;line-height:1;
+}
+.bar .icon-btn:hover{background:#ebecf0 !important}
+.bar .handle{position:absolute;top:0;bottom:0;width:6px;cursor:ew-resize;z-index:6}
+.bar .handle.left{left:0}.bar .handle.right{right:0}
+
+/* Kanban reutiliza .bar */
+.kanban-card.bar{
+  position:relative !important;left:auto !important;top:auto !important;bottom:auto !important;
+  width:100% !important;min-height:220px !important;margin-bottom:10px;
+  cursor:grab;
+}
+.gantt-row-track{position:relative !important;height:240px !important;overflow:visible !important}
