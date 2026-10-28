@@ -996,3 +996,15 @@
   cursor:grab;
 }
 .gantt-row-track{position:relative !important;height:240px !important;overflow:visible !important}
+
+
+/* ========== body timeline: garantir altura das linhas ========== */
+.gantt-timeline-body{position:relative;min-height:200px}
+.gantt-row-track{
+  position:relative !important;
+  height:240px !important;
+  min-height:240px !important;
+  box-sizing:border-box;
+  border-bottom:1px solid rgba(45,58,79,.35);
+  overflow:visible !important;
+}
