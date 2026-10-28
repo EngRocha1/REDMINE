@@ -1,3 +1,4 @@
+
 (function () {
   /* —— HEMOPI Gantt diagnostics —— */
   var GLOG = {
@@ -7,6 +8,12 @@
       var line = "[HEMOPI Gantt +" + Math.round(ms) + "ms] " + msg;
       if (data !== undefined) console.log(line, data);
       else console.log(line);
+    },
+    btn: function (name, detail) {
+      var ms = ((typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now()) - GLOG.t0;
+      try {
+        console.log("%c[BTN +" + Math.round(ms) + "ms] " + name, "color:#38bdf8;font-weight:bold", detail !== undefined ? detail : "");
+      } catch (e) {}
     },
     err: function (msg, err) {
       console.error("[HEMOPI Gantt ERROR] " + msg, err || "");
@@ -664,6 +671,7 @@
       btn.onclick = function () {
         const v = btn.dataset.v;
         const k = btn.dataset.k;
+        GLOG.btn("chip", { k: k, v: v });
         if (k === "scope") {
           if (v === "all") sel.scope = ["all"];
           else {
@@ -906,6 +914,7 @@
 
   function versionBands() {
     /* Dinâmico: só sprints do filtro (ou todas se nenhum chip marcado) */
+    GLOG.btn("versionBands", { sprintFilter: sel.sprint, versions: versions.length });
     var sorted = versions.slice().filter(function (v) { return v.due_date; }).sort(function (a, b) {
       return a.due_date < b.due_date ? -1 : a.due_date > b.due_date ? 1 : 0;
     });
@@ -1428,12 +1437,14 @@ var colDates = window.__ganttColDates || [];
   }
 
   function bindBarEvents() {
+    GLOG.btn("bindBarEvents", document.querySelectorAll(".bar").length + " bars");
     bindCommentButtons(document);
     document.querySelectorAll(".bar").forEach(function (bar) {
       var id = +bar.dataset.id;
       var eyeBtn = bar.querySelector(".eye-btn");
       if (eyeBtn) eyeBtn.addEventListener("click", function (ev) {
         ev.stopPropagation();
+        GLOG.btn("card 👁 descrição", id);
         openIssueDetail(id);
       });
       var stBtn = bar.querySelector(".status-btn");
@@ -1447,7 +1458,8 @@ var colDates = window.__ganttColDates || [];
         openAssigneeMenu(id, ev.clientX, ev.clientY);
       });
       bar.addEventListener("mousedown", function (ev) {
-        if (ev.target.closest(".icon-btn")) return;
+        if (ev.target.closest(".icon-btn, .add-comment-btn, button")) return;
+        GLOG.btn("bar drag start", { id: id, edge: ev.target.dataset.edge || "move" });
         ev.preventDefault();
         var edge = ev.target.dataset.edge || null;
         var startX = ev.clientX;
@@ -1842,41 +1854,48 @@ var colDates = window.__ganttColDates || [];
   /** Delegação única: eye / + task / nova sprint (sobrevive a head.innerHTML) */
   function bindTimelineHeadActions() {
     var head = document.getElementById("timeHead");
-    if (!head || head.dataset.boundActions === "1") return;
+    if (!head) { GLOG.btn("bindTimelineHeadActions", "timeHead MISSING"); return; }
+    if (head.dataset.boundActions === "1") { GLOG.btn("bindTimelineHeadActions", "already bound"); return; }
     head.dataset.boundActions = "1";
+    GLOG.btn("bindTimelineHeadActions", "bound click delegation");
     head.addEventListener("click", function (e) {
-      var eye = e.target.closest(".eye");
+      var t = e.target;
+      GLOG.btn("timeHead.click", (t && (t.className || t.tagName)) || "?");
+      var eye = t.closest && t.closest(".eye");
       if (eye) {
-        e.preventDefault();
-        e.stopPropagation();
+        e.preventDefault(); e.stopPropagation();
         var vid = eye.getAttribute("data-vid");
         var vname = eye.getAttribute("data-vname") || "";
+        GLOG.btn("Kanban 👁", { vid: vid, vname: vname });
         if (vid) openKanban(+vid, vname);
+        else toast("Sprint sem id de versão", true);
         return;
       }
-      var addTask = e.target.closest(".sprint-task-add");
+      var addTask = t.closest && t.closest(".sprint-task-add");
       if (addTask) {
-        e.preventDefault();
-        e.stopPropagation();
-        openNewTaskDialog({
+        e.preventDefault(); e.stopPropagation();
+        var ctx = {
           versionId: addTask.getAttribute("data-vid") ? +addTask.getAttribute("data-vid") : null,
           versionName: addTask.getAttribute("data-vname") || "Backlog",
           backlog: addTask.getAttribute("data-backlog") === "1"
-        });
+        };
+        GLOG.btn("+ task sprint", ctx);
+        openNewTaskDialog(ctx);
         return;
       }
-      var addSprint = e.target.closest(".sprint-add, #btnNewSprint");
+      var addSprint = t.closest && t.closest(".sprint-add, #btnNewSprint");
       if (addSprint) {
-        e.preventDefault();
-        e.stopPropagation();
+        e.preventDefault(); e.stopPropagation();
+        GLOG.btn("+ nova sprint");
         openNewSprintDialog();
         return;
       }
-    });
+    }, true); /* capture: ganha de handlers concorrentes */
   }
 
 
   function openKanban(versionId, versionName) {
+    GLOG.btn("openKanban", { versionId: versionId, versionName: versionName });
     hide(document.getElementById("statusMenu"));
     hide(document.getElementById("assigneeMenu"));
     GLOG.step("openKanban", { versionId: versionId, versionName: versionName });
