@@ -48,7 +48,7 @@
   border:1px solid var(--border);
   border-radius:10px;
   padding:6px;
-  min-width:240px;
+  min-width:0;
   max-width:min(360px,92vw);
   max-height:70vh;
   overflow-x:hidden;
@@ -214,3 +214,10 @@
 /* Header de sprints/dias fixo ao rolar os cards */
 .gantt-right{overflow:auto !important}
 .gantt-row-track{position:relative;overflow:visible}
+
+/* Largura do card = apenas colunas start..due (JS define width em px) */
+.gantt-timeline-body .bar {
+  min-width: 0 !important;
+  max-width: none !important;
+  box-sizing: border-box !important;
+}

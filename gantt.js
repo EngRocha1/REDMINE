@@ -1143,8 +1143,11 @@ var rows = "";
         }
       }
       if (i0 != null && i0 >= 0) {
-        var leftPx = i0 * DAY_W + 1;
-        var widthPx = Math.max(DAY_W * 5 - 2, (i1 - i0 + 1) * DAY_W - 2); /* min ~5 dias para card legível */
+        var leftPx = i0 * DAY_W;
+        /* largura OBRIGATÓRIA = colunas de start..due (1:1 com day-band); pode atravessar sprints */
+        var spanCols = Math.max(1, (i1 - i0 + 1));
+        var widthPx = spanCols * DAY_W - 2;
+ /* min ~5 dias para card legível */
         var label = "#" + issue.id + " · " + shortStatus(issue.status.name);
         var who = (issue.assigned_to && issue.assigned_to.name) ? issue.assigned_to.name : "sem responsável";
         var whoShort = who.length > 22 ? who.slice(0, 20) + "…" : who;
@@ -1153,7 +1156,7 @@ var rows = "";
         var dStart = fmtDateBR(issue.start_date);
         var dEnd = fmtDateBR(issue.due_date);
         var lastC = lastCommentText(issue);
-        bar = '<div class="bar ' + statusClass(issue.status.name) + '" data-id="' + issue.id + '" style="left:' + leftPx + 'px;width:' + Math.max(widthPx, 320) + 'px" title="' + escapeHtml(subj) + ' · ' + who.replace(/"/g, "") + '">' +
+        bar = '<div class="bar ' + statusClass(issue.status.name) + '" data-id="' + issue.id + '" style="left:' + leftPx + 'px;width:' + widthPx + 'px" title="' + escapeHtml(subj) + ' · ' + who.replace(/"/g, "") + '">' +
           '<div class="handle left" data-edge="left"></div>' +
           '<div class="bar-header">' +
             '<span class="bar-task-id">#' + issue.id + '</span>' +
