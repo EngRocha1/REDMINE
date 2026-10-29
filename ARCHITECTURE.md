@@ -50,7 +50,7 @@ Projetos e desenvolvedores compartilhados com o Gantt via `localStorage` (`hemop
 | `enhanceModal` + delegação `.modal-fs` | Arraste, resize e fullscreen do modal |
 
 ### Botão **+** nas células de sprint
-Renderizado nas bandas de versão. Clique chama `openNewTaskDialog({ versionId, versionName, backlog })` e preenche datas a partir da version.
+Renderizado em `renderHead` / bandas de versão. Clique chama `openNewTaskDialog({ versionId, versionName, backlog })` e preenche `start_date`/`due_date` a partir da version.
 
 ### Barras sem data na sprint
 `shortOnSprint`: barra de 2 dias no início da sprint quando a issue não tem start/due.
@@ -72,7 +72,10 @@ Mesma estratégia do restante do app (dataTransfer HTML5 + UI otimista + `api` P
    - Em erro: toast + `openKanban` (rollback visual).
 
 ### Por que o hotfix foi removido
-O hotfix registrava listeners em **capture** com `stopImmediatePropagation`, interceptava o drop do `gantt.js` e usava `fetch` paralelo com headers/IDs inconsistentes. Isso gerava card que só “atualizava” ao reabrir o modal e PUT que falhava silenciosamente.
+O hotfix registrava listeners em **capture** com `stopImmediatePropagation`, interceptava o drop do `gantt.js` e usava `fetch` paralelo com headers/IDs inconsistentes (`Resolvida: 3` vs `4`). Isso gerava:
+- card que só “atualizava” ao reabrir o modal;
+- PUT que falhava silenciosamente;
+- contadores dessincronizados.
 
 ---
 
@@ -94,16 +97,18 @@ npm install && npm run proxy   # http://localhost:8787
 ```
 index.html          Dashboard shell
 app.js              Dashboard logic + charts
+styles.css          Dashboard styles
 gantt.html          Gantt shell
 gantt.js            Gantt + Kanban (fonte única)
 gantt.css           Gantt / Kanban styles
-styles.css          Dashboard styles
 gantt-hotfix.js     Stub deprecated (não carregar)
 proxy-server.js     CORS proxy
 package.json
 README.md
 ARCHITECTURE.md     Este documento
 ```
+
+Qualquer `*.b64`, `APPLY_*.sh`, `gantt.FULL*`, `g0.js`… são lixo de deploy e **não** devem voltar ao repositório.
 
 ---
 
@@ -115,4 +120,11 @@ ARCHITECTURE.md     Este documento
 - [ ] Gantt: filtros, barras, short bars em tasks sem data.
 - [ ] Olhinho da sprint → Kanban; arrastar card muda coluna na hora e persiste no Redmine.
 - [ ] **+** na célula da sprint abre nova task com versão e datas.
-- [ ] Fullscreen do modal e menus dentro da viewport.
+- [ ] Fullscreen do modal (⛶) e menus dentro da viewport.
+
+## Sanitizacao (Fase 1 — 2026-10-29)
+
+- Removidos artefatos de transporte (.b64, chunks, parts) e scripts de montagem/patch.
+- Runtime canonico Gantt: gantt.html + gantt.js + gantt.css + styles.css.
+- Dashboard: index.html + app.js. Proxy: proxy-server.js.
+- gantt-runtime-fix.js / gantt-hotfix.js eliminados do load path.
