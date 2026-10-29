@@ -1011,7 +1011,7 @@
 
 var bands = versionBands();
     var visualDays = window.__ganttVisualDays || dayCount;
-    var sprintHtml = '<div class="sprint-band" style="width:' + (visualDays * DAY_W + 36) + 'px">';
+    var sprintHtml = '<div class="sprint-band" id="sprintBand" style="width:' + (visualDays * DAY_W + 36) + 'px">';
     bands.forEach(function (b) {
       var eye = b.backlog || !b.versionId ? "" :
         '<button type="button" class="eye" data-vid="' + b.versionId + '" data-vname="' + escapeHtml(b.name) + '" title="Kanban">👁</button>';
@@ -1022,7 +1022,7 @@ var bands = versionBands();
         '" title="Nova task nesta coluna">+</button>';
       sprintHtml +=
         '<div class="sprint-cell' + (b.backlog ? " backlog-band" : "") +
-        '" style="width:' + b.span * DAY_W + 'px"><span>' + escapeHtml(b.name) +
+        '" data-days="' + b.span + '" style="width:' + (b.span * DAY_W) + 'px;flex:0 0 ' + (b.span * DAY_W) + 'px"><span>' + escapeHtml(b.name) +
         "</span>" + eye + plus + "</div>";
     });
     sprintHtml += '<button type="button" class="sprint-add" id="btnNewSprint" title="Nova sprint">＋</button></div>';
@@ -1040,19 +1040,27 @@ var bands = versionBands();
     });
     window.__ganttColDates = colDates;
 
-    var dayHtml = '<div class="day-band" style="width:' + visualDays * DAY_W + 'px">';
+    /* largura da day-band = exatamente colDates (1:1 com spans das sprints) */
+    var dayCols = colDates.length || visualDays || 1;
+    var dayHtml = '<div class="day-band" style="width:' + (dayCols * DAY_W) + 'px">';
     for (var di = 0; di < colDates.length; di++) {
       var d = colDates[di];
-      if (!d) dayHtml += '<div class="day-cell backlog-day">·</div>';
-      else {
+      if (!d) {
+        dayHtml += '<div class="day-cell backlog-day" style="width:' + DAY_W + 'px;flex:0 0 ' + DAY_W + 'px">·</div>';
+      } else {
         var cls = ["day-cell"];
         if (isWeekend(d)) cls.push("weekend");
         if (fmtYMD(d) === fmtYMD(today)) cls.push("today");
-        dayHtml += '<div class="' + cls.join(" ") + '">' + d.getDate() + "</div>";
+        dayHtml += '<div class="' + cls.join(" ") + '" style="width:' + DAY_W + 'px;flex:0 0 ' + DAY_W + 'px">' + d.getDate() + "</div>";
       }
     }
     dayHtml += "</div>";
+    /* sincroniza visualDays com colunas reais geradas */
+    window.__ganttVisualDays = dayCols;
+    visualDays = dayCols;
     head.innerHTML = sprintHtml + dayHtml;
+    var sb = document.getElementById("sprintBand");
+    if (sb) sb.style.width = (dayCols * DAY_W + 36) + "px";
 
     head.querySelectorAll(".eye").forEach(function (btn) {
       btn.onclick = function (e) {

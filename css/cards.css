@@ -309,3 +309,9 @@
 .kanban-card.st-andamento{border-left-color:#ff9800;background:#fff9f2}
 .kanban-card.st-planejamento{border-left-color:#9c27b0;background:#faf2fc}
 .kanban-card.st-validacao{border-left-color:#4caf50;background:#f2fbf3}
+
+/* Cards abaixo do header sticky (z-index < 100) */
+.gantt-timeline-body .bar,
+.gantt-row-track .bar {
+  z-index: 5 !important;
+}

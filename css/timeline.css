@@ -1,35 +1,197 @@
-/* Phase 3.3 — timeline visual only (sticky, bands) */
+/* Phase 3.3 + hotfix — timeline visual (sticky, day/sprint sync)
+ * Motor JS estável: versionBands/colDates inalterados na regra de negócio.
+ * DAY_W canônico = 48px (gantt.js const DAY_W = 48).
+ */
 
-/* Botão nova sprint na barra */
-.sprint-add{flex-shrink:0;width:32px;height:26px;margin:1px 4px;border:1px dashed rgba(6,182,212,.55);background:rgba(6,182,212,.12);color:#67e8f9;border-radius:6px;font-size:16px;line-height:1;cursor:pointer;align-self:center}
-.sprint-add:hover{background:rgba(6,182,212,.28);border-style:solid;box-shadow:0 0 10px rgba(6,182,212,.35)}
-.gantt-timeline-head{height:56px;position:sticky;top:0;z-index:5;background:#121a28;border-bottom:1px solid var(--border);display:flex;flex-direction:column}
-.sprint-band{display:flex;height:28px;font-size:.65rem;font-weight:600}
-.sprint-cell{border-right:1px solid var(--border);display:flex;align-items:center;justify-content:center;gap:6px;color:var(--accent2);background:rgba(6,182,212,.08);overflow:hidden;white-space:nowrap;padding:0 4px}
-.sprint-cell.backlog-band{background:rgba(252,211,77,.12);color:#fcd34d}
-.sprint-cell .eye{border:none;background:rgba(0,0,0,.25);color:inherit;border-radius:4px;width:20px;height:18px;cursor:pointer;font-size:11px;line-height:1;padding:0;flex-shrink:0}
-.sprint-cell .eye:hover{background:rgba(59,130,246,.4)}
-.sprint-cell .sprint-task-add{flex-shrink:0;width:18px;height:18px;border:1px dashed rgba(148,163,184,.5);background:rgba(15,23,42,.4);color:#94a3b8;border-radius:4px;font-size:13px;line-height:1;cursor:pointer;padding:0;display:inline-flex;align-items:center;justify-content:center}
-.sprint-cell .sprint-task-add:hover{border-color:#67e8f9;color:#67e8f9;background:rgba(6,182,212,.25)}
-.day-band{display:flex;height:28px;font-size:.6rem}
-.day-cell{width:28px;min-width:28px;border-right:1px solid rgba(45,58,79,.35);display:flex;align-items:center;justify-content:center;color:var(--muted)}
-.day-cell.weekend{background:rgba(148,163,184,.08);color:#64748b}
-.day-cell.today{background:rgba(59,130,246,.25);color:#93c5fd;font-weight:700}
-.day-cell.backlog-day{background:rgba(252,211,77,.06)}
-.gantt-timeline-body{position:relative}
-.gantt-row-track .wknd{position:absolute;top:0;bottom:0;background:rgba(148,163,184,.05);pointer-events:none}
-.gantt-row-track .bl-zone{position:absolute;top:0;bottom:0;background:rgba(252,211,77,.04);pointer-events:none;border-right:1px dashed rgba(252,211,77,.25)}
-
-
-/* + nova task na barra da sprint */
-.sprint-task-add{flex-shrink:0;width:20px;height:18px;border:1px dashed rgba(148,163,184,.45);background:rgba(15,23,42,.35);color:#94a3b8;border-radius:4px;font-size:13px;line-height:1;cursor:pointer;padding:0}
-.sprint-task-add:hover{border-color:#67e8f9;color:#67e8f9;background:rgba(6,182,212,.2)}
-[data-theme="light"] .day-band,[data-theme="light"] .sprint-band{color:var(--muted)}
-
-.gantt-right{overflow:auto !important}
-.gantt-timeline-head{
-  position:sticky !important;top:0 !important;z-index:30 !important;
-  height:auto !important;background:#121a28 !important;
-  box-shadow:0 2px 8px rgba(0,0,0,.3);
+:root {
+  --day-width: 48px;
+  --timeline-bg: #1b2434;
+  --timeline-bg-deep: #121a28;
+  --timeline-border: #2e3b52;
 }
-.sprint-band .eye,.sprint-task-add,.sprint-add{pointer-events:auto !important;cursor:pointer !important}
+
+.gantt-right {
+  overflow: auto !important;
+  position: relative !important;
+}
+
+/* Cabeçalho fixo acima dos cards ao rolar */
+.gantt-timeline-head {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 100 !important;
+  height: auto !important;
+  min-height: 56px;
+  display: flex !important;
+  flex-direction: column !important;
+  background-color: var(--timeline-bg) !important;
+  background: var(--timeline-bg) !important;
+  border-bottom: 1px solid var(--timeline-border);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+  pointer-events: auto !important;
+}
+
+.sprint-band,
+.day-band,
+.month-band {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  background: var(--timeline-bg-deep);
+  position: relative;
+  z-index: 101;
+}
+
+.sprint-band {
+  height: 30px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  border-bottom: 1px solid var(--timeline-border);
+}
+
+.day-band {
+  height: 28px;
+  font-size: 0.6rem;
+  border-bottom: 1px solid var(--timeline-border);
+}
+
+/* Células com largura fixa = DAY_W — evita compressão flex que “some” dias */
+.sprint-cell,
+.day-cell,
+.month-group-header {
+  box-sizing: border-box !important;
+  flex: 0 0 auto !important;
+  flex-shrink: 0 !important;
+  min-width: var(--day-width);
+}
+
+.sprint-cell {
+  border-right: 1px solid var(--timeline-border);
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: #67e8f9;
+  background: rgba(6, 182, 212, 0.1);
+  overflow: hidden;
+  white-space: nowrap;
+  padding: 0 4px;
+  /* width vem do style inline (span * DAY_W) */
+}
+
+.sprint-cell.backlog-band {
+  background: rgba(252, 211, 77, 0.12);
+  color: #fcd34d;
+}
+
+.sprint-cell .eye,
+.sprint-task-add,
+.sprint-add {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  z-index: 102;
+  flex-shrink: 0;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.65);
+  color: #e2e8f0;
+  border-radius: 4px;
+  width: 20px;
+  height: 20px;
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+}
+
+.sprint-add {
+  width: 28px;
+  height: 26px;
+  margin: 2px 4px;
+  border-style: dashed;
+  color: #67e8f9;
+  align-self: center;
+}
+
+.day-cell {
+  width: var(--day-width) !important;
+  min-width: var(--day-width) !important;
+  max-width: var(--day-width) !important;
+  border-right: 1px solid rgba(46, 59, 82, 0.85);
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  background: var(--timeline-bg-deep);
+}
+
+.day-cell.weekend {
+  background: rgba(71, 85, 105, 0.35);
+  color: #64748b;
+}
+
+.day-cell.today {
+  background: rgba(59, 130, 246, 0.25);
+  color: #93c5fd;
+  font-weight: 700;
+}
+
+.day-cell.backlog-day {
+  color: #475569;
+  background: rgba(15, 23, 42, 0.8);
+}
+
+/* Guias verticais no corpo (alinhadas às colunas) */
+.gantt-timeline-body {
+  position: relative;
+  z-index: 1;
+}
+
+.gantt-row-track {
+  position: relative;
+  border-bottom: 1px solid rgba(45, 58, 79, 0.35);
+}
+
+.wknd {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(71, 85, 105, 0.12);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.bl-zone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(252, 211, 77, 0.04);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Cards abaixo do header */
+.gantt-timeline-body .bar {
+  z-index: 5 !important;
+}
+
+[data-theme="light"] .gantt-timeline-head,
+[data-theme="light"] .sprint-band,
+[data-theme="light"] .day-band {
+  background: #f4f5f7 !important;
+  background-color: #f4f5f7 !important;
+}
+[data-theme="light"] .day-cell {
+  background: #fff;
+  color: #5e6c84;
+  border-right-color: #dfe1e6;
+}
+[data-theme="light"] .day-cell.weekend {
+  background: #ebecf0;
+}
+[data-theme="light"] .sprint-cell {
+  background: #e6fcff;
+  color: #0e7490;
+}
