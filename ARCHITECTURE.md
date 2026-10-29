@@ -128,3 +128,17 @@ Qualquer `*.b64`, `APPLY_*.sh`, `gantt.FULL*`, `g0.js`… são lixo de deploy e 
 - Runtime canonico Gantt: gantt.html + gantt.js + gantt.css + styles.css.
 - Dashboard: index.html + app.js. Proxy: proxy-server.js.
 - gantt-runtime-fix.js / gantt-hotfix.js eliminados do load path.
+
+## Fase 2 — Separacao de responsabilidades (2026-10-29)
+
+Estrutura criada (CSS ativo; JS ainda monolítico em `gantt.js`):
+
+```
+css/filters.css    css/sidebar.css    css/timeline.css    css/cards.css
+js/core/*          js/filters/*       js/sidebar/*        js/timeline/*    js/cards/*
+js/gantt-app.js    (stub — não carregado)
+```
+
+- `gantt.css` importa os 4 módulos CSS + shell residual.
+- Stubs JS documentam contratos; **não** estão no `gantt.html` (evita regressão).
+- Mapa de seções comentado no topo do IIFE em `gantt.js`.

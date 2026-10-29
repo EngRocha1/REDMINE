@@ -1,3 +1,14 @@
+/* HEMOPI Gantt CSS — Phase 2 modular entry
+ * Load order: styles.css (tokens) → modules → shell
+ * JS remains monolithic gantt.js until hybrid UX is stable.
+ */
+@import url("css/filters.css");
+@import url("css/sidebar.css");
+@import url("css/timeline.css");
+@import url("css/cards.css");
+
+/* HEMOPI Gantt — shell layout (Phase 2). Source of truth split from gantt.css stable base. */
+/* residual: app chrome, modals, layout wrap */
 .gantt-app{max-width:100%;margin:0;padding:12px 12px 24px;height:100vh;display:flex;flex-direction:column;box-sizing:border-box}
 .gantt-header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding-bottom:10px;border-bottom:1px solid var(--border);margin-bottom:10px}
 .gantt-brand{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
@@ -6,47 +17,14 @@
 .gantt-nav a{color:var(--muted);text-decoration:none;margin-right:12px;font-size:.85rem}
 .gantt-nav a.active{color:var(--accent2);font-weight:600}
 
-.filter-panel{background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;overflow:hidden}
-.filter-toggle{width:100%;display:flex;align-items:center;gap:12px;background:transparent;border:none;color:var(--text);padding:10px 14px;cursor:pointer;font-size:.85rem;font-weight:600}
-.filter-toggle .chevron{margin-left:auto;color:var(--muted);transition:.15s}
-.filter-panel.collapsed .chevron{transform:rotate(-90deg)}
-.filter-panel.collapsed .filter-body{display:none}
-.filter-body{padding:0 12px 12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
-.filter-box{background:#121a28;border:1px solid rgba(45,58,79,.8);border-radius:10px;padding:10px}
-.filter-box-title{font-size:.62rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:8px;font-weight:600}
-.chips{display:flex;flex-wrap:wrap;gap:6px}
-.chip{border:1px solid var(--border);background:#243044;color:var(--text);border-radius:999px;padding:5px 11px;font-size:.72rem;cursor:pointer;user-select:none}
-.chip:hover{border-color:var(--accent)}
-.chip.on{background:rgba(59,130,246,.28);border-color:var(--accent);color:#e0f2fe;font-weight:600}
-.menu-checks{display:flex;flex-direction:column;gap:4px;max-height:160px;overflow-y:auto;overflow-x:hidden;padding-right:4px;scrollbar-width:thin}
-.menu-checks label{display:flex;align-items:center;gap:8px;font-size:.75rem;color:var(--text);cursor:pointer;padding:3px 2px}
-.menu-checks input{accent-color:var(--accent)}
-.filter-footer{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding-top:4px}
-
 .gantt-hint{font-size:.72rem;margin-bottom:8px}
 .gantt-wrap{flex:1;display:flex;border:1px solid var(--border);border-radius:12px;overflow:hidden;min-height:0;background:var(--card)}
-.gantt-left{width:340px;min-width:280px;flex-shrink:0;border-right:1px solid var(--border);display:flex;flex-direction:column}
-.gantt-left-head{height:56px;padding:6px 8px;font-size:.62rem;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);display:flex;align-items:flex-end;gap:6px;letter-spacing:.04em}
-.gantt-left-head .lh-rail{width:22px;text-align:center;flex-shrink:0}
-.gantt-left-head .lh-task{flex:1}
-.gantt-left-body{overflow-y:auto;flex:1}
-.gantt-row-label{height:36px;padding:0 6px 0 0;display:flex;align-items:stretch;gap:0;border-bottom:1px solid rgba(45,58,79,.35);font-size:.72rem;white-space:nowrap;overflow:hidden}
-.gantt-row-label a{color:#7dd3fc;flex-shrink:0;display:flex;align-items:center;padding:0 4px 0 6px}
-.gantt-row-label .name{overflow:hidden;text-overflow:ellipsis;color:var(--text);display:flex;align-items:center;flex:1;min-width:0;padding-right:4px}
 
 /* Trilhos laterais projeto / módulo (texto vertical neon) */
 .rail-p,.rail-m{flex-shrink:0;width:22px;display:flex;align-items:center;justify-content:center;writing-mode:vertical-rl;transform:rotate(180deg);font-size:.58rem;font-weight:700;letter-spacing:.05em;overflow:hidden;border-right:1px solid rgba(0,0,0,.25);line-height:1.1;padding:2px 0}
 .rail-p .rail-txt,.rail-m .rail-txt{max-height:34px;overflow:hidden;text-overflow:ellipsis}
 .rail-cont .rail-txt{visibility:hidden}
 .rail-cont{border-top:none}
-
-/* Neon suaves — projetos */
-.neon-p0{background:rgba(59,130,246,.18);color:#93c5fd;box-shadow:inset 2px 0 0 #3b82f6}
-.neon-p1{background:rgba(168,85,247,.18);color:#d8b4fe;box-shadow:inset 2px 0 0 #a855f7}
-.neon-p2{background:rgba(34,197,94,.16);color:#86efac;box-shadow:inset 2px 0 0 #22c55e}
-.neon-p3{background:rgba(245,158,11,.16);color:#fcd34d;box-shadow:inset 2px 0 0 #f59e0b}
-.neon-p4{background:rgba(6,182,212,.16);color:#67e8f9;box-shadow:inset 2px 0 0 #06b6d4}
-.neon-p5{background:rgba(244,63,94,.16);color:#fda4af;box-shadow:inset 2px 0 0 #f43f5e}
 
 /* Neon suaves — módulos */
 .neon-m0{background:rgba(99,102,241,.14);color:#a5b4fc;box-shadow:inset 2px 0 0 #6366f1}
@@ -55,37 +33,9 @@
 .neon-m3{background:rgba(234,179,8,.14);color:#fde047;box-shadow:inset 2px 0 0 #eab308}
 .neon-m4{background:rgba(14,165,233,.14);color:#7dd3fc;box-shadow:inset 2px 0 0 #0ea5e9}
 .neon-m5{background:rgba(139,92,246,.14);color:#c4b5fd;box-shadow:inset 2px 0 0 #8b5cf6}
-
-/* Botão nova sprint na barra */
-.sprint-add{flex-shrink:0;width:32px;height:26px;margin:1px 4px;border:1px dashed rgba(6,182,212,.55);background:rgba(6,182,212,.12);color:#67e8f9;border-radius:6px;font-size:16px;line-height:1;cursor:pointer;align-self:center}
-.sprint-add:hover{background:rgba(6,182,212,.28);border-style:solid;box-shadow:0 0 10px rgba(6,182,212,.35)}
 .gantt-right{flex:1;overflow:auto;position:relative;cursor:grab}
 .gantt-right.panning{cursor:grabbing}
-.gantt-timeline-head{height:56px;position:sticky;top:0;z-index:5;background:#121a28;border-bottom:1px solid var(--border);display:flex;flex-direction:column}
-.sprint-band{display:flex;height:28px;font-size:.65rem;font-weight:600}
-.sprint-cell{border-right:1px solid var(--border);display:flex;align-items:center;justify-content:center;gap:6px;color:var(--accent2);background:rgba(6,182,212,.08);overflow:hidden;white-space:nowrap;padding:0 4px}
-.sprint-cell.backlog-band{background:rgba(252,211,77,.12);color:#fcd34d}
-.sprint-cell .eye{border:none;background:rgba(0,0,0,.25);color:inherit;border-radius:4px;width:20px;height:18px;cursor:pointer;font-size:11px;line-height:1;padding:0;flex-shrink:0}
-.sprint-cell .eye:hover{background:rgba(59,130,246,.4)}
-.sprint-cell .sprint-task-add{flex-shrink:0;width:18px;height:18px;border:1px dashed rgba(148,163,184,.5);background:rgba(15,23,42,.4);color:#94a3b8;border-radius:4px;font-size:13px;line-height:1;cursor:pointer;padding:0;display:inline-flex;align-items:center;justify-content:center}
-.sprint-cell .sprint-task-add:hover{border-color:#67e8f9;color:#67e8f9;background:rgba(6,182,212,.25)}
-.day-band{display:flex;height:28px;font-size:.6rem}
-.day-cell{width:28px;min-width:28px;border-right:1px solid rgba(45,58,79,.35);display:flex;align-items:center;justify-content:center;color:var(--muted)}
-.day-cell.weekend{background:rgba(148,163,184,.08);color:#64748b}
-.day-cell.today{background:rgba(59,130,246,.25);color:#93c5fd;font-weight:700}
-.day-cell.backlog-day{background:rgba(252,211,77,.06)}
-.gantt-timeline-body{position:relative}
 .gantt-row-track{height:36px;position:relative;border-bottom:1px solid rgba(45,58,79,.35);background-image:repeating-linear-gradient(90deg,transparent,transparent 27px,rgba(45,58,79,.25) 27px,rgba(45,58,79,.25) 28px)}
-.gantt-row-track .wknd{position:absolute;top:0;bottom:0;background:rgba(148,163,184,.05);pointer-events:none}
-.gantt-row-track .bl-zone{position:absolute;top:0;bottom:0;background:rgba(252,211,77,.04);pointer-events:none;border-right:1px dashed rgba(252,211,77,.25)}
-.bar{position:absolute;top:6px;height:24px;border-radius:6px;font-size:.6rem;display:flex;align-items:center;padding:0 22px 0 8px;cursor:grab;user-select:none;box-shadow:0 1px 3px rgba(0,0,0,.35);overflow:hidden;min-width:48px;z-index:2}
-.bar:active{cursor:grabbing}
-.bar .bar-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;pointer-events:none;flex:1;font-weight:600}
-.bar .handle{position:absolute;top:0;bottom:0;width:8px;cursor:ew-resize;z-index:3}
-.bar .handle.left{left:0}.bar .handle.right{right:0}
-.bar .bar-actions{position:absolute;right:2px;top:2px;display:flex;gap:2px;z-index:4}.bar .icon-btn{width:18px;height:18px;border:none;background:rgba(0,0,0,.28);color:#e2e8f0;border-radius:4px;font-size:11px;cursor:pointer;padding:0;line-height:1;opacity:.85}.bar .icon-btn:hover{opacity:1;background:rgba(59,130,246,.55)}
-.bar.st-nova{background:#3b82f6}.bar.st-valid{background:#16a34a}.bar.st-plan{background:#7c3aed}
-.bar.st-and{background:#d97706}.bar.st-pag{background:#0891b2}.bar.st-done{background:#64748b}.bar.st-other{background:#475569}
 
 /* Menus de status/responsável — acima de qualquer modal (Kanban, issue, nova task) */
 .status-menu,.assignee-menu{
@@ -133,65 +83,6 @@
 .modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
 .modal-head h2{font-size:1.1rem;margin:0}
 .modal-sub{font-size:.78rem;margin-bottom:12px}
-.kanban-board{display:flex;gap:10px;overflow:auto;flex:1;min-height:320px;padding-bottom:8px}
-.kanban-col{min-width:180px;flex:1;background:#121a28;border:1px solid var(--border);border-radius:10px;display:flex;flex-direction:column;max-height:60vh}
-.kanban-col-head{padding:8px 10px;font-size:.72rem;font-weight:600;border-bottom:1px solid var(--border);color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
-.kanban-col-body{padding:8px;overflow:auto;flex:1;min-height:120px}
-.kanban-card{border:1px solid transparent;border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:.75rem;cursor:grab;user-select:none;color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.25);display:flex;flex-direction:column;gap:4px;min-height:64px}
-.kanban-card:active{cursor:grabbing;opacity:.85}
-.kanban-card .kc-top{display:flex;align-items:center;justify-content:space-between;gap:6px}
-.kanban-card .kc-id{font-weight:700;opacity:.95}
-.kanban-card .kc-st{font-size:.65rem;opacity:.85;font-weight:600}
-.kanban-card .kc-subject{font-size:.78rem;line-height:1.3;font-weight:500}
-.kanban-card .kc-footer{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:2px}
-.kanban-card .kc-who{font-size:.68rem;opacity:.9;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.kanban-card .kc-actions{display:flex;gap:2px;flex-shrink:0}
-.kanban-card .kc-actions .icon-btn{background:rgba(0,0,0,.2);border:none;color:#fff;cursor:pointer;border-radius:4px;padding:2px 4px;font-size:.75rem;line-height:1;opacity:.9}
-.kanban-card .kc-actions .icon-btn:hover{background:rgba(0,0,0,.4);opacity:1}
-/* cores herdadas dos status do Gantt */
-.kanban-card.st-nova{background:linear-gradient(135deg,#2563eb,#1d4ed8)}
-.kanban-card.st-plan{background:linear-gradient(135deg,#7c3aed,#6d28d9)}
-.kanban-card.st-and{background:linear-gradient(135deg,#d97706,#b45309)}
-.kanban-card.st-valid{background:linear-gradient(135deg,#059669,#047857)}
-.kanban-card.st-pag{background:linear-gradient(135deg,#0891b2,#0e7490)}
-.kanban-card.st-done{background:linear-gradient(135deg,#64748b,#475569)}
-.kanban-card.st-other{background:linear-gradient(135deg,#475569,#334155)}
-.kanban-col-body.drag-over{background:rgba(59,130,246,.12);outline:1px dashed var(--accent)}
-
-.kanban-col.neon-nova{border-color:#3b82f6;box-shadow:0 0 12px rgba(59,130,246,.35)}
-.kanban-col.neon-nova .kanban-col-head{color:#93c5fd;border-bottom-color:#3b82f6}
-.kanban-col.neon-plan{border-color:#a78bfa;box-shadow:0 0 12px rgba(167,139,250,.35)}
-.kanban-col.neon-plan .kanban-col-head{color:#c4b5fd;border-bottom-color:#a78bfa}
-.kanban-col.neon-and{border-color:#f59e0b;box-shadow:0 0 12px rgba(245,158,11,.35)}
-.kanban-col.neon-and .kanban-col-head{color:#fcd34d;border-bottom-color:#f59e0b}
-.kanban-col.neon-valid{border-color:#22c55e;box-shadow:0 0 12px rgba(34,197,94,.35)}
-.kanban-col.neon-valid .kanban-col-head{color:#86efac;border-bottom-color:#22c55e}
-.kanban-col.neon-deploy{border-color:#06b6d4;box-shadow:0 0 12px rgba(6,182,212,.35)}
-.kanban-col.neon-deploy .kanban-col-head{color:#67e8f9;border-bottom-color:#06b6d4}
-.kanban-col.neon-pag{border-color:#14b8a6;box-shadow:0 0 12px rgba(20,184,166,.35)}
-.kanban-col.neon-pag .kanban-col-head{color:#5eead4;border-bottom-color:#14b8a6}
-.kanban-col.neon-done{border-color:#94a3b8;box-shadow:0 0 10px rgba(148,163,184,.25)}
-.kanban-col.neon-done .kanban-col-head{color:#cbd5e1;border-bottom-color:#94a3b8}
-.kanban-col.neon-closed{border-color:#64748b;box-shadow:0 0 8px rgba(100,116,139,.2)}
-.kanban-col.neon-closed .kanban-col-head{color:#94a3b8}
-.kanban-col.neon-rej{border-color:#f87171;box-shadow:0 0 12px rgba(248,113,113,.3)}
-.kanban-col.neon-rej .kanban-col-head{color:#fca5a5;border-bottom-color:#f87171}
-.kanban-col.neon-other{border-color:var(--border)}
-
-/* —— Filter box actions (select all / clear) —— */
-.filter-box-title{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.filter-box-actions{display:flex;gap:4px}
-.flt-act{border:1px solid var(--border);background:#1a2332;color:var(--muted);border-radius:6px;width:24px;height:22px;font-size:12px;cursor:pointer;line-height:1;padding:0;display:inline-flex;align-items:center;justify-content:center}
-.flt-act:hover{border-color:var(--accent);color:var(--accent2);background:rgba(59,130,246,.15)}
-
-/* —— Task bar: taller for assignee row + eye icon —— */
-.bar{height:32px;top:2px;padding:0 56px 0 8px;flex-direction:column;align-items:stretch;justify-content:center;gap:1px}
-.bar .bar-label{font-size:.6rem;line-height:1.15}
-.bar .bar-who{font-size:.55rem;color:rgba(255,255,255,.75);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;pointer-events:none;display:flex;align-items:center;gap:4px}
-.bar .bar-who .who-name{overflow:hidden;text-overflow:ellipsis}
-.bar .bar-actions{position:absolute;right:2px;top:50%;transform:translateY(-50%);display:flex;gap:2px;z-index:4;flex-direction:row}
-.bar .icon-btn{width:18px;height:18px;border:none;background:rgba(0,0,0,.28);color:#e2e8f0;border-radius:4px;font-size:11px;cursor:pointer;padding:0;line-height:1;opacity:.9}
-.bar .icon-btn:hover{opacity:1;background:rgba(59,130,246,.55)}
 .gantt-row-track{height:36px}
 
 /* —— Universal modal: drag / resize / fullscreen —— */
@@ -223,13 +114,6 @@
 .issue-body strong,.issue-body b{color:#f1f5f9}
 .issue-body img{max-width:100%;border-radius:6px}
 .issue-body a{color:#7dd3fc}
-.kanban-board{flex:1;min-height:0}
-
-
-
-/* —— Seletor multi-projeto (dropdown refinado) —— */
-.gantt-left{width:360px;min-width:300px;position:relative}
-.proj-tree{position:relative;flex-shrink:0;padding:8px 8px 6px;border-bottom:1px solid var(--border);background:linear-gradient(180deg,#101826 0%,#0c1320 100%);z-index:20}
 .ms-trigger{width:100%;display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;border:1px solid rgba(45,58,79,.9);background:#121a28;color:var(--text);cursor:pointer;font-size:.78rem;font-weight:600;transition:border-color .15s,box-shadow .15s}
 .ms-trigger:hover,.ms-trigger[aria-expanded="true"]{border-color:rgba(6,182,212,.55);box-shadow:0 0 0 3px rgba(6,182,212,.12)}
 .ms-trigger-ico{color:#67e8f9;opacity:.9;font-size:.85rem}
@@ -244,60 +128,14 @@
 .ms-mini{border:1px solid var(--border);background:#1a2332;color:#94a3b8;border-radius:6px;padding:3px 8px;font-size:.65rem;cursor:pointer}
 .ms-mini:hover{border-color:var(--accent);color:#7dd3fc}
 .ms-panel-body{overflow:auto;padding:6px 4px 8px}
-.ms-option{display:flex;align-items:center;gap:8px;padding:6px 8px;margin:1px 4px;border-radius:8px;cursor:pointer;font-size:.75rem;color:#e2e8f0}
-.ms-option:hover{background:rgba(59,130,246,.1)}
-.ms-option input{accent-color:#06b6d4;flex-shrink:0;margin:0}
-.ms-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;box-shadow:0 0 6px currentColor}
-.ms-dot.neon-p0{background:#3b82f6;color:#3b82f6}
-.ms-dot.neon-p1{background:#a855f7;color:#a855f7}
-.ms-dot.neon-p2{background:#22c55e;color:#22c55e}
-.ms-dot.neon-p3{background:#f59e0b;color:#f59e0b}
-.ms-dot.neon-p4{background:#06b6d4;color:#06b6d4}
-.ms-dot.neon-p5{background:#f43f5e;color:#f43f5e}
 .ms-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
 
 /* Trilhos laterais mais discretos e legíveis */
 .rail-p,.rail-m{width:20px;font-size:.55rem;opacity:.95}
-.gantt-row-label{gap:0}
-.gantt-left-head{padding:6px 8px;font-size:.6rem}
-
-/* —— Hierarquia de projetos (trilhos neon spanning) —— */
-.left-hier{position:relative;min-height:100%}
-.left-hier-rails{position:absolute;left:0;top:0;bottom:0;pointer-events:none;z-index:1}
-.left-hier-rows{position:relative;z-index:2}
-.h-rail{position:absolute;width:22px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;writing-mode:vertical-rl;transform:rotate(180deg);font-size:.58rem;font-weight:700;letter-spacing:.04em;overflow:hidden;border-right:1px solid rgba(0,0,0,.2);padding:4px 0}
-.h-rail-txt{max-height:100%;overflow:hidden;text-overflow:ellipsis;text-align:center;line-height:1.15}
-.gantt-row-label{height:36px;padding:0 8px 0 6px;display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(45,58,79,.35);font-size:.72rem;white-space:nowrap;overflow:hidden}
-.gantt-row-label.row-tint{background:transparent}
-.gantt-row-label.row-tint.neon-p0{background:rgba(59,130,246,.06)}
-.gantt-row-label.row-tint.neon-p1{background:rgba(168,85,247,.06)}
-.gantt-row-label.row-tint.neon-p2{background:rgba(34,197,94,.06)}
-.gantt-row-label.row-tint.neon-p3{background:rgba(245,158,11,.06)}
-.gantt-row-label.row-tint.neon-p4{background:rgba(6,182,212,.06)}
-.gantt-row-label.row-tint.neon-p5{background:rgba(244,63,94,.06)}
-/* trilhos usam as mesmas neon-p* com fundo mais forte */
-.h-rail.neon-p0{background:rgba(59,130,246,.22);color:#93c5fd;box-shadow:inset 2px 0 0 #3b82f6}
-.h-rail.neon-p1{background:rgba(168,85,247,.22);color:#d8b4fe;box-shadow:inset 2px 0 0 #a855f7}
-.h-rail.neon-p2{background:rgba(34,197,94,.2);color:#86efac;box-shadow:inset 2px 0 0 #22c55e}
-.h-rail.neon-p3{background:rgba(245,158,11,.2);color:#fcd34d;box-shadow:inset 2px 0 0 #f59e0b}
-.h-rail.neon-p4{background:rgba(6,182,212,.2);color:#67e8f9;box-shadow:inset 2px 0 0 #06b6d4}
-.h-rail.neon-p5{background:rgba(244,63,94,.2);color:#fda4af;box-shadow:inset 2px 0 0 #f43f5e}
-/* alinhamento: dropdown ocupa altura do timeHead */
-.proj-tree{min-height:56px;display:flex;align-items:center;box-sizing:border-box}
-.gantt-left-body{overflow-y:auto;flex:1;min-height:0}
-
-.filter-box .chips{max-height:120px;overflow-y:auto;scrollbar-width:thin}
-.filter-box[data-filter="menu"],.filter-box[data-filter="menuStatus"]{display:flex;flex-direction:column;min-height:0;max-height:220px}
-.filter-box[data-filter="menu"] .menu-checks,.filter-box[data-filter="menuStatus"] .menu-checks{flex:1;min-height:0;max-height:160px}
 /* dropdown subprojetos (mesmo padrão do seletor de projetos) */
 .mod-ms{position:relative}
 .mod-ms .ms-trigger{width:100%}
 .mod-ms .ms-panel{left:0;right:0;top:calc(100% + 4px);max-height:240px;z-index:50}
-
-
-/* + nova task na barra da sprint */
-.sprint-task-add{flex-shrink:0;width:20px;height:18px;border:1px dashed rgba(148,163,184,.45);background:rgba(15,23,42,.35);color:#94a3b8;border-radius:4px;font-size:13px;line-height:1;cursor:pointer;padding:0}
-.sprint-task-add:hover{border-color:#67e8f9;color:#67e8f9;background:rgba(6,182,212,.2)}
 
 /* Modal nova task */
 #newTaskModal .modal-card{width:min(520px,96vw);height:auto;max-height:90vh}
@@ -310,19 +148,6 @@
 #newTaskModal textarea{min-height:120px;resize:vertical}
 #newTaskModal .nt-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:6px}
 
-
-/* —— Left hierarchy (task list + project rails) —— */
-.gantt-left{width:360px;min-width:300px;max-width:42vw;flex-shrink:0;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;background:#0b1220}
-.gantt-left-body{overflow-y:auto;overflow-x:hidden;flex:1;min-height:0;position:relative}
-.left-hier{position:relative;min-height:100%}
-.left-hier-rails{position:absolute;left:0;top:0;bottom:0;width:100%;pointer-events:none;z-index:1}
-.left-hier-rows{position:relative;z-index:2}
-.h-rail{position:absolute;width:22px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;writing-mode:vertical-rl;transform:rotate(180deg);font-size:.58rem;font-weight:700;letter-spacing:.04em;overflow:hidden;border-right:1px solid rgba(0,0,0,.25);padding:4px 0;pointer-events:none}
-.h-rail-txt{max-height:100%;overflow:hidden;text-overflow:ellipsis;text-align:center;line-height:1.15}
-.gantt-row-label{height:36px;box-sizing:border-box;padding:0 6px 0 0;display:flex;align-items:center;gap:0;border-bottom:1px solid rgba(45,58,79,.35);font-size:.72rem;white-space:nowrap;overflow:hidden;position:relative;z-index:2}
-.gantt-row-label a{color:#7dd3fc;flex-shrink:0;display:inline-flex;align-items:center;padding:0 4px 0 6px;text-decoration:none;font-weight:600}
-.gantt-row-label .name{overflow:hidden;text-overflow:ellipsis;color:var(--text);display:inline-flex;align-items:center;flex:1;min-width:0;padding-right:4px}
-
 /* menus acima de tudo, inclusive modal */
 .status-menu,.assignee-menu{position:fixed!important;z-index:10050!important;display:flex;flex-direction:column;gap:2px}
 .status-menu.hidden,.assignee-menu.hidden{display:none!important}
@@ -331,11 +156,6 @@
 /* modal descrição acima do gantt, menus ainda acima se abertos de fora */
 .modal{z-index:120}
 #issueModal,#kanbanModal,#newTaskModal{z-index:10020}
-
-
-/* Kanban DnD visual */
-.kanban-card.dragging{opacity:.55;outline:2px dashed #67e8f9}
-.kanban-col-body.drag-over{background:rgba(59,130,246,.12);outline:2px dashed rgba(103,232,249,.5)}
 /* Fullscreen modal */
 .modal-card.is-fs{
   position:fixed!important;
@@ -379,397 +199,18 @@
   max-width:none!important;max-height:none!important;
   border-radius:0!important;margin:0!important;z-index:10040!important;
 }
-.kanban-card.dragging{opacity:.5;outline:2px dashed #67e8f9}
-.kanban-col-body.drag-over{background:rgba(59,130,246,.15)!important;outline:2px dashed #67e8f9}
-.kanban-card{cursor:grab}
-.kanban-card:active{cursor:grabbing}
-
-
-/* ========== CARD STYLE (Gantt bar + Kanban) — modelo cliente ========== */
-.gantt-row-label{height:132px}
 .gantt-row-track{height:132px}
-.bar{
-  position:absolute;top:6px;bottom:6px;height:auto;min-height:118px;
-  display:flex;flex-direction:column;
-  background:#ffffff;border-left:5px solid #94a3b8;border-radius:6px;
-  padding:12px 14px;box-shadow:0 2px 6px rgba(0,0,0,.18);
-  box-sizing:border-box;overflow:hidden;z-index:2;min-width:160px;
-  color:#172b4d;font-size:.7rem;cursor:grab;user-select:none;
-}
-.bar:hover{box-shadow:0 4px 12px rgba(0,0,0,.22);transform:translateY(-1px)}
-.bar:active{cursor:grabbing}
-.bar .handle{position:absolute;top:0;bottom:0;width:6px;cursor:ew-resize;z-index:5;background:transparent}
-.bar .handle.left{left:0}.bar .handle.right{right:0}
-.bar.st-nova,.bar.st-and,.bar.st-plan,.bar.st-valid,.bar.st-pag,.bar.st-done,.bar.st-other{color:#172b4d}
-.bar.st-nova{border-left-color:#2196f3;background:#f2f8fd}
-.bar.st-plan{border-left-color:#9c27b0;background:#faf2fc}
-.bar.st-and{border-left-color:#ff9800;background:#fff9f2}
-.bar.st-valid{border-left-color:#4caf50;background:#f2fbf3}
-.bar.st-pag{border-left-color:#0891b2;background:#ecfeff}
-.bar.st-done{border-left-color:#b0bec5;background:#f7f9fa}
-.bar.st-other{border-left-color:#78909c;background:#f8fafc}
-
-.bar-header{display:flex;align-items:flex-start;gap:6px;margin-bottom:4px}
-.bar-task-id{font-weight:700;font-size:11px;color:#5e6c84;white-space:nowrap;background:rgba(0,0,0,.05);padding:1px 5px;border-radius:3px;flex-shrink:0}
-.bar-project-name{font-weight:600;font-size:11px;line-height:1.3;color:#172b4d;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
-
-.comment-header-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:2px}
-.comment-title{font-size:10px;font-weight:700;color:#4a5568}
-.add-comment-btn{background:#0052cc;color:#fff;border:none;border-radius:50%;width:16px;height:16px;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;padding:0;flex-shrink:0}
-.add-comment-btn:hover{background:#0065ff}
-.bar-last-comment{font-size:10px;color:#5e6c84;background:rgba(0,0,0,.04);border-radius:3px;padding:3px 6px;margin-bottom:4px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;min-height:16px}
-
-.bar-dates-row{display:flex;gap:8px;font-size:10px;color:#5e6c84;margin-top:auto}
-.bar-dates-row strong{color:#333;font-weight:600}
-.bar-status-row{font-size:10px;text-transform:uppercase;letter-spacing:.4px;font-weight:700;margin:2px 0}
-.st-and .bar-status-row{color:#e65100}
-.st-plan .bar-status-row{color:#6a1b9a}
-.st-valid .bar-status-row{color:#2e7d32}
-.st-nova .bar-status-row{color:#1565c0}
-.st-done .bar-status-row{color:#546e7a}
-.st-pag .bar-status-row{color:#0e7490}
-.st-other .bar-status-row{color:#475569}
-
-.bar-content-bottom{display:flex;align-items:center;justify-content:space-between;gap:6px;border-top:1px dashed rgba(0,0,0,.08);padding-top:4px;margin-top:2px}
-.bar .bar-who{font-size:10px;font-weight:500;color:#4a5568;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
-.bar .bar-actions{display:flex;gap:3px;flex-shrink:0;position:static}
-.bar .icon-btn{background:#f4f5f7;border:1px solid #ddd;border-radius:4px;cursor:pointer;padding:2px 5px;font-size:11px;color:#334155;line-height:1;width:auto;height:auto;opacity:1}
-.bar .icon-btn:hover{background:#ebecf0}
-
-/* Left labels align with taller rows */
-.gantt-row-label{height:100px;align-items:flex-start;padding-top:10px}
-.gantt-row-label a{align-self:flex-start}
-.gantt-row-label .name{align-self:flex-start;white-space:normal;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;line-height:1.25}
-
-/* Hierarchy neon rails compact */
-.left-hier{position:relative}
-.h-rail{border-left:3px solid #00e5ff;box-shadow:-2px 0 6px -1px rgba(0,229,255,.25);opacity:.9}
-.h-rail.neon-p0{border-left-color:#00e5ff;box-shadow:-2px 0 6px -1px rgba(0,229,255,.4)}
-.h-rail.neon-p1{border-left-color:#ff007f;box-shadow:-2px 0 6px -1px rgba(255,0,127,.4)}
-.h-rail.neon-p2{border-left-color:#39ff14;box-shadow:-2px 0 6px -1px rgba(57,255,20,.4)}
-.h-rail.neon-p3{border-left-color:#ff9900;box-shadow:-2px 0 6px -1px rgba(255,153,0,.4)}
-.h-rail.neon-p4{border-left-color:#b200ff;box-shadow:-2px 0 6px -1px rgba(178,0,255,.4)}
-.h-rail.neon-p5{border-left-color:#ffcc00;box-shadow:-2px 0 6px -1px rgba(255,204,0,.4)}
-.gantt-row-label.row-tint.neon-p0{border-left:3px solid #00e5ff}
-.gantt-row-label.row-tint.neon-p1{border-left:3px solid #ff007f}
-.gantt-row-label.row-tint.neon-p2{border-left:3px solid #39ff14}
-.gantt-row-label.row-tint.neon-p3{border-left:3px solid #ff9900}
-.gantt-row-label.row-tint.neon-p4{border-left:3px solid #b200ff}
-.gantt-row-label.row-tint.neon-p5{border-left:3px solid #ffcc00}
-
-/* ========== Kanban cards — mesmo modelo ========== */
-.kanban-card{
-  display:flex;flex-direction:column;gap:0;
-  background:#fff;border-left:5px solid #94a3b8;border-radius:6px;
-  padding:16px;margin-bottom:12px;min-height:200px;
-  box-shadow:0 2px 4px rgba(0,0,0,.08);cursor:grab;user-select:none;color:#172b4d;
-}
-.kanban-card:hover{transform:translateY(-2px);box-shadow:0 4px 8px rgba(0,0,0,.12)}
-.kanban-card:active{cursor:grabbing}
-.kanban-card.st-nova{border-left-color:#2196f3;background:#f2f8fd}
-.kanban-card.st-plan{border-left-color:#9c27b0;background:#faf2fc}
-.kanban-card.st-and{border-left-color:#ff9800;background:#fff9f2}
-.kanban-card.st-valid{border-left-color:#4caf50;background:#f2fbf3}
-.kanban-card.st-pag{border-left-color:#0891b2;background:#ecfeff}
-.kanban-card.st-done{border-left-color:#b0bec5;background:#f7f9fa}
-.kanban-card.st-other{border-left-color:#78909c;background:#f8fafc}
-.kanban-card .bar-header{margin-bottom:8px}
-.kanban-card .bar-task-id{font-size:13px}
-.kanban-card .bar-project-name{font-size:13px}
-.kanban-card .bar-last-comment{margin-bottom:8px;-webkit-line-clamp:2;min-height:28px}
-.kanban-card .bar-dates-row{font-size:11px;margin-top:auto}
-.kanban-card .bar-status-row{font-size:11px;margin-bottom:6px}
-.kanban-card .bar-content-bottom{padding-top:8px}
-.kanban-card .bar-who{font-size:12px}
-.kanban-card .icon-btn{padding:4px 6px;font-size:12px}
-.kanban-card .kc-top,.kanban-card .kc-subject,.kanban-card .kc-footer,.kanban-card .kc-st,.kanban-card .kc-id{display:none}
-
-/* Comment modal */
-.comment-modal.modal-overlay{
-  position:fixed;inset:0;background:rgba(9,30,66,.54);
-  display:none;justify-content:center;align-items:center;z-index:12000;
-}
-.comment-modal.modal-overlay.open{display:flex}
-.comment-modal .modal-content{
-  background:#fff;padding:24px;border-radius:8px;width:min(480px,92vw);
-  box-shadow:0 8px 16px -4px rgba(9,30,66,.25);animation:cmFade .2s ease-out;
-}
 @keyframes cmFade{from{transform:translateY(-16px);opacity:0}to{transform:none;opacity:1}}
-.comment-modal .modal-header{font-size:18px;font-weight:600;color:#172b4d;margin-bottom:8px}
-.comment-modal .modal-subheader{font-size:13px;color:#5e6c84;margin-bottom:16px;background:#f4f5f7;padding:10px;border-radius:4px;line-height:1.5}
-.comment-modal textarea{width:100%;height:120px;padding:10px;border:2px solid #dfe1e6;border-radius:4px;font:inherit;font-size:14px;resize:vertical;box-sizing:border-box;outline:none}
-.comment-modal textarea:focus{border-color:#0052cc}
-.comment-modal .modal-footer{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
-.comment-modal .btn{padding:8px 16px;border-radius:4px;font-size:14px;font-weight:500;cursor:pointer;border:none}
-.comment-modal .btn-submit{background:#0052cc;color:#fff}
-.comment-modal .btn-submit:hover{background:#0065ff}
-.comment-modal .btn-cancel{background:#f4f5f7;color:#42526e}
-.comment-modal .btn-cancel:hover{background:#ebecf0}
-
-/* Project filter tree — compact neon (dropdown) */
-.ms-option{font-size:12px}
-.ms-dot{width:3px;height:14px;border-radius:1px;flex-shrink:0}
-
-
-/* ========== Sidebar árvore recolhível (modelo cliente) ========== */
-.gantt-left{background:var(--card);width:340px}
-.gantt-left-head{display:flex;align-items:center;justify-content:space-between;gap:8px;height:auto;min-height:44px;padding:10px 12px}
-.gantt-left-head .lh-task{font-size:.7rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
-.ux-sidebar{padding:8px 6px 16px 4px;overflow-x:hidden}
-.ux-sidebar details{margin-top:2px}
-.ux-sidebar details details{margin-left:12px;border-left:1px solid var(--border);padding-left:4px}
-.ux-sidebar summary{
-  list-style:none;cursor:pointer;padding:7px 8px;border-radius:6px;
-  display:flex;align-items:center;font-size:13px;color:var(--text);
-  transition:background .15s;user-select:none;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  border-left:3px solid transparent;
-}
-.ux-sidebar summary::-webkit-details-marker{display:none}
-.ux-sidebar summary:hover{background:rgba(148,163,184,.12)}
-.ux-sidebar summary::before{
-  content:"";display:inline-block;flex-shrink:0;width:14px;height:14px;margin-right:6px;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='9 18 15 12 9 6'%3E%3C/polyline%3E%3C/svg%3E");
-  background-size:contain;background-repeat:no-repeat;background-position:center;
-  transition:transform .2s;
-}
-.ux-sidebar details[open]>summary::before{transform:rotate(90deg)}
-.ux-sidebar summary.neon-p0{border-left-color:#00e5ff;box-shadow:-2px 0 6px -1px rgba(0,229,255,.35);font-weight:600}
-.ux-sidebar summary.neon-p1{border-left-color:#ff007f;box-shadow:-2px 0 6px -1px rgba(255,0,127,.35);font-weight:600}
-.ux-sidebar summary.neon-p2{border-left-color:#39ff14;box-shadow:-2px 0 6px -1px rgba(57,255,20,.35);font-weight:600}
-.ux-sidebar summary.neon-p3{border-left-color:#ff9900;box-shadow:-2px 0 6px -1px rgba(255,153,0,.35);font-weight:600}
-.ux-sidebar summary.neon-p4{border-left-color:#b200ff;box-shadow:-2px 0 6px -1px rgba(178,0,255,.35);font-weight:500}
-.ux-sidebar summary.neon-p5{border-left-color:#ffcc00;box-shadow:-2px 0 6px -1px rgba(255,204,0,.35);font-weight:500}
-.ux-task-list{margin:2px 0 6px 8px;display:flex;flex-direction:column;gap:2px}
-.ux-task-item{
-  display:flex;align-items:center;gap:8px;padding:8px 8px;text-decoration:none;
-  color:var(--muted);border-radius:6px;font-size:12px;transition:background .15s,color .15s;
-  border:1px solid transparent;cursor:pointer;background:transparent;width:100%;text-align:left;
-}
-.ux-task-item:hover,.ux-task-item.active{background:rgba(59,130,246,.12);color:var(--text);border-color:rgba(59,130,246,.25)}
-.ux-task-item .task-id{
-  font-family:ui-monospace,monospace;font-size:11px;color:var(--accent);
-  background:rgba(59,130,246,.12);padding:2px 6px;border-radius:4px;font-weight:600;flex-shrink:0;
-}
-.ux-task-item .task-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
-
-/* Cards mais abertos */
-.bar .bar-header{margin-bottom:8px;gap:8px}
-.bar .bar-task-id{font-size:12px;padding:3px 7px}
-.bar .bar-project-name{font-size:12px;line-height:1.35;-webkit-line-clamp:2}
-.bar .comment-header-row{margin-bottom:4px}
-.bar .comment-title{font-size:11px}
-.bar .add-comment-btn{width:20px;height:20px;font-size:13px}
-.bar .bar-last-comment{font-size:11px;padding:6px 8px;margin-bottom:8px;-webkit-line-clamp:2;min-height:32px;line-height:1.35}
-.bar .bar-dates-row{font-size:11px;gap:12px;margin-bottom:4px}
-.bar .bar-status-row{font-size:11px;margin-bottom:6px}
-.bar .bar-content-bottom{padding-top:8px;margin-top:4px}
-.bar .bar-who{font-size:12px}
-.bar .icon-btn{padding:4px 7px;font-size:12px}
-
-.kanban-card .bar-header{margin-bottom:10px}
-.kanban-card .bar-task-id{font-size:13px}
-.kanban-card .bar-project-name{font-size:14px}
-.kanban-card .bar-last-comment{font-size:12px;padding:8px 10px;margin-bottom:10px;min-height:40px}
-.kanban-card .bar-dates-row{font-size:12px;margin-bottom:6px}
-.kanban-card .bar-status-row{font-size:12px;margin-bottom:8px}
-.kanban-card .bar-who{font-size:13px}
 
 /* Light theme gantt */
 [data-theme="light"] .gantt-wrap{background:var(--card);border-color:var(--border)}
-[data-theme="light"] .gantt-left{background:#fff}
-[data-theme="light"] .filter-box{background:#f4f5f7;border-color:var(--border)}
 [data-theme="light"] .gantt-row-track{background-image:repeating-linear-gradient(90deg,transparent,transparent 27px,rgba(9,30,66,.08) 27px,rgba(9,30,66,.08) 28px)}
-[data-theme="light"] .bar{box-shadow:0 2px 6px rgba(9,30,66,.12)}
-[data-theme="light"] .ux-sidebar summary:hover{background:#f4f5f7}
-[data-theme="light"] .ux-task-item:hover,[data-theme="light"] .ux-task-item.active{background:#e9f2ff}
-[data-theme="light"] .day-band,[data-theme="light"] .sprint-band{color:var(--muted)}
-
-
-/* ========== FIX FINAL: cards modelo cliente + alinhamento ========== */
-.gantt-left-body{
-  overflow-y:hidden !important; /* scroll só na direita */
-  overflow-x:hidden;
-}
 .gantt-right{overflow:auto}
-.left-rows{position:relative}
-.gantt-row-label{
-  height:240px !important;
-  box-sizing:border-box;
-  display:flex !important;
-  flex-direction:row;
-  align-items:flex-start;
-  gap:8px;
-  padding:14px 10px 14px 12px !important;
-  border-bottom:1px solid rgba(45,58,79,.35);
-  border-left:4px solid transparent;
-  cursor:pointer;
-  white-space:normal !important;
-}
-.gantt-row-label .rl-id{
-  font-weight:700;font-size:13px;color:#7dd3fc;flex-shrink:0;
-  background:rgba(59,130,246,.12);padding:2px 6px;border-radius:4px;
-}
-.gantt-row-label .rl-body{min-width:0;flex:1}
-.gantt-row-label .rl-name{
-  font-weight:600;font-size:13px;line-height:1.35;color:var(--text);
-  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
-}
-.gantt-row-label .rl-proj{font-size:11px;color:var(--muted);margin-top:4px;opacity:.9}
-.gantt-row-label.neon-p0{border-left-color:#00e5ff}
-.gantt-row-label.neon-p1{border-left-color:#ff007f}
-.gantt-row-label.neon-p2{border-left-color:#39ff14}
-.gantt-row-label.neon-p3{border-left-color:#ff9900}
-.gantt-row-label.neon-p4{border-left-color:#b200ff}
-.gantt-row-label.neon-p5{border-left-color:#ffcc00}
 
 .gantt-row-track{height:240px !important}
-
-/* Card Gantt — modelo cliente */
-.bar{
-  top:10px !important;bottom:10px !important;height:auto !important;
-  min-height:220px !important;
-  display:flex !important;flex-direction:column !important;
-  background:#ffffff !important;
-  border-left:5px solid #ccc !important;
-  border-radius:6px !important;
-  padding:14px !important;
-  box-shadow:0 2px 6px rgba(0,0,0,.15) !important;
-  overflow:visible !important;
-  color:#172b4d !important;
-  font-size:13px !important;
-  z-index:3;
-}
-.bar:hover{transform:translateY(-2px);box-shadow:0 4px 10px rgba(0,0,0,.18) !important}
-
-/* Cores por status (classes novas) */
-.bar.st-andamento{border-left-color:#ff9800 !important;background-color:#fff9f2 !important}
-.bar.st-planejamento{border-left-color:#9c27b0 !important;background-color:#faf2fc !important}
-.bar.st-validacao{border-left-color:#4caf50 !important;background-color:#f2fbf3 !important}
-.bar.st-nova{border-left-color:#2196f3 !important;background-color:#f2f8fd !important}
-.bar.st-resolvida{border-left-color:#b0bec5 !important;background-color:#f7f9fa !important}
-.bar.st-finalizado{border-left-color:#546e7a !important;background-color:#eceff1 !important}
-.bar.st-pagamento{border-left-color:#0891b2 !important;background-color:#ecfeff !important}
-.bar.st-other{border-left-color:#78909c !important;background-color:#f8fafc !important}
-
-/* legado (caso alguma classe antiga sobreviva) */
-.bar.st-and{border-left-color:#ff9800 !important;background-color:#fff9f2 !important}
-.bar.st-plan{border-left-color:#9c27b0 !important;background-color:#faf2fc !important}
-.bar.st-valid{border-left-color:#4caf50 !important;background-color:#f2fbf3 !important}
-.bar.st-done{border-left-color:#b0bec5 !important;background-color:#f7f9fa !important}
-.bar.st-pag{border-left-color:#0891b2 !important;background-color:#ecfeff !important}
-
-.bar .bar-header{display:flex;align-items:flex-start;gap:8px;margin-bottom:12px}
-.bar .bar-task-id{
-  font-weight:700;font-size:14px;color:#5e6c84;white-space:nowrap;
-  background:rgba(0,0,0,.05);padding:2px 6px;border-radius:3px;flex-shrink:0;
-}
-.bar .bar-project-name{
-  font-weight:600;font-size:14px;line-height:1.4;color:#172b4d;
-  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;
-}
-.bar .comment-header-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
-.bar .comment-title{font-size:12px;font-weight:700;color:#4a5568}
-.bar .add-comment-btn{
-  background:#0052cc;color:#fff;border:none;border-radius:50%;
-  width:20px;height:20px;font-size:13px;font-weight:700;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;line-height:1;padding:0;flex-shrink:0;
-}
-.bar .add-comment-btn:hover{background:#0065ff}
-.bar .bar-last-comment{
-  font-size:12px;color:#5e6c84;background:rgba(0,0,0,.03);border-radius:4px;
-  padding:8px 10px;margin-bottom:12px;line-height:1.4;
-  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:36px;
-}
-.bar .bar-dates-row{display:flex;gap:12px;font-size:12px;color:#5e6c84;margin-top:auto;margin-bottom:4px}
-.bar .bar-dates-row strong{color:#333}
-.bar .bar-status-row{font-size:12px;text-transform:uppercase;letter-spacing:.5px;font-weight:700;margin-bottom:8px}
-.bar.st-andamento .bar-status-row,.bar.st-and .bar-status-row{color:#e65100}
-.bar.st-planejamento .bar-status-row,.bar.st-plan .bar-status-row{color:#6a1b9a}
-.bar.st-validacao .bar-status-row,.bar.st-valid .bar-status-row{color:#2e7d32}
-.bar.st-nova .bar-status-row{color:#1565c0}
-.bar.st-resolvida .bar-status-row,.bar.st-done .bar-status-row{color:#546e7a}
-.bar.st-finalizado .bar-status-row{color:#263238}
-.bar.st-pagamento .bar-status-row,.bar.st-pag .bar-status-row{color:#0e7490}
-
-.bar .bar-content-bottom{
-  display:flex;align-items:center;justify-content:space-between;gap:8px;
-  border-top:1px dashed rgba(0,0,0,.08);padding-top:8px;
-}
-.bar .bar-who{font-size:13px;font-weight:500;color:#4a5568;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
-.bar .bar-actions{display:flex !important;gap:4px;flex-shrink:0;position:static !important;opacity:1 !important}
-.bar .icon-btn{
-  background:#f4f5f7 !important;border:1px solid #ddd !important;border-radius:4px !important;
-  cursor:pointer;padding:5px 8px !important;font-size:13px !important;color:#334155 !important;
-  width:auto !important;height:auto !important;opacity:1 !important;line-height:1;
-}
-.bar .icon-btn:hover{background:#ebecf0 !important}
-.bar .handle{width:6px;z-index:6}
-
-/* Kanban — mesmas cores e respiro */
-.kanban-card{
-  min-height:240px !important;padding:16px !important;
-  background:#fff !important;color:#172b4d !important;
-  border-left:5px solid #ccc !important;border-radius:6px !important;
-}
-.kanban-card.st-andamento{border-left-color:#ff9800 !important;background:#fff9f2 !important}
-.kanban-card.st-planejamento{border-left-color:#9c27b0 !important;background:#faf2fc !important}
-.kanban-card.st-validacao{border-left-color:#4caf50 !important;background:#f2fbf3 !important}
-.kanban-card.st-nova{border-left-color:#2196f3 !important;background:#f2f8fd !important}
-.kanban-card.st-resolvida{border-left-color:#b0bec5 !important;background:#f7f9fa !important}
-.kanban-card.st-finalizado{border-left-color:#546e7a !important;background:#eceff1 !important}
-.kanban-card.st-pagamento{border-left-color:#0891b2 !important;background:#ecfeff !important}
-.kanban-card .bar-actions,.kanban-card .icon-btn{display:flex !important;opacity:1 !important}
-.kanban-card .icon-btn{
-  background:#f4f5f7 !important;border:1px solid #ddd !important;color:#334155 !important;
-  padding:5px 8px !important;font-size:13px !important;
-}
-
-[data-theme="light"] .gantt-row-label .rl-id{color:#0052cc;background:#e9f2ff}
-[data-theme="light"] .gantt-row-label{border-bottom-color:#dfe1e6}
 
 
 /* ========== UX estável (rollback c33f5df + refinamentos seguros) ========== */
 /* Header de sprints/dias fixo ao rolar os cards */
 .gantt-right{overflow:auto !important}
-.gantt-timeline-head{
-  position:sticky !important;
-  top:0 !important;
-  z-index:30 !important;
-  height:auto !important;
-  background:#121a28 !important;
-  box-shadow:0 2px 8px rgba(0,0,0,.3);
-}
-/* Cards abertos legíveis — reforço da paleta de status (borda + fundo suave) */
-.bar{
-  border-left-width:5px !important;
-  border-radius:6px !important;
-  box-shadow:0 2px 6px rgba(0,0,0,.12) !important;
-  color:#172b4d !important;
-}
-.bar.st-and{border-left-color:#ff9800 !important;background:#fff9f2 !important}
-.bar.st-plan{border-left-color:#9c27b0 !important;background:#faf2fc !important}
-.bar.st-valid{border-left-color:#4caf50 !important;background:#f2fbf3 !important}
-.bar.st-nova{border-left-color:#2196f3 !important;background:#f2f8fd !important}
-.bar.st-pag{border-left-color:#0891b2 !important;background:#ecfeff !important}
-.bar.st-done{border-left-color:#b0bec5 !important;background:#f7f9fa !important}
-.bar.st-other{border-left-color:#78909c !important;background:#f8fafc !important}
-/* Botões da barra de sprint clicáveis */
-.sprint-band .eye,
-.sprint-task-add,
-.sprint-add{
-  pointer-events:auto !important;
-  cursor:pointer !important;
-  z-index:5;
-}
 .gantt-row-track{position:relative;overflow:visible}
-
-/* Aliases statusClass (st-andamento ↔ st-and) */
-.bar.st-andamento{border-left-color:#ff9800 !important;background:#fff9f2 !important;color:#172b4d !important}
-.bar.st-planejamento{border-left-color:#9c27b0 !important;background:#faf2fc !important;color:#172b4d !important}
-.bar.st-validacao{border-left-color:#4caf50 !important;background:#f2fbf3 !important;color:#172b4d !important}
-.bar.st-pagamento{border-left-color:#0891b2 !important;background:#ecfeff !important;color:#172b4d !important}
-.bar.st-resolvida,.bar.st-finalizado{border-left-color:#b0bec5 !important;background:#f7f9fa !important;color:#172b4d !important}
-.kanban-card.st-andamento{border-left-color:#ff9800;background:#fff9f2}
-.kanban-card.st-planejamento{border-left-color:#9c27b0;background:#faf2fc}
-.kanban-card.st-validacao{border-left-color:#4caf50;background:#f2fbf3}

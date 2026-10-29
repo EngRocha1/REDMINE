@@ -1,0 +1,44 @@
+/* HEMOPI Gantt — extracted module (Phase 2). Source of truth split from gantt.css stable base. */
+/* module: css/filters.css */
+
+.filter-panel{background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;overflow:hidden}
+.filter-toggle{width:100%;display:flex;align-items:center;gap:12px;background:transparent;border:none;color:var(--text);padding:10px 14px;cursor:pointer;font-size:.85rem;font-weight:600}
+.filter-toggle .chevron{margin-left:auto;color:var(--muted);transition:.15s}
+.filter-panel.collapsed .chevron{transform:rotate(-90deg)}
+.filter-panel.collapsed .filter-body{display:none}
+.filter-body{padding:0 12px 12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.filter-box{background:#121a28;border:1px solid rgba(45,58,79,.8);border-radius:10px;padding:10px}
+.filter-box-title{font-size:.62rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:8px;font-weight:600}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--border);background:#243044;color:var(--text);border-radius:999px;padding:5px 11px;font-size:.72rem;cursor:pointer;user-select:none}
+.chip:hover{border-color:var(--accent)}
+.chip.on{background:rgba(59,130,246,.28);border-color:var(--accent);color:#e0f2fe;font-weight:600}
+.menu-checks{display:flex;flex-direction:column;gap:4px;max-height:160px;overflow-y:auto;overflow-x:hidden;padding-right:4px;scrollbar-width:thin}
+.menu-checks label{display:flex;align-items:center;gap:8px;font-size:.75rem;color:var(--text);cursor:pointer;padding:3px 2px}
+.menu-checks input{accent-color:var(--accent)}
+.filter-footer{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding-top:4px}
+
+/* —— Filter box actions (select all / clear) —— */
+.filter-box-title{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.filter-box-actions{display:flex;gap:4px}
+.flt-act{border:1px solid var(--border);background:#1a2332;color:var(--muted);border-radius:6px;width:24px;height:22px;font-size:12px;cursor:pointer;line-height:1;padding:0;display:inline-flex;align-items:center;justify-content:center}
+.flt-act:hover{border-color:var(--accent);color:var(--accent2);background:rgba(59,130,246,.15)}
+.ms-option{display:flex;align-items:center;gap:8px;padding:6px 8px;margin:1px 4px;border-radius:8px;cursor:pointer;font-size:.75rem;color:#e2e8f0}
+.ms-option:hover{background:rgba(59,130,246,.1)}
+.ms-option input{accent-color:#06b6d4;flex-shrink:0;margin:0}
+.ms-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;box-shadow:0 0 6px currentColor}
+.ms-dot.neon-p0{background:#3b82f6;color:#3b82f6}
+.ms-dot.neon-p1{background:#a855f7;color:#a855f7}
+.ms-dot.neon-p2{background:#22c55e;color:#22c55e}
+.ms-dot.neon-p3{background:#f59e0b;color:#f59e0b}
+.ms-dot.neon-p4{background:#06b6d4;color:#06b6d4}
+.ms-dot.neon-p5{background:#f43f5e;color:#f43f5e}
+
+.filter-box .chips{max-height:120px;overflow-y:auto;scrollbar-width:thin}
+.filter-box[data-filter="menu"],.filter-box[data-filter="menuStatus"]{display:flex;flex-direction:column;min-height:0;max-height:220px}
+.filter-box[data-filter="menu"] .menu-checks,.filter-box[data-filter="menuStatus"] .menu-checks{flex:1;min-height:0;max-height:160px}
+
+/* Project filter tree — compact neon (dropdown) */
+.ms-option{font-size:12px}
+.ms-dot{width:3px;height:14px;border-radius:1px;flex-shrink:0}
+[data-theme="light"] .filter-box{background:#f4f5f7;border-color:var(--border)}

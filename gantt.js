@@ -14,6 +14,20 @@
   };
   window.__HEMOPI_GLOG = GLOG;
   GLOG.step("boot: IIFE start");
+  /* ========================================================================
+   * PHASE2 MODULE MAP (logic still in this file — do not split until UX hybrid OK)
+   * - core/state          : sel, allIssues, versions, filtered
+   * - core/api            : api(), loadAll
+   * - core/dates          : parseYMD, addDays, isWeekend, versionPeriod
+   * - core/filters-engine : applyFilters
+   * - filters/filters-ui  : fillChips, filter panel handlers
+   * - sidebar/sidebar-ui  : left labels / tree render
+   * - timeline/model      : versionBands, colDates
+   * - timeline/ui         : head HTML (sprint/day bands), sticky actions
+   * - cards/ui            : bar HTML, bindBarEvents, kanban cards
+   * - gantt-app           : renderGantt orchestration
+   * ======================================================================== */
+
   window.onerror = function (m, s, l, c, e) {
     GLOG.err("window.onerror: " + m + " @" + s + ":" + l + ":" + c, e);
   };
