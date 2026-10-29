@@ -729,358 +729,47 @@
 [data-theme="light"] .gantt-row-label{border-bottom-color:#dfe1e6}
 
 
-/* ========== FILTROS AVANÇADOS — modelo cliente ========== */
-.filter-panel{
-  background:#1b2434;
-  border:1px solid #2e3b52;
-  border-radius:12px;
-  padding:24px;
-  box-shadow:0 10px 25px -5px rgba(0,0,0,.5);
-  margin-bottom:12px;
-  overflow:visible;
-}
-.filter-toggle{
-  background:transparent;border:none;color:var(--text,#f8fafc);
-  font-size:16px;font-weight:600;display:flex;align-items:center;gap:12px;
-  padding:0 0 20px 0;cursor:pointer;width:100%;
-}
-.filter-toggle.closed{padding-bottom:0}
-.filter-toggle .muted{font-size:13px;color:#94a3b8;font-weight:400}
-.filter-toggle .chevron{margin-left:auto;transition:transform .25s ease}
-.filter-toggle[aria-expanded="false"] .chevron{transform:rotate(-90deg)}
-.filter-body{
-  display:grid;gap:16px;
-  grid-template-columns:repeat(2,1fr);
-  transition:all .25s ease;
-}
-.filter-body.hidden{display:none !important}
-@media (min-width:1024px){
-  .filter-body{grid-template-columns:repeat(4,1fr)}
-}
-.filter-box{
-  background:#121927;border:1px solid #2e3b52;border-radius:6px;
-  display:flex;flex-direction:column;overflow:hidden;
-  transition:height .25s ease;
-}
-.filter-box[data-filter="assignee"]{grid-column:1/-1}
-.filter-box.expanded{height:320px}
-.filter-box[data-filter="assignee"].expanded{height:250px}
-.filter-box.minimized{height:43px}
-.filter-box.minimized .box-content-scroll{display:none}
-.filter-box-title{
-  padding:12px 16px;border-bottom:1px solid #2e3b52;
-  display:flex;justify-content:space-between;align-items:center;
-  font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
-  color:#94a3b8;background:rgba(30,41,59,.5);min-height:43px;box-sizing:border-box;
-}
-.filter-box-actions{display:flex;gap:4px;align-items:center}
-.flt-act{
-  background:transparent;border:none;color:#94a3b8;cursor:pointer;font-size:14px;
-  padding:2px 6px;border-radius:4px;display:flex;align-items:center;justify-content:center;
-  transition:all .2s ease;
-}
-.flt-act:hover{color:#f8fafc;background:rgba(255,255,255,.1)}
-.box-toggle{font-size:16px;font-weight:bold}
-.filter-box.minimized .box-toggle{transform:rotate(-90deg)}
-.box-content-scroll{
-  padding:16px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:12px;
-}
-.box-content-scroll::-webkit-scrollbar{width:6px}
-.box-content-scroll::-webkit-scrollbar-thumb{background:#475569;border-radius:10px}
-.chips{display:flex;flex-wrap:wrap;gap:8px}
-.chip{
-  background:transparent;border:1px solid #2e3b52;color:#94a3b8;border-radius:20px;
-  padding:6px 14px;font-size:12px;font-weight:500;cursor:pointer;
-  transition:all .2s ease;line-height:1.4;text-align:center;
-}
-.chip.on{
-  background:rgba(59,130,246,.15);border-color:#3b82f6;color:#f8fafc;
-  box-shadow:inset 0 0 0 1px #3b82f6;
-}
-.chip:hover:not(.on){border-color:#94a3b8;color:#f8fafc}
-.menu-checks{display:flex;flex-direction:column;gap:10px}
-.menu-checks label{
-  display:flex;align-items:flex-start;gap:10px;font-size:13px;cursor:pointer;color:#f8fafc;
-}
-.menu-checks input[type="checkbox"]{accent-color:#3b82f6;width:16px;height:16px;margin:0;cursor:pointer}
-.ms-option{
-  display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;padding:4px 0;color:#f8fafc;
-}
-.ms-option input[type="checkbox"]{accent-color:#3b82f6;margin:0;cursor:pointer}
-.ms-dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0}
-.filter-footer{margin-top:20px;display:flex;justify-content:flex-start}
-.filter-footer .btn.ghost{
-  background:transparent;border:1px solid #2e3b52;color:#f8fafc;
-  padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;
-}
-.filter-footer .btn.ghost:hover{background:#2e3b52}
-
-/* Light theme filters */
-[data-theme="light"] .filter-panel{background:#fff;border-color:#dfe1e6;box-shadow:0 4px 12px rgba(9,30,66,.08)}
-[data-theme="light"] .filter-box{background:#f4f5f7;border-color:#dfe1e6}
-[data-theme="light"] .filter-box-title{background:#ebecf0;color:#5e6c84;border-color:#dfe1e6}
-[data-theme="light"] .chip{border-color:#dfe1e6;color:#5e6c84}
-[data-theme="light"] .chip.on{background:#e9f2ff;border-color:#0052cc;color:#172b4d;box-shadow:inset 0 0 0 1px #0052cc}
-[data-theme="light"] .filter-toggle{color:#172b4d}
-[data-theme="light"] .menu-checks label,[data-theme="light"] .ms-option{color:#172b4d}
-
-
-/* ========== Timeline: mês / sprint / dias alinhados ========== */
-.gantt-head{
-  overflow:hidden;
-  border-bottom:1px solid var(--border,#2e3b52);
-  background:rgba(15,23,42,.35);
-}
-.month-band{
-  display:flex;height:20px;width:max-content;
-  background:rgba(15,23,42,.5);border-bottom:1px solid var(--border,#2e3b52);
-}
-.month-group-header{
-  display:flex;align-items:center;justify-content:center;
-  font-size:10px;font-weight:600;text-transform:uppercase;color:#94a3b8;
-  letter-spacing:.6px;border-right:1px solid var(--border,#2e3b52);
-  box-sizing:border-box;overflow:hidden;white-space:nowrap;gap:4px;
-}
-.month-group-header.month-fn{justify-content:flex-start;padding-left:6px}
-.month-group-header label{
-  display:flex;align-items:center;gap:4px;cursor:pointer;user-select:none;
-  font-size:10px;color:#e2e8f0;font-weight:700;
-}
-.month-group-header input[type="checkbox"]{accent-color:#3b82f6;width:12px;height:12px;cursor:pointer}
-.sprint-band{display:flex;height:32px;width:max-content;background:rgba(15,23,42,.4);border-bottom:1px solid var(--border,#2e3b52)}
-.sprint-cell{
-  display:flex;align-items:center;justify-content:space-between;padding:0 6px;
-  border-right:1px solid var(--border,#2e3b52);font-size:11px;font-weight:600;
-  box-sizing:border-box;overflow:hidden;color:#f8fafc;
-}
-.sprint-cell.backlog-band{background:rgba(59,130,246,.08);color:#60a5fa}
-.sprint-cell.weekend-spacer{padding:0;justify-content:center;background:rgba(255,255,255,.02)}
-.sprint-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
-.sprint-actions{display:flex;align-items:center;gap:3px;flex-shrink:0}
-.sprint-task-add,.sprint-band .eye,.sprint-add{
-  background:transparent;border:1px solid var(--border,#2e3b52);color:#94a3b8;
-  border-radius:3px;cursor:pointer;font-size:10px;width:18px;height:18px;
-  display:flex;align-items:center;justify-content:center;
-}
-.sprint-task-add:hover,.sprint-band .eye:hover,.sprint-add:hover{background:#2e3b52;color:#fff}
-.sprint-add{width:26px;height:26px;margin-left:4px;align-self:center;font-size:14px;flex-shrink:0}
-.day-band{display:flex;height:26px;width:max-content;background:rgba(15,23,42,.2)}
-.day-cell{
-  width:36px;min-width:36px;display:flex;align-items:center;justify-content:center;
-  border-right:1px solid var(--border,#2e3b52);font-size:10px;font-weight:500;box-sizing:border-box;
-}
-.day-cell.backlog-day{color:#64748b;background:rgba(255,255,255,.02)}
-.day-cell.weekend{background:rgba(255,255,255,.03);color:#64748b}
-.day-cell.today{background:rgba(59,130,246,.15);color:#60a5fa;font-weight:700}
-.gantt-row-track{
-  background-image:repeating-linear-gradient(90deg,transparent,transparent 35px,rgba(45,58,79,.25) 35px,rgba(45,58,79,.25) 36px);
-}
-
-
-/* ========== emergency: cards sempre visíveis ========== */
-.gantt-row-track{position:relative !important;overflow:visible !important}
-.bar{
-  display:flex !important;
-  visibility:visible !important;
-  opacity:1 !important;
-  z-index:5 !important;
-  pointer-events:auto !important;
-}
-.gantt-body{position:relative}
-
-
-/* ========== REFATOR: cards coloridos — fonte única (sem conflitos) ========== */
-/* Anula fundos sólidos antigos que sobrescreviam o card branco + borda de status */
-.bar.st-nova,
-.bar.st-valid,
-.bar.st-validacao,
-.bar.st-plan,
-.bar.st-planejamento,
-.bar.st-and,
-.bar.st-andamento,
-.bar.st-pag,
-.bar.st-pagamento,
-.bar.st-done,
-.bar.st-resolvida,
-.bar.st-finalizado,
-.bar.st-other{
-  color:#172b4d !important;
-  background-image:none !important;
-}
-
-.bar{
-  display:flex !important;
-  flex-direction:column !important;
-  position:absolute !important;
-  top:8px !important;
-  bottom:8px !important;
-  height:auto !important;
-  min-height:200px !important;
-  box-sizing:border-box !important;
-  background:#ffffff !important;
-  border:none !important;
-  border-left:5px solid #94a3b8 !important;
-  border-radius:6px !important;
-  padding:12px 14px !important;
-  box-shadow:0 2px 6px rgba(0,0,0,.14) !important;
-  overflow:hidden !important;
-  z-index:5 !important;
-  font-size:13px !important;
-  color:#172b4d !important;
-  cursor:grab;
-}
-.bar:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.18) !important}
-
-/* Paleta por status (borda + fundo suave) */
-.bar.st-andamento,.bar.st-and{border-left-color:#ff9800 !important;background:#fff9f2 !important}
-.bar.st-planejamento,.bar.st-plan{border-left-color:#9c27b0 !important;background:#faf2fc !important}
-.bar.st-validacao,.bar.st-valid{border-left-color:#4caf50 !important;background:#f2fbf3 !important}
-.bar.st-nova{border-left-color:#2196f3 !important;background:#f2f8fd !important}
-.bar.st-resolvida,.bar.st-done{border-left-color:#b0bec5 !important;background:#f7f9fa !important}
-.bar.st-finalizado{border-left-color:#546e7a !important;background:#eceff1 !important}
-.bar.st-pagamento,.bar.st-pag{border-left-color:#0891b2 !important;background:#ecfeff !important}
-.bar.st-other{border-left-color:#78909c !important;background:#f8fafc !important}
-
-.bar .bar-header{display:flex;align-items:flex-start;gap:8px;margin-bottom:10px}
-.bar .bar-task-id{
-  font-weight:700;font-size:13px;color:#5e6c84;white-space:nowrap;
-  background:rgba(0,0,0,.06);padding:2px 6px;border-radius:3px;flex-shrink:0;
-}
-.bar .bar-project-name{
-  font-weight:600;font-size:13px;line-height:1.35;color:#172b4d;
-  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;
-}
-.bar .comment-header-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
-.bar .comment-title{font-size:11px;font-weight:700;color:#4a5568}
-.bar .add-comment-btn{
-  background:#0052cc;color:#fff;border:none;border-radius:50%;
-  width:20px;height:20px;font-size:13px;font-weight:700;cursor:pointer;
-  display:inline-flex;align-items:center;justify-content:center;line-height:1;padding:0;flex-shrink:0;
-}
-.bar .add-comment-btn:hover{background:#0065ff}
-.bar .bar-last-comment{
-  font-size:12px;color:#5e6c84;background:rgba(0,0,0,.04);border-radius:4px;
-  padding:6px 8px;margin-bottom:10px;line-height:1.35;
-  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:32px;
-}
-.bar .bar-dates-row{display:flex;flex-wrap:wrap;gap:10px;font-size:11px;color:#5e6c84;margin-top:auto;margin-bottom:4px}
-.bar .bar-dates-row strong{color:#172b4d}
-.bar .bar-status-row{font-size:11px;text-transform:uppercase;letter-spacing:.4px;font-weight:700;margin-bottom:6px}
-.bar.st-andamento .bar-status-row,.bar.st-and .bar-status-row{color:#e65100}
-.bar.st-planejamento .bar-status-row,.bar.st-plan .bar-status-row{color:#6a1b9a}
-.bar.st-validacao .bar-status-row,.bar.st-valid .bar-status-row{color:#2e7d32}
-.bar.st-nova .bar-status-row{color:#1565c0}
-.bar.st-resolvida .bar-status-row,.bar.st-done .bar-status-row{color:#546e7a}
-.bar.st-finalizado .bar-status-row{color:#263238}
-.bar.st-pagamento .bar-status-row,.bar.st-pag .bar-status-row{color:#0e7490}
-
-.bar .bar-content-bottom{
-  display:flex;align-items:center;justify-content:space-between;gap:8px;
-  border-top:1px dashed rgba(0,0,0,.1);padding-top:8px;
-}
-.bar .bar-who{font-size:12px;font-weight:500;color:#4a5568;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
-.bar .bar-actions{display:flex !important;gap:4px;flex-shrink:0;opacity:1 !important;position:static !important}
-.bar .icon-btn{
-  background:#f4f5f7 !important;border:1px solid #ddd !important;border-radius:4px !important;
-  cursor:pointer;padding:4px 7px !important;font-size:12px !important;color:#334155 !important;
-  width:auto !important;height:auto !important;opacity:1 !important;line-height:1;
-}
-.bar .icon-btn:hover{background:#ebecf0 !important}
-.bar .handle{position:absolute;top:0;bottom:0;width:6px;cursor:ew-resize;z-index:6}
-.bar .handle.left{left:0}.bar .handle.right{right:0}
-
-/* Kanban reutiliza .bar */
-.kanban-card.bar{
-  position:relative !important;left:auto !important;top:auto !important;bottom:auto !important;
-  width:100% !important;min-height:220px !important;margin-bottom:10px;
-  cursor:grab;
-}
-.gantt-row-track{position:relative !important;height:240px !important;overflow:visible !important}
-
-
-/* ========== body timeline: garantir altura das linhas ========== */
-.gantt-timeline-body{position:relative;min-height:200px}
-.gantt-row-track{
-  position:relative !important;
-  height:240px !important;
-  min-height:240px !important;
-  box-sizing:border-box;
-  border-bottom:1px solid rgba(45,58,79,.35);
-  overflow:visible !important;
-}
-
-
-/* ========== Sprint bar actions: clique garantido ========== */
-.gantt-timeline-head{position:relative;z-index:20;pointer-events:auto}
-.month-band,.sprint-band,.day-band{pointer-events:auto;position:relative;z-index:21}
-.sprint-band{display:flex !important;align-items:stretch;min-height:32px;height:auto !important;overflow:visible !important}
-.sprint-cell{
-  display:flex !important;align-items:center !important;justify-content:space-between !important;
-  gap:4px !important;padding:2px 6px !important;overflow:visible !important;
-  pointer-events:auto !important;min-width:0;
-}
-.sprint-cell .sprint-title{pointer-events:none;min-width:0;overflow:hidden;text-overflow:ellipsis}
-.sprint-actions{display:flex !important;align-items:center;gap:3px;flex-shrink:0;pointer-events:auto !important;z-index:22}
-.sprint-band .eye,
-.sprint-task-add,
-.sprint-add,
-#btnNewSprint{
-  pointer-events:auto !important;
-  cursor:pointer !important;
-  z-index:23 !important;
-  position:relative;
-  flex-shrink:0;
-  border:1px solid rgba(148,163,184,.4) !important;
-  background:rgba(15,23,42,.65) !important;
-  color:#e2e8f0 !important;
-  border-radius:4px !important;
-  width:22px !important;
-  height:22px !important;
-  font-size:12px !important;
-  display:inline-flex !important;
-  align-items:center !important;
-  justify-content:center !important;
-  line-height:1 !important;
-  padding:0 !important;
-}
-.sprint-band .eye:hover,
-.sprint-task-add:hover,
-.sprint-add:hover,
-#btnNewSprint:hover{
-  background:rgba(59,130,246,.35) !important;
-  border-color:#3b82f6 !important;
-  color:#fff !important;
-}
-.sprint-add,#btnNewSprint{
-  width:28px !important;height:28px !important;font-size:16px !important;
-  margin-left:4px;align-self:center;border-style:dashed !important;
-}
-
-
-/* ========== HEADER TIMELINE FIXO (cards rolam, sprints ficam) ========== */
-.gantt-right{
-  overflow:auto !important;
-  position:relative !important;
-}
+/* ========== UX estável (rollback c33f5df + refinamentos seguros) ========== */
+/* Header de sprints/dias fixo ao rolar os cards */
+.gantt-right{overflow:auto !important}
 .gantt-timeline-head{
   position:sticky !important;
   top:0 !important;
-  z-index:40 !important;
+  z-index:30 !important;
   height:auto !important;
-  min-height:0 !important;
-  background:#0f172a !important;
-  border-bottom:1px solid #2e3b52 !important;
-  display:flex !important;
-  flex-direction:column !important;
+  background:#121a28 !important;
+  box-shadow:0 2px 8px rgba(0,0,0,.3);
+}
+/* Cards abertos legíveis — reforço da paleta de status (borda + fundo suave) */
+.bar{
+  border-left-width:5px !important;
+  border-radius:6px !important;
+  box-shadow:0 2px 6px rgba(0,0,0,.12) !important;
+  color:#172b4d !important;
+}
+.bar.st-and{border-left-color:#ff9800 !important;background:#fff9f2 !important}
+.bar.st-plan{border-left-color:#9c27b0 !important;background:#faf2fc !important}
+.bar.st-valid{border-left-color:#4caf50 !important;background:#f2fbf3 !important}
+.bar.st-nova{border-left-color:#2196f3 !important;background:#f2f8fd !important}
+.bar.st-pag{border-left-color:#0891b2 !important;background:#ecfeff !important}
+.bar.st-done{border-left-color:#b0bec5 !important;background:#f7f9fa !important}
+.bar.st-other{border-left-color:#78909c !important;background:#f8fafc !important}
+/* Botões da barra de sprint clicáveis */
+.sprint-band .eye,
+.sprint-task-add,
+.sprint-add{
   pointer-events:auto !important;
-  box-shadow:0 2px 8px rgba(0,0,0,.35);
+  cursor:pointer !important;
+  z-index:5;
 }
-.gantt-timeline-body{
-  position:relative;
-  z-index:1;
-}
-.month-band,.sprint-band,.day-band{
-  pointer-events:auto !important;
-  position:relative;
-  z-index:41;
-}
+.gantt-row-track{position:relative;overflow:visible}
+
+/* Aliases statusClass (st-andamento ↔ st-and) */
+.bar.st-andamento{border-left-color:#ff9800 !important;background:#fff9f2 !important;color:#172b4d !important}
+.bar.st-planejamento{border-left-color:#9c27b0 !important;background:#faf2fc !important;color:#172b4d !important}
+.bar.st-validacao{border-left-color:#4caf50 !important;background:#f2fbf3 !important;color:#172b4d !important}
+.bar.st-pagamento{border-left-color:#0891b2 !important;background:#ecfeff !important;color:#172b4d !important}
+.bar.st-resolvida,.bar.st-finalizado{border-left-color:#b0bec5 !important;background:#f7f9fa !important;color:#172b4d !important}
+.kanban-card.st-andamento{border-left-color:#ff9800;background:#fff9f2}
+.kanban-card.st-planejamento{border-left-color:#9c27b0;background:#faf2fc}
+.kanban-card.st-validacao{border-left-color:#4caf50;background:#f2fbf3}
