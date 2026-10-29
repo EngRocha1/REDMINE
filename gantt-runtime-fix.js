@@ -1,2 +1,2 @@
-/*! DISABLED — logic merged into gantt.js; left as no-op to avoid breaking old caches */
-(function(){ try{ console.info("[GanttFix] disabled no-op"); }catch(e){} })();
+/*! DISABLED on stable rollback c33f5df — no-op */
+(function(){try{console.info("[GanttFix] disabled (stable rollback)");}catch(e){}})();
