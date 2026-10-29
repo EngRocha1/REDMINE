@@ -518,7 +518,7 @@
     return parseYMD(c);
   }
 
-  /** Versão cujo período cobre a data (para issues sem fixed_version) */
+  /** @deprecated membership: não usar para sprint — só fixed_version. Mantido se algum helper de data precisar. */
   function versionCoveringDate(d) {
     if (!d || !versions || !versions.length) return null;
     var best = null;
@@ -538,32 +538,28 @@
    * 2) senão, sprint cujo período cobre created_on/start
    * 3) senão Backlog
    */
+  /**
+   * Sprint efetiva — SOMENTE fixed_version do Redmine.
+   * "Backlog" NÃO é versão cadastrada: é rótulo sintético para issue SEM sprint.
+   * NÃO inferir sprint por created_on/start (evita jogar "Nova" na semana da sprint).
+   */
   function sprintName(i) {
     if (i.fixed_version && i.fixed_version.name) return i.fixed_version.name;
-    var d = issueRefDate(i);
-    var v = versionCoveringDate(d);
-    if (v && v.name) return v.name;
     return "Backlog";
   }
 
   function isBacklogIssue(i) {
-    return sprintName(i) === "Backlog";
+    /* Sem versão alvo no Redmine → Backlog (coluna sintética) */
+    if (!(i.fixed_version && i.fixed_version.id != null)) return true;
+    return false;
   }
 
-  /** Issue pertence à sprint (versionId) por versão explícita OU data na semana da sprint */
+  /** Issue na sprint apenas se fixed_version_id/name corresponder — nunca por data de criação */
   function issueInSprint(i, versionId, versionName) {
-    if (i.fixed_version && String(i.fixed_version.id) === String(versionId)) return true;
-    if (i.fixed_version && versionName && i.fixed_version.name === versionName) return true;
-    var ver = null;
-    for (var k = 0; k < versions.length; k++) {
-      if (String(versions[k].id) === String(versionId)) { ver = versions[k]; break; }
-    }
-    if (!ver) return false;
-    var p = versionPeriod(ver);
-    if (!p) return false;
-    var d = issueRefDate(i);
-    if (!d) return false;
-    return d >= p.start && d <= p.due;
+    if (!i.fixed_version) return false;
+    if (versionId != null && String(i.fixed_version.id) === String(versionId)) return true;
+    if (versionName && i.fixed_version.name === versionName) return true;
+    return false;
   }
   function statusClass(name) {
     const s = (name || "").toLowerCase();
