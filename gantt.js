@@ -1,4 +1,3 @@
-
 (function () {
   /* —— HEMOPI Gantt diagnostics —— */
   var GLOG = {
@@ -8,12 +7,6 @@
       var line = "[HEMOPI Gantt +" + Math.round(ms) + "ms] " + msg;
       if (data !== undefined) console.log(line, data);
       else console.log(line);
-    },
-    btn: function (name, detail) {
-      var ms = ((typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now()) - GLOG.t0;
-      try {
-        console.log("%c[BTN +" + Math.round(ms) + "ms] " + name, "color:#38bdf8;font-weight:bold", detail !== undefined ? detail : "");
-      } catch (e) {}
     },
     err: function (msg, err) {
       console.error("[HEMOPI Gantt ERROR] " + msg, err || "");
@@ -51,7 +44,7 @@
   function clearSharedFilters() {
     try { localStorage.removeItem(LS_FILTERS); } catch (e) {}
   }
-  const DAY_W = 36, BACKLOG_DAYS = 3;
+  const DAY_W = 48, BACKLOG_DAYS = 7;
   const DEFAULT_MENU_HIDE = ["Desenvolvimento: Em Deploy", "Fechada"];
 
   let allIssues = [], versions = [], statuses = [], projectMembers = [];
@@ -83,13 +76,6 @@
   })();
   /* projects: null = todos sob a raiz; Set de ids selecionados */
   let menuVisible = null;
-  let hideWeekends = true;
-  try {
-    var hw = localStorage.getItem("hemopi_hide_weekends");
-    if (hw === "0") hideWeekends = false;
-    else if (hw === "1") hideWeekends = true;
-  } catch (e) {}
-
 
   function setCookie(n, v, days) {
     const d = new Date(); d.setTime(d.getTime() + (days || 30) * 864e5);
@@ -547,14 +533,7 @@
   }
 
   function isBacklogIssue(i) {
-    var st = ((i.status && i.status.name) || "").toLowerCase().replace(/^desenvolvimento:\s*/, "");
-    /* Status Nova (puro) → Backlog */
-    if (st === "nova") return true;
-    /* Sem datas E sem versão → Backlog */
-    if (!i.start_date && !i.due_date && !(i.fixed_version && i.fixed_version.id)) return true;
-    /* Sprint efetiva Backlog */
-    if (sprintName(i) === "Backlog" && !i.start_date && !i.due_date) return true;
-    return false;
+    return sprintName(i) === "Backlog";
   }
 
   /** Issue pertence à sprint (versionId) por versão explícita OU data na semana da sprint */
@@ -627,26 +606,8 @@
 
   function versionPeriod(v) {
     if (!v || !v.due_date) return null;
-    var due = parseYMD(v.due_date);
-    if (!due) return null;
-    var start;
-    if (v.start_date) {
-      start = parseYMD(v.start_date);
-    } else {
-      /* sem start: do dia seguinte à sprint anterior até o due (dinâmico) */
-      start = null;
-      var sorted = versions.slice().filter(function (x) { return x.due_date; }).sort(function (a, b) {
-        return a.due_date < b.due_date ? -1 : 1;
-      });
-      for (var i = 0; i < sorted.length; i++) {
-        if (String(sorted[i].id) === String(v.id) && i > 0) {
-          var prevDue = parseYMD(sorted[i - 1].due_date);
-          if (prevDue) start = addDays(prevDue, 1);
-          break;
-        }
-      }
-      if (!start) start = addDays(due, -4);
-    }
+    const due = parseYMD(v.due_date);
+    const start = v.start_date ? parseYMD(v.start_date) : addDays(due, -4);
     return { id: v.id, name: v.name, start: start, due: due };
   }
 
@@ -664,14 +625,13 @@
     el.innerHTML = items.map(function (it) {
       const val = typeof it === "string" ? it : it.v;
       const lab = typeof it === "string" ? it : it.l;
-      const on = selectedSet !== null && selectedSet.has(val); /* vazio por default */
+      const on = selectedSet === null || selectedSet.has(val);
       return '<button type="button" class="chip' + (on ? " on" : "") + '" data-k="' + key + '" data-v="' + val + '">' + lab + "</button>";
     }).join("");
     el.querySelectorAll(".chip").forEach(function (btn) {
       btn.onclick = function () {
         const v = btn.dataset.v;
         const k = btn.dataset.k;
-        GLOG.btn("chip", { k: k, v: v });
         if (k === "scope") {
           if (v === "all") sel.scope = ["all"];
           else {
@@ -682,11 +642,9 @@
           }
         } else {
           const allVals = items.map(function (x) { return typeof x === "string" ? x : x.v; });
-          /* null / vazio = nenhum selecionado (mostra tudo no Gantt) */
-          var set = (sel[k] === null || !sel[k] || !sel[k].length) ? new Set() : new Set(sel[k].map(String));
-          var vs = String(v);
-          if (set.has(vs)) set.delete(vs); else set.add(vs);
-          if (set.size === 0) sel[k] = null; /* nenhum chip = sem restrição */
+          var set = sel[k] === null ? new Set(allVals) : new Set(sel[k]);
+          if (set.has(v)) set.delete(v); else set.add(v);
+          if (set.size === 0 || set.size === allVals.length) sel[k] = null;
           else sel[k] = Array.from(set);
           if (k === "assignee" || k === "mod") {
             saveSharedFilters(k === "assignee" ? { assignee: sel.assignee } : { mod: sel.mod });
@@ -843,16 +801,16 @@
         if (!sel.projects.has(pid) && !sel.projects.has(String(pid))) return false;
       }
       if (sel.scope.indexOf("all") < 0 && sel.scope.indexOf(getScope(i)) < 0) return false;
-      if (sel.sprint !== null && sel.sprint.length && sel.sprint.indexOf(sprintName(i)) < 0) return false;
+      if (sel.sprint !== null && sel.sprint.indexOf(sprintName(i)) < 0) return false;
       /* módulo dinâmico: id de projeto filho (ou ancestral na path) */
-      if (sel.mod !== null && sel.mod.length) {
+      if (sel.mod !== null) {
         var path = projectPath(i);
         var hit = path.some(function (p) {
           return sel.mod.indexOf(String(p.id)) >= 0 || sel.mod.indexOf(p.id) >= 0 || sel.mod.indexOf(p.name) >= 0;
         });
         if (!hit) return false;
       }
-      if (sel.status !== null && sel.status.length) {
+      if (sel.status !== null) {
         var sn = (i.status && i.status.name) || "";
         var ok = sel.status.some(function (s) {
           var a = String(s), b = sn;
@@ -862,7 +820,7 @@
         });
         if (!ok) return false;
       }
-      if (sel.assignee !== null && sel.assignee.length) {
+      if (sel.assignee !== null) {
         var aid = i.assigned_to && i.assigned_to.id;
         var wantNone = sel.assignee.indexOf("none") >= 0 || sel.assignee.indexOf(null) >= 0;
         var matchId = aid != null && (sel.assignee.indexOf(aid) >= 0 || sel.assignee.indexOf(String(aid)) >= 0);
@@ -896,7 +854,7 @@
       if (s && (!max || s > max)) max = s;
     });
     versions.forEach(function (v) {
-      if (sel.sprint !== null && sel.sprint.length && sel.sprint.indexOf(v.name) < 0) return;
+      if (sel.sprint !== null && sel.sprint.indexOf(v.name) < 0) return;
       var p = versionPeriod(v);
       if (!p) return;
       if (!min || p.start < min) min = p.start;
@@ -910,157 +868,83 @@
     dayCount = BACKLOG_DAYS + Math.max(14, Math.round((rangeEnd - rangeStart) / 864e5) + 1);
   }
 
-
-
   function versionBands() {
-    /* Dinâmico: só sprints do filtro (ou todas se nenhum chip marcado) */
-    GLOG.btn("versionBands", { sprintFilter: sel.sprint, versions: versions.length });
     var sorted = versions.slice().filter(function (v) { return v.due_date; }).sort(function (a, b) {
-      return a.due_date < b.due_date ? -1 : a.due_date > b.due_date ? 1 : 0;
+      return a.due_date < b.due_date ? -1 : 1;
     });
-    if (sel.sprint !== null && sel.sprint.length) {
+    if (sel.sprint !== null) {
       sorted = sorted.filter(function (v) { return sel.sprint.indexOf(v.name) >= 0; });
     }
 
-    function daysInPeriod(start, due) {
-      /* lista de datas (Date) no período, respeitando FN */
-      var out = [];
-      if (!start || !due) return out;
-      var d = new Date(start.getFullYear(), start.getMonth(), start.getDate());
-      var end = new Date(due.getFullYear(), due.getMonth(), due.getDate());
-      while (d <= end) {
-        if (!(hideWeekends && isWeekend(d))) out.push(new Date(d.getTime()));
-        d.setDate(d.getDate() + 1);
+    // raw segments in real calendar days (0 = first day after backlog offset)
+    var raw = [];
+    if (sel.sprint === null || sel.sprint.indexOf("Backlog") >= 0) {
+      raw.push({ name: "Backlog", span: BACKLOG_DAYS, backlog: true, versionId: null, startDay: null });
+    }
+
+    var day = 0;
+    var maxReal = Math.max(0, dayCount - BACKLOG_DAYS);
+    while (day < maxReal) {
+      var d = addDays(rangeStart, day);
+      var hit = null;
+      for (var vi = 0; vi < sorted.length; vi++) {
+        var p = versionPeriod(sorted[vi]);
+        if (p && d >= p.start && d <= p.due) { hit = p; break; }
       }
-      return out;
+      if (!hit) {
+        if (sel.sprint === null) {
+          var j0 = day + 1;
+          while (j0 < maxReal) {
+            var d0 = addDays(rangeStart, j0);
+            var h0 = null;
+            for (var k = 0; k < sorted.length; k++) {
+              var p0 = versionPeriod(sorted[k]);
+              if (p0 && d0 >= p0.start && d0 <= p0.due) { h0 = p0; break; }
+            }
+            if (h0) break;
+            j0++;
+          }
+          raw.push({ name: "—", span: j0 - day, backlog: false, versionId: null, startDay: day });
+          day = j0;
+        } else {
+          day++;
+        }
+        continue;
+      }
+      var j = day + 1;
+      while (j < maxReal) {
+        var d2 = addDays(rangeStart, j);
+        var hit2 = null;
+        for (var vj = 0; vj < sorted.length; vj++) {
+          var p2 = versionPeriod(sorted[vj]);
+          if (p2 && d2 >= p2.start && d2 <= p2.due) { hit2 = p2; break; }
+        }
+        if (!hit2 || hit2.name !== hit.name) break;
+        j++;
+      }
+      raw.push({ name: hit.name, span: j - day, backlog: false, versionId: hit.id, startDay: day });
+      day = j;
     }
 
     var bands = [];
-    var cols = []; /* { date|null, backlog, weekend } */
     var cursor = 0;
-
-    /* Backlog (se filtro permitir) */
-    var includeBacklog = !sel.sprint || !sel.sprint.length || sel.sprint.indexOf("Backlog") >= 0;
-    if (includeBacklog) {
-      for (var bi = 0; bi < BACKLOG_DAYS; bi++) {
-        cols.push({ date: null, backlog: true, weekend: false });
-      }
+    raw.forEach(function (b) {
       bands.push({
-        name: "Backlog",
-        from: 0,
-        span: BACKLOG_DAYS,
-        backlog: true,
-        versionId: null,
-        startDay: null,
-        spacer: false
+        name: b.name,
+        from: cursor,
+        span: b.span,
+        backlog: !!b.backlog,
+        versionId: b.versionId || null,
+        startDay: b.startDay
       });
-      cursor = BACKLOG_DAYS;
-    }
-
-    /* Uma banda por sprint filtrada — span = dias reais (úteis se FN) */
-    sorted.forEach(function (v) {
-      var p = versionPeriod(v);
-      if (!p) return;
-      var days = daysInPeriod(p.start, p.due);
-      if (!days.length) {
-        /* fallback: pelo menos 1 coluna no due */
-        days = [p.due];
-        if (hideWeekends && isWeekend(p.due)) {
-          var d = new Date(p.due.getTime());
-          while (isWeekend(d)) d.setDate(d.getDate() - 1);
-          days = [d];
-        }
-      }
-      var from = cursor;
-      days.forEach(function (d) {
-        cols.push({ date: d, backlog: false, weekend: isWeekend(d) });
-      });
-      cursor += days.length;
-      bands.push({
-        name: v.name,
-        from: from,
-        span: days.length,
-        backlog: false,
-        versionId: v.id,
-        startDay: null,
-        spacer: false
-      });
+      cursor += b.span;
     });
-
-    if (!cols.length) {
-      cols.push({ date: null, backlog: true, weekend: false });
-      bands.push({ name: "Backlog", from: 0, span: 1, backlog: true, versionId: null, startDay: null, spacer: false });
-    }
-
-    window.__ganttCols = cols;
-    window.__ganttVisualDays = cols.length;
+    window.__ganttVisualDays = cursor || 1;
     window.__ganttBands = bands;
-    window.__ganttColDates = cols.map(function (c) { return c.date; });
     return bands;
   }
 
-
-  /** HTML interno do card (Gantt + Kanban) — fonte única */
-  function buildCardInnerHTML(issue) {
-    var who = (issue.assigned_to && issue.assigned_to.name) ? issue.assigned_to.name : "sem responsável";
-    var whoShort = who.length > 22 ? who.slice(0, 20) + "…" : who;
-    var subj = cleanSubject(issue.subject || "");
-    var stLab = shortStatus((issue.status && issue.status.name) || "");
-    var dStart = fmtDateBR(issue.start_date);
-    var dEnd = fmtDateBR(issue.due_date);
-    var lastC = lastCommentText(issue);
-    return (
-      '<div class="bar-header">' +
-        '<span class="bar-task-id">#' + issue.id + '</span>' +
-        '<div class="bar-project-name" title="' + escapeHtml(subj) + '">' + escapeHtml(subj) + '</div>' +
-      '</div>' +
-      '<div class="comment-header-row">' +
-        '<span class="comment-title">Último Comentário:</span>' +
-        '<button type="button" class="add-comment-btn" data-comment="' + issue.id + '" title="Adicionar comentário">+</button>' +
-      '</div>' +
-      '<div class="bar-last-comment" title="' + escapeHtml(lastC) + '">' + escapeHtml(lastC) + '</div>' +
-      '<div class="bar-dates-row">' +
-        '<span>Início: <strong class="val-start">' + dStart + '</strong></span>' +
-        '<span>Fim: <strong class="val-end">' + dEnd + '</strong></span>' +
-      '</div>' +
-      '<div class="bar-status-row">Status: ' + escapeHtml(stLab) + '</div>' +
-      '<div class="bar-content-bottom">' +
-        '<span class="bar-who" title="' + escapeHtml(who) + '">' + escapeHtml(whoShort) + '</span>' +
-        '<span class="bar-actions">' +
-          '<button type="button" class="icon-btn eye-btn" title="Ver descrição">👁</button>' +
-          '<button type="button" class="icon-btn status-btn" title="Alterar status">☰</button>' +
-          '<button type="button" class="icon-btn person-btn" title="Responsável: ' + escapeHtml(who) + '">👤</button>' +
-        '</span>' +
-      '</div>'
-    );
-  }
-  function buildGanttBarHTML(issue, leftPx, widthPx) {
-    var who = (issue.assigned_to && issue.assigned_to.name) || "sem responsável";
-    var subj = cleanSubject(issue.subject || "");
-    var w = Math.max(widthPx, DAY_W * 2 - 2);
-    return (
-      '<div class="bar ' + statusClass(issue.status && issue.status.name) + '" data-id="' + issue.id +
-      '" style="left:' + leftPx + 'px;width:' + w + 'px" title="' + escapeHtml(subj) + ' · ' + escapeHtml(who) + '">' +
-        '<div class="handle left" data-edge="left"></div>' +
-        buildCardInnerHTML(issue) +
-        '<div class="handle right" data-edge="right"></div>' +
-      '</div>'
-    );
-  }
-  function buildKanbanCardHTML(issue) {
-    return (
-      '<div class="kanban-card bar ' + statusClass(issue.status && issue.status.name) +
-      '" draggable="true" data-id="' + issue.id + '">' +
-        buildCardInnerHTML(issue) +
-      '</div>'
-    );
-  }
-
-  var __renderingGantt = false;
   function renderGantt() {
-    if (__renderingGantt) return;
-    __renderingGantt = true;
-    try {
     GLOG.step("renderGantt", { filtered: filtered.length });
     computeRange();
     var left = document.getElementById("leftBody");
@@ -1068,6 +952,10 @@
     var body = document.getElementById("timeBody");
     var baseUrl = getCookie(C_URL).replace(/\/$/, "");
 
+    var ROW_H = 240;
+    
+    var ROW_H = 240;
+    
     var ROW_H = 240;
     function isIssueCollapsed(issue) {
       var path = projectPath(issue);
@@ -1079,149 +967,38 @@
     var visibleIssues = filtered.filter(function (i) { return !isIssueCollapsed(i); });
     window.__ganttVisibleIssues = visibleIssues;
 
-    /* Sidebar árvore hierárquica recolhível (Portfólio → projetos → módulos → tasks) */
-    function buildIssueTree(list) {
-      var root = { id: "root", name: "Portfólio", children: {}, issues: [] };
-      list.forEach(function (iss) {
-        var path = projectPath(iss);
-        if (!path.length) {
-          root.issues.push(iss);
-          return;
-        }
-        var node = root;
-        path.forEach(function (p) {
-          var id = String(p.id);
-          if (!node.children[id]) {
-            node.children[id] = { id: id, name: p.name || id, children: {}, issues: [] };
-          }
-          node = node.children[id];
-        });
-        node.issues.push(iss);
-      });
-      return root;
-    }
-    function childrenArr(node) {
-      return Object.keys(node.children).map(function (k) { return node.children[k]; })
-        .sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); });
-    }
-    function renderTreeNode(node, depth) {
-      var kids = childrenArr(node);
-      var html = "";
-      kids.forEach(function (ch) {
-        var neon = "neon-p" + neonIndex(ch.name, 6);
-        var open = !collapsedProjects[String(ch.id)];
-        html += '<details data-pid="' + ch.id + '"' + (open ? " open" : "") + ">";
-        html += '<summary class="' + neon + '" title="' + escapeHtml(ch.name) + '">' + escapeHtml(ch.name) + "</summary>";
-        html += '<div class="ux-task-list">';
-        html += renderTreeNode(ch, depth + 1);
-        if (open) {
-          (ch.issues || []).forEach(function (iss) {
-            var title = cleanSubject(iss.subject || "");
-            html +=
-              '<button type="button" class="ux-task-item" data-jump="' + iss.id + '" title="' + escapeHtml(title) + '">' +
-              '<span class="task-id">#' + iss.id + "</span>" +
-              '<span class="task-title">' + escapeHtml(title) + "</span></button>";
-          });
-        }
-        html += "</div></details>";
-      });
-      if (depth === 0 && node.issues && node.issues.length) {
-        html += '<div class="ux-task-list">';
-        node.issues.forEach(function (iss) {
-          var title = cleanSubject(iss.subject || "");
-          html +=
-            '<button type="button" class="ux-task-item" data-jump="' + iss.id + '" title="' + escapeHtml(title) + '">' +
-            '<span class="task-id">#' + iss.id + "</span>" +
-            '<span class="task-title">' + escapeHtml(title) + "</span></button>";
-        });
-        html += "</div>";
-      }
-      return html;
-    }
-    var tree = buildIssueTree(filtered);
-    left.innerHTML =
-      '<div class="ux-sidebar" id="leftRows">' +
-        '<details open data-pid="portfolio">' +
-          '<summary class="neon-p0" title="Portfólio de Projetos">Portfólio de Projetos</summary>' +
-          '<div class="ux-task-list">' + renderTreeNode(tree, 0) + "</div>" +
-        "</details>" +
-      "</div>";
-
-    left.querySelectorAll("details[data-pid]").forEach(function (det) {
-      det.addEventListener("toggle", function () {
-        if (__renderingGantt) return;
-        var pid = det.getAttribute("data-pid");
-        if (!pid || pid === "portfolio") return;
-        if (det.open) delete collapsedProjects[pid];
-        else collapsedProjects[pid] = true;
-        try { localStorage.setItem("hemopi_collapsed_proj", JSON.stringify(collapsedProjects)); } catch (e) {}
-        /* re-render assíncrono para não concorrer com o evento toggle */
-        setTimeout(function () { renderGantt(); }, 0);
-      });
-    });
-    left.querySelectorAll("[data-jump]").forEach(function (btn) {
-      btn.onclick = function () {
-        var id = btn.getAttribute("data-jump");
+    /* Esquerda: 1 linha por task, mesma altura do card — alinhamento perfeito */
+    var rowsHtml = visibleIssues.map(function (i) {
+      var name = cleanSubject(i.subject || "");
+      var path = projectPath(i);
+      var leaf = path.length ? path[path.length - 1] : null;
+      var tint = leaf ? "neon-p" + neonIndex(leaf.name, 6) : "neon-p0";
+      var proj = leaf ? leaf.name : (i.project && i.project.name) || "";
+      return '<div class="gantt-row-label row-tint ' + tint + '" data-issue="' + i.id + '" title="' + escapeHtml(proj + " · " + name) + '">' +
+        '<div class="rl-id">#' + i.id + '</div>' +
+        '<div class="rl-body">' +
+          '<div class="rl-name">' + escapeHtml(name) + '</div>' +
+          '<div class="rl-proj">' + escapeHtml(proj) + '</div>' +
+        '</div></div>';
+    }).join("");
+    left.innerHTML = '<div class="left-rows" id="leftRows">' + rowsHtml + '</div>';
+    /* clique na label → destaca card */
+    left.querySelectorAll(".gantt-row-label").forEach(function (lab) {
+      lab.onclick = function () {
+        var id = lab.getAttribute("data-issue");
         var el = document.querySelector('.bar[data-id="' + id + '"]');
         if (el) {
           el.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
           el.style.outline = "2px solid #0052cc";
-          setTimeout(function () { el.style.outline = ""; }, 1500);
+          setTimeout(function () { el.style.outline = ""; }, 1200);
         }
-        left.querySelectorAll(".ux-task-item").forEach(function (x) { x.classList.remove("active"); });
-        btn.classList.add("active");
       };
     });
 
 var bands = versionBands();
-    var cols = window.__ganttCols || [];
-    var visualDays = cols.length || window.__ganttVisualDays || 1;
-    var totalW = visualDays * DAY_W;
-
-    /* —— MONTH BAND —— */
-    var monthHtml = '<div class="month-band" style="width:' + totalW + 'px">';
-    /* checkbox FN na primeira fatia (backlog width or first month) */
-    var blSpan = 0;
-    for (var mi = 0; mi < cols.length; mi++) {
-      if (cols[mi].backlog) blSpan++;
-      else break;
-    }
-    if (blSpan < 1) blSpan = 1;
-    monthHtml +=
-      '<div class="month-group-header month-fn" style="width:' + (blSpan * DAY_W) + 'px" data-days="' + blSpan + '">' +
-        '<label title="Ocultar finais de semana (só dias úteis)">' +
-          '<input type="checkbox" id="chkHideWeekends"' + (hideWeekends ? " checked" : "") + '> FN' +
-        "</label></div>";
-    var mStart = blSpan;
-    while (mStart < cols.length) {
-      if (!cols[mStart].date) { mStart++; continue; }
-      var y = cols[mStart].date.getFullYear();
-      var m = cols[mStart].date.getMonth();
-      var mEnd = mStart + 1;
-      while (mEnd < cols.length && cols[mEnd].date &&
-             cols[mEnd].date.getFullYear() === y && cols[mEnd].date.getMonth() === m) {
-        mEnd++;
-      }
-      var mNames = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
-      var label = mNames[m] + " / " + y;
-      var spanM = mEnd - mStart;
-      monthHtml +=
-        '<div class="month-group-header" style="width:' + (spanM * DAY_W) + 'px" data-days="' + spanM + '">' +
-        escapeHtml(label) + "</div>";
-      mStart = mEnd;
-    }
-    monthHtml += "</div>";
-
-    /* —— SPRINT BAND —— */
-    var sprintHtml = '<div class="sprint-band" style="width:' + (totalW + 36) + 'px">';
+    var visualDays = window.__ganttVisualDays || dayCount;
+    var sprintHtml = '<div class="sprint-band" style="width:' + (visualDays * DAY_W + 36) + 'px">';
     bands.forEach(function (b) {
-      var w = b.span * DAY_W;
-      if (b.spacer) {
-        sprintHtml +=
-          '<div class="sprint-cell weekend-spacer" style="width:' + w + 'px" data-days="' + b.span + '">' +
-          '<div class="sprint-actions"><button type="button" class="sprint-task-add" data-vid="" data-vname="Backlog" data-backlog="1" title="Nova task">+</button></div></div>';
-        return;
-      }
       var eye = b.backlog || !b.versionId ? "" :
         '<button type="button" class="eye" data-vid="' + b.versionId + '" data-vname="' + escapeHtml(b.name) + '" title="Kanban">👁</button>';
       var plus =
@@ -1229,46 +1006,39 @@ var bands = versionBands();
         '" data-vname="' + escapeHtml(b.name || "Backlog") +
         '" data-backlog="' + (b.backlog ? "1" : "0") +
         '" title="Nova task nesta coluna">+</button>';
-      var title = b.backlog ? "Backlog" : (b.name + (b.span ? " (" + b.span + "d)" : ""));
       sprintHtml +=
         '<div class="sprint-cell' + (b.backlog ? " backlog-band" : "") +
-        '" style="width:' + w + 'px" data-days="' + b.span + '">' +
-        '<span class="sprint-title">' + escapeHtml(title) + "</span>" +
-        '<div class="sprint-actions">' + eye + plus + "</div></div>";
+        '" style="width:' + b.span * DAY_W + 'px"><span>' + escapeHtml(b.name) +
+        "</span>" + eye + plus + "</div>";
     });
     sprintHtml += '<button type="button" class="sprint-add" id="btnNewSprint" title="Nova sprint">＋</button></div>';
 
-    /* —— DAY BAND —— */
     var today = new Date(); today.setHours(0, 0, 0, 0);
-    var dayHtml = '<div class="day-band" style="width:' + totalW + 'px">';
-    for (var di = 0; di < cols.length; di++) {
-      var col = cols[di];
-      if (!col.date) {
-        dayHtml += '<div class="day-cell backlog-day" data-is-weekend="false">·</div>';
+    var colDates = [];
+    bands.forEach(function (b) {
+      if (b.backlog) {
+        for (var bi = 0; bi < b.span; bi++) colDates.push(null);
       } else {
+        for (var si = 0; si < b.span; si++) {
+          colDates.push(b.startDay != null ? addDays(rangeStart, b.startDay + si) : null);
+        }
+      }
+    });
+    window.__ganttColDates = colDates;
+
+    var dayHtml = '<div class="day-band" style="width:' + visualDays * DAY_W + 'px">';
+    for (var di = 0; di < colDates.length; di++) {
+      var d = colDates[di];
+      if (!d) dayHtml += '<div class="day-cell backlog-day">·</div>';
+      else {
         var cls = ["day-cell"];
-        if (col.weekend) cls.push("weekend");
-        if (fmtYMD(col.date) === fmtYMD(today)) cls.push("today");
-        dayHtml +=
-          '<div class="' + cls.join(" ") + '" data-is-weekend="' + (col.weekend ? "true" : "false") + '">' +
-          col.date.getDate() + "</div>";
+        if (isWeekend(d)) cls.push("weekend");
+        if (fmtYMD(d) === fmtYMD(today)) cls.push("today");
+        dayHtml += '<div class="' + cls.join(" ") + '">' + d.getDate() + "</div>";
       }
     }
     dayHtml += "</div>";
-
-    head.innerHTML = monthHtml + sprintHtml + dayHtml;
-    bindTimelineHeadActions();
-
-    /* FN checkbox */
-    var chk = document.getElementById("chkHideWeekends");
-    if (chk) {
-      chk.onchange = function () {
-        hideWeekends = !!chk.checked;
-        try { localStorage.setItem("hemopi_hide_weekends", hideWeekends ? "1" : "0"); } catch (e) {}
-        renderGantt();
-      };
-    }
-
+    head.innerHTML = sprintHtml + dayHtml;
 
     head.querySelectorAll(".eye").forEach(function (btn) {
       btn.onclick = function (e) {
@@ -1289,8 +1059,7 @@ var bands = versionBands();
     var btnNs = document.getElementById("btnNewSprint");
     if (btnNs) btnNs.onclick = function (e) { e.stopPropagation(); openNewSprintDialog(); };
 
-var colDates = window.__ganttColDates || [];
-    var rows = "";
+var rows = "";
     visibleIssues.forEach(function (issue) {
       var extras = "";
       bands.forEach(function (b) {
@@ -1304,16 +1073,11 @@ var colDates = window.__ganttColDates || [];
       function findCol(date) {
         if (!date) return -1;
         var best = -1;
-        var first = -1;
         for (var ci = 0; ci < colDates.length; ci++) {
-          if (!colDates[ci]) continue;
-          if (first < 0) first = ci;
-          if (fmtYMD(colDates[ci]) === fmtYMD(date)) return ci;
-          if (colDates[ci] <= date) best = ci;
+          if (colDates[ci] && fmtYMD(colDates[ci]) === fmtYMD(date)) return ci;
+          if (colDates[ci] && colDates[ci] <= date) best = ci;
         }
-        if (best >= 0) return best;
-        /* data antes do range → primeira coluna com data */
-        return first;
+        return best;
       }
       if (isBacklogIssue(issue)) {
         var bl = null;
@@ -1360,12 +1124,9 @@ var colDates = window.__ganttColDates || [];
           if (i1 < i0) { var t = i0; i0 = i1; i1 = t; }
         }
       }
-      /* fallback: nunca deixar card sem posição */
-      if (i0 == null || i0 < 0) { i0 = 0; i1 = Math.max(1, (i1 > 0 ? i1 : 2)); }
-      if (i1 == null || i1 < i0) i1 = i0 + 1;
       if (i0 != null && i0 >= 0) {
         var leftPx = i0 * DAY_W + 1;
-        var widthPx = Math.max(DAY_W * 2 - 2, (i1 - i0 + 1) * DAY_W - 2);
+        var widthPx = Math.max(DAY_W * 5 - 2, (i1 - i0 + 1) * DAY_W - 2); /* min ~5 dias para card legível */
         var label = "#" + issue.id + " · " + shortStatus(issue.status.name);
         var who = (issue.assigned_to && issue.assigned_to.name) ? issue.assigned_to.name : "sem responsável";
         var whoShort = who.length > 22 ? who.slice(0, 20) + "…" : who;
@@ -1374,13 +1135,36 @@ var colDates = window.__ganttColDates || [];
         var dStart = fmtDateBR(issue.start_date);
         var dEnd = fmtDateBR(issue.due_date);
         var lastC = lastCommentText(issue);
-        bar = buildGanttBarHTML(issue, leftPx, widthPx);
+        bar = '<div class="bar ' + statusClass(issue.status.name) + '" data-id="' + issue.id + '" style="left:' + leftPx + 'px;width:' + Math.max(widthPx, 320) + 'px" title="' + escapeHtml(subj) + ' · ' + who.replace(/"/g, "") + '">' +
+          '<div class="handle left" data-edge="left"></div>' +
+          '<div class="bar-header">' +
+            '<span class="bar-task-id">#' + issue.id + '</span>' +
+            '<div class="bar-project-name" title="' + escapeHtml(subj) + '">' + escapeHtml(subj) + '</div>' +
+          '</div>' +
+          '<div class="comment-header-row">' +
+            '<span class="comment-title">Último Comentário:</span>' +
+            '<button type="button" class="add-comment-btn" data-comment="' + issue.id + '" title="Adicionar comentário">+</button>' +
+          '</div>' +
+          '<div class="bar-last-comment" title="' + escapeHtml(lastC) + '">' + escapeHtml(lastC) + '</div>' +
+          '<div class="bar-dates-row">' +
+            '<span>Início: <strong class="val-start">' + dStart + '</strong></span>' +
+            '<span>Fim: <strong class="val-end">' + dEnd + '</strong></span>' +
+          '</div>' +
+          '<div class="bar-status-row">Status: ' + escapeHtml(stLab) + '</div>' +
+          '<div class="bar-content-bottom">' +
+            '<span class="bar-who" title="' + escapeHtml(who) + '">' + escapeHtml(whoShort) + '</span>' +
+            '<span class="bar-actions">' +
+              '<button type="button" class="icon-btn eye-btn" title="Ver descrição">👁</button>' +
+              '<button type="button" class="icon-btn status-btn" title="Alterar status">☰</button>' +
+              '<button type="button" class="icon-btn person-btn" title="Responsável: ' + who.replace(/"/g, "") + '">👤</button>' +
+            '</span>' +
+          '</div>' +
+          '<div class="handle right" data-edge="right"></div></div>';
       }
       rows += '<div class="gantt-row-track" style="width:' + visualDays * DAY_W + 'px">' + extras + bar + "</div>";
     });
     body.innerHTML = rows;
     bindBarEvents();
-    } finally { __renderingGantt = false; }
   }
 
 
@@ -1437,14 +1221,12 @@ var colDates = window.__ganttColDates || [];
   }
 
   function bindBarEvents() {
-    GLOG.btn("bindBarEvents", document.querySelectorAll(".bar").length + " bars");
     bindCommentButtons(document);
     document.querySelectorAll(".bar").forEach(function (bar) {
       var id = +bar.dataset.id;
       var eyeBtn = bar.querySelector(".eye-btn");
       if (eyeBtn) eyeBtn.addEventListener("click", function (ev) {
         ev.stopPropagation();
-        GLOG.btn("card 👁 descrição", id);
         openIssueDetail(id);
       });
       var stBtn = bar.querySelector(".status-btn");
@@ -1458,8 +1240,7 @@ var colDates = window.__ganttColDates || [];
         openAssigneeMenu(id, ev.clientX, ev.clientY);
       });
       bar.addEventListener("mousedown", function (ev) {
-        if (ev.target.closest(".icon-btn, .add-comment-btn, button")) return;
-        GLOG.btn("bar drag start", { id: id, edge: ev.target.dataset.edge || "move" });
+        if (ev.target.closest(".icon-btn")) return;
         ev.preventDefault();
         var edge = ev.target.dataset.edge || null;
         var startX = ev.clientX;
@@ -1850,52 +1631,7 @@ var colDates = window.__ganttColDates || [];
     }
   }
 
-
-  /** Delegação única: eye / + task / nova sprint (sobrevive a head.innerHTML) */
-  function bindTimelineHeadActions() {
-    var head = document.getElementById("timeHead");
-    if (!head) { GLOG.btn("bindTimelineHeadActions", "timeHead MISSING"); return; }
-    if (head.dataset.boundActions === "1") { GLOG.btn("bindTimelineHeadActions", "already bound"); return; }
-    head.dataset.boundActions = "1";
-    GLOG.btn("bindTimelineHeadActions", "bound click delegation");
-    head.addEventListener("click", function (e) {
-      var t = e.target;
-      GLOG.btn("timeHead.click", (t && (t.className || t.tagName)) || "?");
-      var eye = t.closest && t.closest(".eye");
-      if (eye) {
-        e.preventDefault(); e.stopPropagation();
-        var vid = eye.getAttribute("data-vid");
-        var vname = eye.getAttribute("data-vname") || "";
-        GLOG.btn("Kanban 👁", { vid: vid, vname: vname });
-        if (vid) openKanban(+vid, vname);
-        else toast("Sprint sem id de versão", true);
-        return;
-      }
-      var addTask = t.closest && t.closest(".sprint-task-add");
-      if (addTask) {
-        e.preventDefault(); e.stopPropagation();
-        var ctx = {
-          versionId: addTask.getAttribute("data-vid") ? +addTask.getAttribute("data-vid") : null,
-          versionName: addTask.getAttribute("data-vname") || "Backlog",
-          backlog: addTask.getAttribute("data-backlog") === "1"
-        };
-        GLOG.btn("+ task sprint", ctx);
-        openNewTaskDialog(ctx);
-        return;
-      }
-      var addSprint = t.closest && t.closest(".sprint-add, #btnNewSprint");
-      if (addSprint) {
-        e.preventDefault(); e.stopPropagation();
-        GLOG.btn("+ nova sprint");
-        openNewSprintDialog();
-        return;
-      }
-    }, true); /* capture: ganha de handlers concorrentes */
-  }
-
-
   function openKanban(versionId, versionName) {
-    GLOG.btn("openKanban", { versionId: versionId, versionName: versionName });
     hide(document.getElementById("statusMenu"));
     hide(document.getElementById("assigneeMenu"));
     GLOG.step("openKanban", { versionId: versionId, versionName: versionName });
@@ -1930,7 +1666,7 @@ var colDates = window.__ganttColDates || [];
         if (pid == null || (!sel.projects.has(pid) && !sel.projects.has(String(pid)))) return false;
       }
       /* subprojetos/módulos dinâmicos (ids da árvore, não getMod M01) */
-      if (sel.mod !== null && sel.mod.length) {
+      if (sel.mod !== null) {
         var path = projectPath(i);
         var hit = path.some(function (p) {
           return sel.mod.indexOf(String(p.id)) >= 0 || sel.mod.indexOf(p.id) >= 0 || sel.mod.indexOf(p.name) >= 0;
@@ -1938,7 +1674,7 @@ var colDates = window.__ganttColDates || [];
         if (!hit) return false;
       }
       /* desenvolvedor */
-      if (sel.assignee !== null && sel.assignee.length) {
+      if (sel.assignee !== null) {
         var aid = i.assigned_to && i.assigned_to.id;
         var wantNone = sel.assignee.indexOf("none") >= 0 || sel.assignee.indexOf(null) >= 0;
         var matchId = aid != null && (sel.assignee.indexOf(aid) >= 0 || sel.assignee.indexOf(String(aid)) >= 0);
@@ -2110,16 +1846,14 @@ var colDates = window.__ganttColDates || [];
   document.getElementById("issueClose").onclick = function () { hide(document.getElementById("issueModal")); };
   document.getElementById("issueBackdrop").onclick = function () { hide(document.getElementById("issueModal")); };
 
-  /* Filter group: select all / clear (ignora box-toggle) */
-  document.querySelectorAll(".flt-act[data-act]").forEach(function (btn) {
+  /* Filter group: select all / clear */
+  document.querySelectorAll(".flt-act").forEach(function (btn) {
     btn.addEventListener("click", function (e) {
       e.stopPropagation();
-      if (btn.classList.contains("box-toggle")) return;
       var box = btn.closest(".filter-box");
       if (!box) return;
       var key = box.dataset.filter;
       var act = btn.dataset.act;
-      if (!act) return;
       if (key === "menuStatus") {
         var inputs = document.querySelectorAll("#menuStatusChecks input");
         inputs.forEach(function (inp) {
@@ -2143,24 +1877,12 @@ var colDates = window.__ganttColDates || [];
         applyFilters();
         return;
       }
-      if (key === "mod") {
-        /* checkboxes de projeto/módulo */
-        box.querySelectorAll('input[type="checkbox"]').forEach(function (cb) {
-          cb.checked = act === "all";
-        });
-        /* projAll / projNone se existirem */
-        var pa = document.getElementById(act === "all" ? "projAll" : "projNone");
-        if (pa) pa.click();
-        return;
-      }
-      /* sprint / status / assignee: all = seleciona todos os chips; none = vazio (sem restrição visual off) */
+      /* sprint / mod / status: null = all selected */
       if (act === "all") {
-        var chips = box.querySelectorAll(".chip");
-        var vals = [];
-        chips.forEach(function (c) { if (c.dataset.v) vals.push(c.dataset.v); });
-        sel[key] = vals.length ? vals : null;
+        sel[key] = null;
       } else {
-        sel[key] = null; /* limpo = chips off, sem filtro */
+        /* keep one item so filter doesn't go empty oddly — use empty set meaning none */
+        sel[key] = [];
       }
       fillChips();
       applyFilters();
@@ -2183,15 +1905,15 @@ var colDates = window.__ganttColDates || [];
   var ntBackdrop = document.getElementById("newTaskBackdrop");
   if (ntBackdrop) ntBackdrop.onclick = function () { hide(document.getElementById("newTaskModal")); };
 
-  /* btnToggleFilters: ver initFilterPanelUX */
-
+  document.getElementById("btnToggleFilters").onclick = function () {
+    document.getElementById("filterPanel").classList.toggle("collapsed");
+  };
 
   (function bindPan() {
     var right = document.getElementById("ganttRight");
     var panning = false, sx = 0, sy = 0, sl = 0, st = 0;
     right.addEventListener("mousedown", function (e) {
-      /* não iniciar pan em botões/controles da timeline */
-      if (e.target.closest("button, a, input, select, textarea, .bar, .eye, .sprint-task-add, .sprint-add, .handle, label")) return;
+      if (e.target.closest(".bar") || e.target.closest(".eye")) return;
       panning = true; right.classList.add("panning");
       sx = e.clientX; sy = e.clientY; sl = right.scrollLeft; st = right.scrollTop;
     });
@@ -2538,7 +2260,6 @@ async function fetchIssuesForProject(projectId) {
       });
       renderProjTree();
       fillChips();
-      try { initFilterPanelUX(); } catch (e) {}
       applyFilters();
       if (filtered.length === 0 && allIssues.length > 0) {
         console.warn("[Gantt] 0 filtered of", allIssues.length, "— soft reset filters");
@@ -2568,127 +2289,6 @@ async function fetchIssuesForProject(projectId) {
       b.title = t === "light" ? "Modo escuro" : "Modo claro";
     }
   }
-  
-  function initFilterPanelUX() {
-    var btnToggle = document.getElementById("btnToggleFilters");
-    var filterBody = document.getElementById("filterBody");
-    var panel = document.getElementById("filterPanel");
-    if (!btnToggle || !filterBody) return;
-
-    /* Mobile: painel fechado por default */
-    if (window.innerWidth < 1024) {
-      btnToggle.setAttribute("aria-expanded", "false");
-      btnToggle.classList.add("closed");
-      filterBody.classList.add("hidden");
-    }
-
-    btnToggle.onclick = function () {
-      var open = btnToggle.getAttribute("aria-expanded") === "true";
-      btnToggle.setAttribute("aria-expanded", open ? "false" : "true");
-      btnToggle.classList.toggle("closed", open);
-      filterBody.classList.toggle("hidden", open);
-      if (panel) panel.classList.toggle("collapsed", open);
-    };
-
-    /* Minimizar/expandir em sincronia na mesma linha (offsetTop) */
-    document.querySelectorAll(".box-toggle").forEach(function (btn) {
-      btn.onclick = function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        var currentBox = btn.closest(".filter-box");
-        if (!currentBox) return;
-        var isMin = currentBox.classList.contains("minimized");
-        var rowTop = currentBox.offsetTop;
-        document.querySelectorAll(".filter-box").forEach(function (box) {
-          if (box.offsetTop !== rowTop) return;
-          if (isMin) {
-            box.classList.remove("minimized");
-            box.classList.add("expanded");
-          } else {
-            box.classList.add("minimized");
-            box.classList.remove("expanded");
-          }
-        });
-      };
-    });
-
-    /* data-act all/none por caixa — delegação */
-    document.querySelectorAll(".filter-box").forEach(function (box) {
-      var btnAll = box.querySelector('[data-act="all"]');
-      var btnNone = box.querySelector('[data-act="none"]');
-      var key = box.getAttribute("data-filter");
-      if (btnAll) {
-        btnAll.onclick = function (e) {
-          e.preventDefault();
-          e.stopPropagation();
-          if (key === "menuStatus") {
-            box.querySelectorAll('input[type="checkbox"]').forEach(function (cb) {
-              cb.checked = true;
-              if (cb.dataset.sname && menuVisible) menuVisible.add(cb.dataset.sname);
-            });
-            return;
-          }
-          if (key === "mod") {
-            box.querySelectorAll('input[type="checkbox"]').forEach(function (cb) { cb.checked = true; });
-            /* dispara lógica existente se houver */
-            var ev = box.querySelector('[data-act="all"]');
-            return;
-          }
-          /* chips: seleciona todos os valores e aplica */
-          var chips = box.querySelectorAll(".chip");
-          var vals = [];
-          chips.forEach(function (c) { if (c.dataset.v) vals.push(c.dataset.v); });
-          if (key === "sprint") sel.sprint = vals.length ? vals : null;
-          else if (key === "status") sel.status = vals.length ? vals : null;
-          else if (key === "assignee") sel.assignee = vals.length ? vals : null;
-          fillChips();
-          applyFilters();
-        };
-      }
-      if (btnNone) {
-        btnNone.onclick = function (e) {
-          e.preventDefault();
-          e.stopPropagation();
-          if (key === "menuStatus") {
-            box.querySelectorAll('input[type="checkbox"]').forEach(function (cb) {
-              cb.checked = false;
-              if (cb.dataset.sname && menuVisible) menuVisible.delete(cb.dataset.sname);
-            });
-            return;
-          }
-          if (key === "sprint") sel.sprint = null;
-          else if (key === "status") sel.status = null;
-          else if (key === "assignee") sel.assignee = null;
-          else if (key === "mod") {
-            box.querySelectorAll('input[type="checkbox"]').forEach(function (cb) { cb.checked = false; });
-          }
-          fillChips();
-          applyFilters();
-        };
-      }
-    });
-
-    var btnClear = document.getElementById("btnClear");
-    if (btnClear) {
-      btnClear.onclick = function () {
-        sel.sprint = null;
-        sel.status = null;
-        sel.assignee = null;
-        sel.mod = null;
-        sel.scope = ["all"];
-        try { clearSharedFilters(); } catch (err) {}
-        document.querySelectorAll(".filter-box input[type='checkbox']").forEach(function (cb) {
-          if (cb.closest('[data-filter="menuStatus"]')) return; /* menu status independente */
-          cb.checked = false;
-        });
-        fillChips();
-        applyFilters();
-        toast("Filtros limpos");
-      };
-    }
-  }
-
-
   function initTheme() {
     var t = "dark";
     try { t = localStorage.getItem("hemopi_theme") || "dark"; } catch (e) {}
@@ -2710,7 +2310,6 @@ async function fetchIssuesForProject(projectId) {
     console.log("[Gantt] goApp");
     var gv = document.getElementById("ganttView");
     if (gv) show(gv);
-    bindTimelineHeadActions();
     loadAll();
   }
 
@@ -2727,7 +2326,14 @@ async function fetchIssuesForProject(projectId) {
   if (btnLogout) btnLogout.onclick = function () { clearAuth(); goLogin(); };
   var btnRefresh = document.getElementById("btnRefresh");
   if (btnRefresh) btnRefresh.onclick = function () { loadAll(); };
-  /* btnClear: tratado em initFilterPanelUX (única fonte) */
+  var btnClear = document.getElementById("btnClear");
+  if (btnClear) {
+    btnClear.onclick = function () {
+      sel = { scope: ["all"], sprint: null, mod: null, status: null, projects: null, assignee: null };
+      renderProjTree();
+      fillChips(); applyFilters();
+    };
+  }
   var btnToday = document.getElementById("btnToday");
   if (btnToday) {
     btnToday.onclick = function () {
