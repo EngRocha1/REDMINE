@@ -142,3 +142,9 @@ js/gantt-app.js    (stub — não carregado)
 - `gantt.css` importa os 4 módulos CSS + shell residual.
 - Stubs JS documentam contratos; **não** estão no `gantt.html` (evita regressão).
 - Mapa de seções comentado no topo do IIFE em `gantt.js`.
+
+## Fase 3 — Downgrade hibrido visual (2026-10-29)
+
+- **3.1 Filtros:** HTML modelo avancado (caixas minimized, box-content-scroll) + `css/filters.css`. IDs estaveis preservados. JS de negocio = `gantt.js` estavel; apenas toggle UI de expand/collapse (classes CSS).
+- **3.2 Sidebar:** `css/sidebar.css` visual (labels/neon/left panel) sem mudar fonte de dados `filtered`.
+- **3.3 Timeline:** `css/timeline.css` sticky + bandas; calculo `versionBands`/`colDates` permanece no `gantt.js` estavel.

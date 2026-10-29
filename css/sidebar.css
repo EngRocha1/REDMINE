@@ -1,5 +1,4 @@
-/* HEMOPI Gantt — extracted module (Phase 2). Source of truth split from gantt.css stable base. */
-/* module: css/sidebar.css */
+/* Phase 3.2 — sidebar visual only */
 .gantt-left{width:340px;min-width:280px;flex-shrink:0;border-right:1px solid var(--border);display:flex;flex-direction:column}
 .gantt-left-head{height:56px;padding:6px 8px;font-size:.62rem;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);display:flex;align-items:flex-end;gap:6px;letter-spacing:.04em}
 .gantt-left-head .lh-rail{width:22px;text-align:center;flex-shrink:0}
@@ -26,6 +25,12 @@
 /* —— Seletor multi-projeto (dropdown refinado) —— */
 .gantt-left{width:360px;min-width:300px;position:relative}
 .proj-tree{position:relative;flex-shrink:0;padding:8px 8px 6px;border-bottom:1px solid var(--border);background:linear-gradient(180deg,#101826 0%,#0c1320 100%);z-index:20}
+.ms-dot.neon-p0{background:#3b82f6;color:#3b82f6}
+.ms-dot.neon-p1{background:#a855f7;color:#a855f7}
+.ms-dot.neon-p2{background:#22c55e;color:#22c55e}
+.ms-dot.neon-p3{background:#f59e0b;color:#f59e0b}
+.ms-dot.neon-p4{background:#06b6d4;color:#06b6d4}
+.ms-dot.neon-p5{background:#f43f5e;color:#f43f5e}
 .gantt-row-label{gap:0}
 .gantt-left-head{padding:6px 8px;font-size:.6rem}
 

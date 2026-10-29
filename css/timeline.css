@@ -1,5 +1,4 @@
-/* HEMOPI Gantt — extracted module (Phase 2). Source of truth split from gantt.css stable base. */
-/* module: css/timeline.css */
+/* Phase 3.3 — timeline visual only (sticky, bands) */
 
 /* Botão nova sprint na barra */
 .sprint-add{flex-shrink:0;width:32px;height:26px;margin:1px 4px;border:1px dashed rgba(6,182,212,.55);background:rgba(6,182,212,.12);color:#67e8f9;border-radius:6px;font-size:16px;line-height:1;cursor:pointer;align-self:center}
@@ -26,19 +25,11 @@
 .sprint-task-add{flex-shrink:0;width:20px;height:18px;border:1px dashed rgba(148,163,184,.45);background:rgba(15,23,42,.35);color:#94a3b8;border-radius:4px;font-size:13px;line-height:1;cursor:pointer;padding:0}
 .sprint-task-add:hover{border-color:#67e8f9;color:#67e8f9;background:rgba(6,182,212,.2)}
 [data-theme="light"] .day-band,[data-theme="light"] .sprint-band{color:var(--muted)}
+
+.gantt-right{overflow:auto !important}
 .gantt-timeline-head{
-  position:sticky !important;
-  top:0 !important;
-  z-index:30 !important;
-  height:auto !important;
-  background:#121a28 !important;
+  position:sticky !important;top:0 !important;z-index:30 !important;
+  height:auto !important;background:#121a28 !important;
   box-shadow:0 2px 8px rgba(0,0,0,.3);
 }
-/* Botões da barra de sprint clicáveis */
-.sprint-band .eye,
-.sprint-task-add,
-.sprint-add{
-  pointer-events:auto !important;
-  cursor:pointer !important;
-  z-index:5;
-}
+.sprint-band .eye,.sprint-task-add,.sprint-add{pointer-events:auto !important;cursor:pointer !important}

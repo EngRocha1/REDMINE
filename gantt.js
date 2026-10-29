@@ -2340,6 +2340,29 @@ async function fetchIssuesForProject(projectId) {
   if (btnLogout) btnLogout.onclick = function () { clearAuth(); goLogin(); };
   var btnRefresh = document.getElementById("btnRefresh");
   if (btnRefresh) btnRefresh.onclick = function () { loadAll(); };
+
+  /* Phase 3.1 UI-only: expand/collapse filter boxes (CSS classes only — no applyFilters) */
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest && e.target.closest(".box-toggle");
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    var box = btn.closest(".filter-box");
+    if (!box) return;
+    var rowTop = box.offsetTop;
+    var expand = box.classList.contains("minimized");
+    document.querySelectorAll(".filter-box").forEach(function (b) {
+      if (b.offsetTop !== rowTop) return;
+      if (expand) {
+        b.classList.remove("minimized");
+        b.classList.add("expanded");
+      } else {
+        b.classList.add("minimized");
+        b.classList.remove("expanded");
+      }
+    });
+  }, true);
+
   var btnClear = document.getElementById("btnClear");
   if (btnClear) {
     btnClear.onclick = function () {
