@@ -6,6 +6,7 @@
 @import url("css/sidebar.css");
 @import url("css/timeline.css");
 @import url("css/cards.css");
+@import url("css/span-bar.css");
 
 /* HEMOPI Gantt — shell layout (Phase 2). Source of truth split from gantt.css stable base. */
 /* residual: app chrome, modals, layout wrap */

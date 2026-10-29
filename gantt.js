@@ -561,6 +561,45 @@
     if (versionName && i.fixed_version.name === versionName) return true;
     return false;
   }
+
+  /** Dias civis inclusivos entre duas Dates (00:00) */
+  function daysInclusive(a, b) {
+    if (!a || !b) return 0;
+    var ms = b.getTime() - a.getTime();
+    return Math.max(1, Math.round(ms / 864e5) + 1);
+  }
+
+  /**
+   * Cor da barra temporal vs período da sprint (fixed_version):
+   * - span-slack (azul neon): dentro da sprint com folga
+   * - span-fit   (verde neon): duração ≈ duração da sprint
+   * - span-warn  (amarelo neon): estouro 1–3 dias além do fim da sprint
+   * - span-over  (vermelho neon): estouro > 3 dias
+   */
+  function spanBarClass(issue, sprintPeriod) {
+    var s = parseYMD(issue.start_date) || parseYMD(issue.due_date);
+    var e = parseYMD(issue.due_date) || s;
+    if (!s || !e) return "span-unknown";
+    if (!sprintPeriod || !sprintPeriod.start || !sprintPeriod.due) return "span-unknown";
+    var spDue = new Date(sprintPeriod.due.getTime()); spDue.setHours(0, 0, 0, 0);
+    var e0 = new Date(e.getTime()); e0.setHours(0, 0, 0, 0);
+    var overrun = Math.round((e0 - spDue) / 864e5);
+    if (overrun > 3) return "span-over";
+    if (overrun > 0) return "span-warn";
+    var sprintDays = daysInclusive(sprintPeriod.start, sprintPeriod.due);
+    var taskDays = daysInclusive(s, e);
+    if (taskDays >= sprintDays) return "span-fit";
+    return "span-slack";
+  }
+
+  function findSprintBand(bands, issue) {
+    if (!issue.fixed_version || issue.fixed_version.id == null) return null;
+    for (var i = 0; i < bands.length; i++) {
+      if (!bands[i].backlog && String(bands[i].versionId) === String(issue.fixed_version.id)) return bands[i];
+    }
+    return null;
+  }
+
   function statusClass(name) {
     const s = (name || "").toLowerCase();
     if (s.indexOf("nova") >= 0) return "st-nova";
@@ -1143,12 +1182,6 @@ var rows = "";
         }
       }
       if (i0 != null && i0 >= 0) {
-        var leftPx = i0 * DAY_W;
-        /* largura OBRIGATÓRIA = colunas de start..due (1:1 com day-band); pode atravessar sprints */
-        var spanCols = Math.max(1, (i1 - i0 + 1));
-        var widthPx = spanCols * DAY_W - 2;
- /* min ~5 dias para card legível */
-        var label = "#" + issue.id + " · " + shortStatus(issue.status.name);
         var who = (issue.assigned_to && issue.assigned_to.name) ? issue.assigned_to.name : "sem responsável";
         var whoShort = who.length > 22 ? who.slice(0, 20) + "…" : who;
         var subj = cleanSubject(issue.subject || "");
@@ -1156,31 +1189,69 @@ var rows = "";
         var dStart = fmtDateBR(issue.start_date);
         var dEnd = fmtDateBR(issue.due_date);
         var lastC = lastCommentText(issue);
-        bar = '<div class="bar ' + statusClass(issue.status.name) + '" data-id="' + issue.id + '" style="left:' + leftPx + 'px;width:' + widthPx + 'px" title="' + escapeHtml(subj) + ' · ' + who.replace(/"/g, "") + '">' +
-          '<div class="handle left" data-edge="left"></div>' +
-          '<div class="bar-header">' +
-            '<span class="bar-task-id">#' + issue.id + '</span>' +
-            '<div class="bar-project-name" title="' + escapeHtml(subj) + '">' + escapeHtml(subj) + '</div>' +
+
+        /* span temporal = start..due (pode atravessar sprints) */
+        var spanLeft = i0 * DAY_W;
+        var spanWidth = Math.max(1, (i1 - i0 + 1)) * DAY_W - 2;
+
+        /* card = largura da banda da sprint (fixed_version) ou backlog */
+        var sprintBand = findSprintBand(bands, issue);
+        var cardLeft = spanLeft;
+        var cardWidth = spanWidth;
+        var sprintPeriod = null;
+        if (sprintBand && !isBacklogIssue(issue)) {
+          cardLeft = sprintBand.from * DAY_W;
+          cardWidth = Math.max(DAY_W, sprintBand.span * DAY_W) - 2;
+          if (issue.fixed_version) {
+            for (var vi2 = 0; vi2 < versions.length; vi2++) {
+              if (String(versions[vi2].id) === String(issue.fixed_version.id)) {
+                sprintPeriod = versionPeriod(versions[vi2]);
+                break;
+              }
+            }
+          }
+        } else if (isBacklogIssue(issue)) {
+          var blB = null;
+          for (var bb3 = 0; bb3 < bands.length; bb3++) if (bands[bb3].backlog) blB = bands[bb3];
+          if (blB) {
+            cardLeft = blB.from * DAY_W;
+            cardWidth = Math.max(DAY_W, blB.span * DAY_W) - 2;
+          }
+        }
+        var tone = spanBarClass(issue, sprintPeriod);
+
+        bar =
+          '<div class="bar ' + statusClass(issue.status.name) + '" data-id="' + issue.id +
+          '" style="left:' + cardLeft + 'px;width:' + cardWidth + 'px" title="' +
+          escapeHtml(subj) + ' · ' + who.replace(/"/g, "") + '">' +
+            '<div class="handle left" data-edge="left"></div>' +
+            '<div class="bar-header">' +
+              '<span class="bar-task-id">#' + issue.id + '</span>' +
+              '<div class="bar-project-name" title="' + escapeHtml(subj) + '">' + escapeHtml(subj) + '</div>' +
+            '</div>' +
+            '<div class="comment-header-row">' +
+              '<span class="comment-title">Último Comentário:</span>' +
+              '<button type="button" class="add-comment-btn" data-comment="' + issue.id + '" title="Adicionar comentário">+</button>' +
+            '</div>' +
+            '<div class="bar-last-comment" title="' + escapeHtml(lastC) + '">' + escapeHtml(lastC) + '</div>' +
+            '<div class="bar-dates-row">' +
+              '<span>Início: <strong class="val-start">' + dStart + '</strong></span>' +
+              '<span>Fim: <strong class="val-end">' + dEnd + '</strong></span>' +
+            '</div>' +
+            '<div class="bar-status-row">Status: ' + escapeHtml(stLab) + '</div>' +
+            '<div class="bar-content-bottom">' +
+              '<span class="bar-who" title="' + escapeHtml(who) + '">' + escapeHtml(whoShort) + '</span>' +
+              '<span class="bar-actions">' +
+                '<button type="button" class="icon-btn eye-btn" title="Ver descrição">👁</button>' +
+                '<button type="button" class="icon-btn status-btn" title="Alterar status">☰</button>' +
+                '<button type="button" class="icon-btn person-btn" title="Responsável: ' + who.replace(/"/g, "") + '">👤</button>' +
+              '</span>' +
+            '</div>' +
+            '<div class="handle right" data-edge="right"></div>' +
           '</div>' +
-          '<div class="comment-header-row">' +
-            '<span class="comment-title">Último Comentário:</span>' +
-            '<button type="button" class="add-comment-btn" data-comment="' + issue.id + '" title="Adicionar comentário">+</button>' +
-          '</div>' +
-          '<div class="bar-last-comment" title="' + escapeHtml(lastC) + '">' + escapeHtml(lastC) + '</div>' +
-          '<div class="bar-dates-row">' +
-            '<span>Início: <strong class="val-start">' + dStart + '</strong></span>' +
-            '<span>Fim: <strong class="val-end">' + dEnd + '</strong></span>' +
-          '</div>' +
-          '<div class="bar-status-row">Status: ' + escapeHtml(stLab) + '</div>' +
-          '<div class="bar-content-bottom">' +
-            '<span class="bar-who" title="' + escapeHtml(who) + '">' + escapeHtml(whoShort) + '</span>' +
-            '<span class="bar-actions">' +
-              '<button type="button" class="icon-btn eye-btn" title="Ver descrição">👁</button>' +
-              '<button type="button" class="icon-btn status-btn" title="Alterar status">☰</button>' +
-              '<button type="button" class="icon-btn person-btn" title="Responsável: ' + who.replace(/"/g, "") + '">👤</button>' +
-            '</span>' +
-          '</div>' +
-          '<div class="handle right" data-edge="right"></div></div>';
+          '<div class="span-bar ' + tone + '" data-issue="' + issue.id +
+          '" style="left:' + spanLeft + 'px;width:' + spanWidth + 'px" title="#' + issue.id +
+          ' · ' + dStart + ' → ' + dEnd + ' · ' + tone + '"></div>';
       }
       rows += '<div class="gantt-row-track" style="width:' + visualDays * DAY_W + 'px">' + extras + bar + "</div>";
     });
@@ -2378,6 +2449,26 @@ async function fetchIssuesForProject(projectId) {
       fillChips(); applyFilters();
     };
   }
+
+  /* Modo cards minimizados — visão linha temporal (# + span-bar) */
+  (function bindMinCards() {
+    var btn = document.getElementById("btnMinCards");
+    if (!btn) return;
+    var on = false;
+    try { on = localStorage.getItem("hemopi_cards_min") === "1"; } catch (e) {}
+    function apply() {
+      document.body.classList.toggle("cards-minimized", on);
+      btn.setAttribute("aria-pressed", on ? "true" : "false");
+      btn.textContent = on ? "▣ Expandir cards" : "▬ Minimizar cards";
+    }
+    apply();
+    btn.onclick = function () {
+      on = !on;
+      try { localStorage.setItem("hemopi_cards_min", on ? "1" : "0"); } catch (e) {}
+      apply();
+    };
+  })();
+
   var btnToday = document.getElementById("btnToday");
   if (btnToday) {
     btnToday.onclick = function () {

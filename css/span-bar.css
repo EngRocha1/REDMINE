@@ -1,0 +1,70 @@
+/* Barra temporal (start..due) — responsabilidade separada do card de sprint */
+.span-bar {
+  position: absolute;
+  bottom: 6px;
+  height: 6px;
+  border-radius: 3px;
+  z-index: 6;
+  pointer-events: none;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.35);
+  opacity: 0.95;
+}
+.span-bar.span-slack {
+  background: linear-gradient(90deg, #00e5ff, #38bdf8);
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.55);
+}
+.span-bar.span-fit {
+  background: linear-gradient(90deg, #39ff14, #22c55e);
+  box-shadow: 0 0 10px rgba(57, 255, 20, 0.5);
+}
+.span-bar.span-warn {
+  background: linear-gradient(90deg, #ffcc00, #f59e0b);
+  box-shadow: 0 0 10px rgba(255, 204, 0, 0.5);
+}
+.span-bar.span-over {
+  background: linear-gradient(90deg, #ff007f, #ef4444);
+  box-shadow: 0 0 12px rgba(255, 0, 127, 0.55);
+}
+.span-bar.span-unknown {
+  background: rgba(148, 163, 184, 0.5);
+}
+
+/* Modo minimizado: visão linha temporal */
+body.cards-minimized .gantt-row-track {
+  height: 36px !important;
+  min-height: 36px !important;
+}
+body.cards-minimized .bar {
+  height: 28px !important;
+  min-height: 28px !important;
+  top: 4px !important;
+  bottom: auto !important;
+  padding: 2px 8px !important;
+  overflow: hidden !important;
+}
+body.cards-minimized .bar .comment-header-row,
+body.cards-minimized .bar .bar-last-comment,
+body.cards-minimized .bar .bar-dates-row,
+body.cards-minimized .bar .bar-status-row,
+body.cards-minimized .bar .bar-content-bottom,
+body.cards-minimized .bar .bar-project-name,
+body.cards-minimized .bar .handle {
+  display: none !important;
+}
+body.cards-minimized .bar .bar-header {
+  margin: 0 !important;
+  align-items: center;
+}
+body.cards-minimized .bar .bar-task-id {
+  font-size: 12px;
+}
+body.cards-minimized .span-bar {
+  bottom: 2px;
+  height: 5px;
+}
+body.cards-minimized .gantt-row-label {
+  height: 36px !important;
+  min-height: 36px !important;
+  padding-top: 0 !important;
+  align-items: center !important;
+}
