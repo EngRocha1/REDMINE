@@ -142,8 +142,16 @@
       <div class="issue-meta" id="issueMeta"></div>
       <div class="issue-content-split">
         <div class="issue-body-wrap">
-          <div class="issue-section-title">Descrição</div>
+          <div class="issue-section-title issue-desc-header">
+            <span>Descrição</span>
+            <span class="issue-desc-actions">
+              <button type="button" class="btn ghost btn-sm" id="btnEditDesc" title="Editar descrição">✎ Editar</button>
+              <button type="button" class="btn primary btn-sm hidden" id="btnSaveDesc" title="Salvar descrição">Salvar</button>
+              <button type="button" class="btn ghost btn-sm hidden" id="btnCancelDesc" title="Cancelar edição">Cancelar</button>
+            </span>
+          </div>
           <div class="issue-body" id="issueBody">Carregando…</div>
+          <textarea class="issue-body-edit hidden" id="issueBodyEdit" placeholder="Descrição da task (texto ou HTML simples)…"></textarea>
         </div>
         <div class="issue-comments-wrap">
           <div class="issue-section-title">Comentários / Histórico</div>

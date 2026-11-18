@@ -646,23 +646,37 @@
    */
   /**
    * Sprint efetiva — SOMENTE fixed_version do Redmine.
-   * "Backlog" NÃO é versão cadastrada: é rótulo sintético para issue SEM sprint.
-   * NÃO inferir sprint por created_on/start (evita jogar "Nova" na semana da sprint).
+   * "Backlog" NÃO é uma sprint real: é coluna sintética para:
+   *   - issue SEM fixed_version
+   *   - issue vinculada a uma versão cujo nome é "Backlog" (qualquer projeto)
+   * Tasks sem datas / sem informação também caem aqui para não ficarem perdidas.
    */
+  function isBacklogVersionName(name) {
+    if (!name) return true;
+    var n = String(name).trim().toLowerCase();
+    return n === "backlog" || n === "back-log" || n === "sem sprint" || n === "sem versão";
+  }
+
   function sprintName(i) {
-    if (i.fixed_version && i.fixed_version.name) return i.fixed_version.name;
+    if (i.fixed_version && i.fixed_version.name && !isBacklogVersionName(i.fixed_version.name)) {
+      return i.fixed_version.name;
+    }
     return "Backlog";
   }
 
   function isBacklogIssue(i) {
-    /* Sem versão alvo no Redmine → Backlog (coluna sintética) */
+    /* Sem versão → Backlog */
     if (!(i.fixed_version && i.fixed_version.id != null)) return true;
+    /* Versão explicitamente chamada Backlog (de qualquer projeto) → Backlog */
+    if (isBacklogVersionName(i.fixed_version.name)) return true;
     return false;
   }
 
-  /** Issue na sprint apenas se fixed_version_id/name corresponder — nunca por data de criação */
+  /** Issue na sprint apenas se fixed_version_id/name corresponder — nunca por data de criação.
+   *  Versões "Backlog" nunca contam como sprint real. */
   function issueInSprint(i, versionId, versionName) {
     if (!i.fixed_version) return false;
+    if (isBacklogVersionName(i.fixed_version.name)) return false;
     if (versionId != null && String(i.fixed_version.id) === String(versionId)) return true;
     if (versionName && i.fixed_version.name === versionName) return true;
     return false;
@@ -911,19 +925,19 @@
     }
     versionsForProjects(projIds).forEach(function (v) {
       var nm = v.name || "";
-      if (!nm || seenSprint[nm]) return;
+      if (!nm || seenSprint[nm] || isBacklogVersionName(nm)) return;
       seenSprint[nm] = true;
       sprints.push(nm);
     });
-    /* Também inclui nomes de fixed_version que existem nas issues dos projetos selecionados
-       (caso a versão ainda não tenha sido carregada na lista global) */
+    /* Também inclui nomes de fixed_version das issues dos projetos selecionados
+       (exceto Backlog — esse é sempre sintético) */
     allIssues.forEach(function (i) {
       if (sel.projects !== null) {
         var pid = i.project && i.project.id;
         if (pid == null || (!sel.projects.has(pid) && !sel.projects.has(String(pid)))) return;
       }
       var n = sprintName(i);
-      if (n && n !== "Backlog" && !seenSprint[n]) {
+      if (n && n !== "Backlog" && !isBacklogVersionName(n) && !seenSprint[n]) {
         seenSprint[n] = true;
         sprints.push(n);
       }
@@ -1817,6 +1831,64 @@ var rows = "";
     card.style.maxHeight = "";
   }
 
+  var __issueDescRaw = "";
+  var __issueDescId = null;
+
+  function setDescEditMode(on) {
+    var bodyEl = document.getElementById("issueBody");
+    var editEl = document.getElementById("issueBodyEdit");
+    var btnEdit = document.getElementById("btnEditDesc");
+    var btnSave = document.getElementById("btnSaveDesc");
+    var btnCancel = document.getElementById("btnCancelDesc");
+    if (!bodyEl || !editEl) return;
+    if (on) {
+      editEl.value = __issueDescRaw || "";
+      bodyEl.classList.add("hidden");
+      editEl.classList.remove("hidden");
+      if (btnEdit) btnEdit.classList.add("hidden");
+      if (btnSave) btnSave.classList.remove("hidden");
+      if (btnCancel) btnCancel.classList.remove("hidden");
+      editEl.focus();
+    } else {
+      bodyEl.classList.remove("hidden");
+      editEl.classList.add("hidden");
+      if (btnEdit) btnEdit.classList.remove("hidden");
+      if (btnSave) btnSave.classList.add("hidden");
+      if (btnCancel) btnCancel.classList.add("hidden");
+    }
+  }
+
+  function renderIssueDescription(desc) {
+    var bodyEl = document.getElementById("issueBody");
+    if (!bodyEl) return;
+    if (!desc || !String(desc).trim()) {
+      bodyEl.innerHTML = '<span class="muted">Sem descrição cadastrada nesta issue.</span>';
+    } else if (looksLikeHtml(desc)) {
+      bodyEl.innerHTML = safeHtml(desc);
+    } else {
+      bodyEl.innerHTML = escapeHtml(desc).replace(/\n/g, "<br>");
+    }
+  }
+
+  async function saveIssueDescription() {
+    if (!__issueDescId) return;
+    var editEl = document.getElementById("issueBodyEdit");
+    if (!editEl) return;
+    var newDesc = editEl.value;
+    try {
+      await api("PUT", "/issues/" + __issueDescId + ".json", { issue: { description: newDesc } });
+      __issueDescRaw = newDesc;
+      /* atualiza em memória */
+      var local = allIssues.find(function (x) { return x.id === __issueDescId; });
+      if (local) local.description = newDesc;
+      renderIssueDescription(newDesc);
+      setDescEditMode(false);
+      toast("Descrição salva em #" + __issueDescId);
+    } catch (err) {
+      toast("Erro ao salvar descrição: " + err.message, true);
+    }
+  }
+
   async function openIssueDetail(issueId) {
     hide(document.getElementById("statusMenu"));
     hide(document.getElementById("assigneeMenu"));
@@ -1833,6 +1905,9 @@ var rows = "";
     metaEl.innerHTML = "";
     bodyEl.textContent = "Carregando descrição…";
     if (commentsEl) commentsEl.innerHTML = '<div class="issue-comment-empty">Carregando comentários…</div>';
+    __issueDescId = issueId;
+    __issueDescRaw = "";
+    setDescEditMode(false);
     show(modal);
     try {
       var data = await api("GET", "/issues/" + issueId + ".json?include=journals");
@@ -1841,7 +1916,8 @@ var rows = "";
       titleEl.textContent = "#" + issueId + " · " + cleanSubject(issue.subject || local.subject || "");
       var who = (issue.assigned_to && issue.assigned_to.name) || (local.assigned_to && local.assigned_to.name) || "—";
       var st = (issue.status && issue.status.name) || (local.status && local.status.name) || "—";
-      var sp = (issue.fixed_version && issue.fixed_version.name) || (local.fixed_version && local.fixed_version.name) || "Backlog";
+      var spName = (issue.fixed_version && issue.fixed_version.name) || (local.fixed_version && local.fixed_version.name) || "";
+      var sp = isBacklogVersionName(spName) || !spName ? "Backlog" : spName;
       metaEl.innerHTML =
         "<span><strong>Status:</strong> " + escapeHtml(shortStatus(st)) + "</span>" +
         "<span><strong>Sprint:</strong> " + escapeHtml(sp) + "</span>" +
@@ -1850,14 +1926,8 @@ var rows = "";
         "<span><strong>Fim:</strong> " + escapeHtml(issue.due_date || local.due_date || "—") + "</span>" +
         '<span><a href="' + baseUrl + "/issues/" + issueId + '" target="_blank">Abrir no Redmine ↗</a></span>';
       var desc = issue.description || "";
-      if (!desc.trim()) {
-        bodyEl.innerHTML = '<span class="muted">Sem descrição cadastrada nesta issue.</span>';
-      } else if (looksLikeHtml(desc)) {
-        bodyEl.innerHTML = safeHtml(desc);
-      } else {
-        /* Textile/plain: preserva quebras e escapa */
-        bodyEl.innerHTML = escapeHtml(desc).replace(/\n/g, "<br>");
-      }
+      __issueDescRaw = desc;
+      renderIssueDescription(desc);
 
       /* Comentários / journals ordenados por data de criação (mais antigos primeiro) */
       if (commentsEl) {
@@ -2130,8 +2200,17 @@ var rows = "";
 
   document.getElementById("kanbanClose").onclick = function () { hide(document.getElementById("kanbanModal")); };
   document.getElementById("kanbanBackdrop").onclick = function () { hide(document.getElementById("kanbanModal")); };
-  document.getElementById("issueClose").onclick = function () { hide(document.getElementById("issueModal")); };
-  document.getElementById("issueBackdrop").onclick = function () { hide(document.getElementById("issueModal")); };
+  document.getElementById("issueClose").onclick = function () { hide(document.getElementById("issueModal")); setDescEditMode(false); };
+  document.getElementById("issueBackdrop").onclick = function () { hide(document.getElementById("issueModal")); setDescEditMode(false); };
+
+  (function wireDescEdit() {
+    var btnEdit = document.getElementById("btnEditDesc");
+    var btnSave = document.getElementById("btnSaveDesc");
+    var btnCancel = document.getElementById("btnCancelDesc");
+    if (btnEdit) btnEdit.onclick = function (e) { e.stopPropagation(); setDescEditMode(true); };
+    if (btnSave) btnSave.onclick = function (e) { e.stopPropagation(); saveIssueDescription(); };
+    if (btnCancel) btnCancel.onclick = function (e) { e.stopPropagation(); setDescEditMode(false); };
+  })();
 
   /* Filter group: select all / clear */
   document.querySelectorAll(".flt-act").forEach(function (btn) {
