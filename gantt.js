@@ -64,7 +64,8 @@
   let allIssues = [], versions = [], statuses = [], projectMembers = [];
   let allProjects = []; /* árvore plana do Redmine */
   let rangeStart = null, dayCount = 0, filtered = [];
-  let sel = { scope: ["all"], sprint: null, mod: null, status: null, projects: null, assignee: null };
+  let sel = { scope: ["all"], sprint: null, mod: null, status: null, projects: null, assignee: null, completeness: null };
+  /* completeness: null = todas | ["incomplete"] | ["complete"] */
   let collapsedProjects = {};
   try {
     collapsedProjects = JSON.parse(localStorage.getItem("hemopi_collapsed_proj") || "{}") || {};
@@ -434,16 +435,57 @@
     document.getElementById("ntSubject").focus();
   }
 
+  function markFieldError(el, on) {
+    if (!el) return;
+    if (on) el.classList.add("field-error");
+    else el.classList.remove("field-error");
+  }
+
   async function submitNewTask() {
     var modal = document.getElementById("newTaskModal");
-    var subject = (document.getElementById("ntSubject").value || "").trim();
-    var description = document.getElementById("ntDescription").value || "";
-    var projectId = document.getElementById("ntProject").value;
-    var assigneeId = document.getElementById("ntAssignee").value;
+    var subjectEl = document.getElementById("ntSubject");
+    var projectEl = document.getElementById("ntProject");
+    var descEl = document.getElementById("ntDescription");
+    var assigneeEl = document.getElementById("ntAssignee");
+    var subject = (subjectEl && subjectEl.value || "").trim();
+    var description = (descEl && descEl.value || "").trim();
+    var projectId = projectEl && projectEl.value;
+    var assigneeId = assigneeEl && assigneeEl.value;
     var versionId = modal.dataset.versionId;
     var backlog = modal.dataset.backlog === "1";
-    if (!subject) { toast("Informe o título da task", true); return; }
-    if (!projectId) { toast("Selecione o projeto/filho", true); return; }
+
+    /* Validação de campos obrigatórios */
+    var errors = [];
+    markFieldError(subjectEl, false);
+    markFieldError(projectEl, false);
+    markFieldError(descEl, false);
+    markFieldError(assigneeEl, false);
+
+    if (!subject) {
+      errors.push("Título");
+      markFieldError(subjectEl, true);
+    }
+    if (!projectId) {
+      errors.push("Projeto");
+      markFieldError(projectEl, true);
+    }
+    if (!description) {
+      errors.push("Descrição");
+      markFieldError(descEl, true);
+    }
+    if (!assigneeId) {
+      errors.push("Responsável");
+      markFieldError(assigneeEl, true);
+    }
+    if (errors.length) {
+      toast("Campos obrigatórios: " + errors.join(", "), true);
+      if (subjectEl && !subject) subjectEl.focus();
+      else if (projectEl && !projectId) projectEl.focus();
+      else if (assigneeEl && !assigneeId) assigneeEl.focus();
+      else if (descEl) descEl.focus();
+      return;
+    }
+
     var payload = {
       issue: {
         project_id: +projectId,
@@ -670,6 +712,25 @@
     /* Versão explicitamente chamada Backlog (de qualquer projeto) → Backlog */
     if (isBacklogVersionName(i.fixed_version.name)) return true;
     return false;
+  }
+
+  /**
+   * Campos obrigatórios para uma task "completa" na visão Gantt.
+   * Retorna lista de labels faltantes (vazia = ok).
+   */
+  function getMissingRequired(i) {
+    var missing = [];
+    if (!(i.subject && String(i.subject).trim())) missing.push("Título");
+    if (!(i.start_date && String(i.start_date).trim())) missing.push("Data início");
+    if (!(i.due_date && String(i.due_date).trim())) missing.push("Data fim");
+    if (!(i.assigned_to && i.assigned_to.id != null)) missing.push("Responsável");
+    var desc = (i.description || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    if (!desc) missing.push("Descrição");
+    return missing;
+  }
+
+  function isIncompleteIssue(i) {
+    return getMissingRequired(i).length > 0;
   }
 
   /** Issue na sprint apenas se fixed_version_id/name corresponder — nunca por data de criação.
@@ -967,6 +1028,11 @@
       sel.assignee === null ? null : new Set(sel.assignee.map(String)),
       "assignee"
     );
+
+    renderChips("chipsCompleteness", [
+      { v: "incomplete", l: "⚠ Incompletas" },
+      { v: "complete", l: "✓ Completas" }
+    ], sel.completeness === null ? null : new Set(sel.completeness), "completeness");
   }
 
   function applyFilters() {
@@ -1003,6 +1069,14 @@
         var matchId = aid != null && (sel.assignee.indexOf(aid) >= 0 || sel.assignee.indexOf(String(aid)) >= 0);
         var matchNone = wantNone && aid == null;
         if (!matchId && !matchNone) return false;
+      }
+      /* Completude: campos obrigatórios (início, fim, responsável, descrição) */
+      if (sel.completeness !== null && sel.completeness.length) {
+        var incomplete = isIncompleteIssue(i);
+        var wantInc = sel.completeness.indexOf("incomplete") >= 0;
+        var wantOk = sel.completeness.indexOf("complete") >= 0;
+        if (wantInc && !wantOk && !incomplete) return false;
+        if (wantOk && !wantInc && incomplete) return false;
       }
       return true;
     });
@@ -1364,14 +1438,20 @@ var rows = "";
           }
         }
         var tone = spanBarClass(issue, sprintPeriod);
+        var missingReq = getMissingRequired(issue);
+        var incompleteCls = missingReq.length ? " bar-incomplete" : "";
+        var incompleteBadge = missingReq.length
+          ? '<span class="bar-incomplete-badge" title="Campos faltando: ' + escapeHtml(missingReq.join(", ")) + '">⚠</span>'
+          : "";
+        var incompleteTitle = missingReq.length ? " · Faltam: " + missingReq.join(", ") : "";
 
         bar =
-          '<div class="bar ' + statusClass(issue.status.name) + '" data-id="' + issue.id +
+          '<div class="bar ' + statusClass(issue.status.name) + incompleteCls + '" data-id="' + issue.id +
           '" style="left:' + cardLeft + 'px;width:' + cardWidth + 'px" title="' +
-          escapeHtml(subj) + ' · ' + who.replace(/"/g, "") + '">' +
+          escapeHtml(subj) + ' · ' + who.replace(/"/g, "") + escapeHtml(incompleteTitle) + '">' +
             '<div class="handle left" data-edge="left"></div>' +
             '<div class="bar-header">' +
-              '<span class="bar-task-id">#' + issue.id + '</span>' +
+              '<span class="bar-task-id">#' + issue.id + incompleteBadge + '</span>' +
               '<div class="bar-project-name" title="' + escapeHtml(subj) + '">' + escapeHtml(subj) + '</div>' +
             '</div>' +
             '<div class="comment-header-row">' +
@@ -1918,12 +1998,17 @@ var rows = "";
       var st = (issue.status && issue.status.name) || (local.status && local.status.name) || "—";
       var spName = (issue.fixed_version && issue.fixed_version.name) || (local.fixed_version && local.fixed_version.name) || "";
       var sp = isBacklogVersionName(spName) || !spName ? "Backlog" : spName;
+      var missingModal = getMissingRequired(Object.assign({}, local, issue));
+      var missingHtml = missingModal.length
+        ? '<span class="issue-missing-warn" title="Preencha estes campos"><strong>⚠ Faltam:</strong> ' + escapeHtml(missingModal.join(", ")) + "</span>"
+        : "";
       metaEl.innerHTML =
         "<span><strong>Status:</strong> " + escapeHtml(shortStatus(st)) + "</span>" +
         "<span><strong>Sprint:</strong> " + escapeHtml(sp) + "</span>" +
         "<span><strong>Responsável:</strong> " + escapeHtml(who) + "</span>" +
         "<span><strong>Início:</strong> " + escapeHtml(issue.start_date || local.start_date || "—") + "</span>" +
         "<span><strong>Fim:</strong> " + escapeHtml(issue.due_date || local.due_date || "—") + "</span>" +
+        missingHtml +
         '<span><a href="' + baseUrl + "/issues/" + issueId + '" target="_blank">Abrir no Redmine ↗</a></span>';
       var desc = issue.description || "";
       __issueDescRaw = desc;
@@ -2635,7 +2720,7 @@ async function fetchIssuesForProject(projectId) {
       applyFilters();
       if (filtered.length === 0 && allIssues.length > 0) {
         console.warn("[Gantt] 0 filtered of", allIssues.length, "— soft reset filters");
-        sel.projects = null; sel.assignee = null; sel.mod = null; sel.status = null;
+        sel.projects = null; sel.assignee = null; sel.mod = null; sel.status = null; sel.completeness = null;
         try { localStorage.removeItem("hemopi_shared_filters"); } catch (e) {}
         fillChips();
         applyFilters();
@@ -2724,7 +2809,7 @@ async function fetchIssuesForProject(projectId) {
   var btnClear = document.getElementById("btnClear");
   if (btnClear) {
     btnClear.onclick = function () {
-      sel = { scope: ["all"], sprint: null, mod: null, status: null, projects: null, assignee: null };
+      sel = { scope: ["all"], sprint: null, mod: null, status: null, projects: null, assignee: null, completeness: null };
       renderProjTree();
       fillChips(); applyFilters();
     };

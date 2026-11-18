@@ -239,3 +239,13 @@
   max-width: none !important;
   box-sizing: border-box !important;
 }
+
+/* —— Validação / completude —— */
+.req{color:#f87171;font-weight:700}
+.field-error{border-color:#f87171!important;box-shadow:0 0 0 3px rgba(248,113,113,.2)!important}
+.filter-hint{font-size:.72rem;margin:8px 4px 4px;line-height:1.35}
+.bar-incomplete{outline:1px solid rgba(251,191,36,.55);box-shadow:0 0 0 1px rgba(251,191,36,.25)}
+.bar-incomplete-badge{display:inline-block;margin-left:4px;color:#fbbf24;font-size:.85em;vertical-align:middle}
+.bar-dates-row .val-start:empty::after,
+.bar-dates-row .val-end:empty::after{content:"—";color:#f87171}
+.issue-missing-warn{color:#fbbf24;font-size:.78rem}

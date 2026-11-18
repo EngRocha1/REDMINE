@@ -90,6 +90,20 @@
           <div class="chips" id="chipsAssignee"></div>
         </div>
       </div>
+      <div class="filter-box expanded" data-filter="completeness">
+        <div class="filter-box-title">
+          <span>Completude (obrigatórios)</span>
+          <span class="filter-box-actions">
+            <button type="button" class="flt-act box-toggle" title="Expandir/Minimizar">▾</button>
+            <button type="button" class="flt-act" data-act="all" title="Selecionar todos">☑</button>
+            <button type="button" class="flt-act" data-act="none" title="Limpar seleção">☐</button>
+          </span>
+        </div>
+        <div class="box-content-scroll">
+          <div class="chips" id="chipsCompleteness"></div>
+          <p class="filter-hint muted">Obrigatórios: Título, Início, Fim, Responsável e Descrição. Tasks incompletas ficam com ⚠ no card.</p>
+        </div>
+      </div>
     </div>
     <div class="filter-footer">
       <button type="button" id="btnClear" class="btn ghost">Limpar todos os filtros</button>
@@ -175,20 +189,20 @@
       <p class="muted modal-sub">Sprint / coluna: <strong id="ntSprintLabel">—</strong></p>
       <div class="nt-form">
         <div>
-          <label for="ntProject">Projeto / subfilho</label>
-          <select id="ntProject"></select>
+          <label for="ntProject">Projeto / subfilho <span class="req">*</span></label>
+          <select id="ntProject" required></select>
         </div>
         <div>
-          <label for="ntSubject">Título</label>
-          <input id="ntSubject" type="text" maxlength="255" placeholder="[HEMOPI][M0x][US] …" />
+          <label for="ntSubject">Título <span class="req">*</span></label>
+          <input id="ntSubject" type="text" maxlength="255" placeholder="[HEMOPI][M0x][US] …" required />
         </div>
         <div>
-          <label for="ntAssignee">Responsável</label>
-          <select id="ntAssignee"></select>
+          <label for="ntAssignee">Responsável <span class="req">*</span></label>
+          <select id="ntAssignee" required></select>
         </div>
         <div>
-          <label for="ntDescription">Descrição detalhada</label>
-          <textarea id="ntDescription" placeholder="Escopo, fluxo, critérios de aceite…"></textarea>
+          <label for="ntDescription">Descrição detalhada <span class="req">*</span></label>
+          <textarea id="ntDescription" placeholder="Escopo, fluxo, critérios de aceite…" required></textarea>
         </div>
         <div class="nt-actions">
           <button type="button" class="btn ghost" id="ntCancel2">Cancelar</button>
