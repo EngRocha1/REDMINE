@@ -688,10 +688,11 @@
    */
   /**
    * Sprint efetiva — SOMENTE fixed_version do Redmine.
-   * "Backlog" NÃO é uma sprint real: é coluna sintética para:
+   * "Backlog" NÃO é versão do projeto: é coluna sintética para:
    *   - issue SEM fixed_version
-   *   - issue vinculada a uma versão cujo nome é "Backlog" (qualquer projeto)
-   * Tasks sem datas / sem informação também caem aqui para não ficarem perdidas.
+   *   - issue com versão nomeada "Backlog"
+   *   - issue com versão de OUTRO projeto (quando filtro de projetos está ativo)
+   *     → fica no Backlog do projeto dono da task, sem sumir da visão
    */
   function isBacklogVersionName(name) {
     if (!name) return true;
@@ -699,19 +700,49 @@
     return n === "backlog" || n === "back-log" || n === "sem sprint" || n === "sem versão";
   }
 
-  function sprintName(i) {
-    if (i.fixed_version && i.fixed_version.name && !isBacklogVersionName(i.fixed_version.name)) {
-      return i.fixed_version.name;
+  /** IDs de versão válidos para o filtro de projetos atual (sem hardcode) */
+  function selectedProjectIdsList() {
+    if (sel.projects === null) return null;
+    var ids = [];
+    sel.projects.forEach(function (x) {
+      var n = +x;
+      if (!isNaN(n) && n > 0) ids.push(n);
+    });
+    return ids;
+  }
+
+  /** A versão da issue pertence a algum dos projetos selecionados? */
+  function versionBelongsToSelectedProjects(fixedVersion) {
+    if (!fixedVersion || fixedVersion.id == null) return false;
+    var projIds = selectedProjectIdsList();
+    /* sem filtro de projeto → qualquer versão "real" é válida */
+    if (projIds === null) {
+      return !isBacklogVersionName(fixedVersion.name);
     }
-    return "Backlog";
+    var allowed = versionsForProjects(projIds);
+    for (var i = 0; i < allowed.length; i++) {
+      if (String(allowed[i].id) === String(fixedVersion.id)) return true;
+    }
+    /* fallback: se a versão carrega project.id e ele está no filtro */
+    if (fixedVersion.project && fixedVersion.project.id != null) {
+      var pid = fixedVersion.project.id;
+      if (sel.projects.has(pid) || sel.projects.has(String(pid))) return true;
+    }
+    return false;
   }
 
   function isBacklogIssue(i) {
-    /* Sem versão → Backlog */
     if (!(i.fixed_version && i.fixed_version.id != null)) return true;
-    /* Versão explicitamente chamada Backlog (de qualquer projeto) → Backlog */
     if (isBacklogVersionName(i.fixed_version.name)) return true;
+    /* Versão de outro projeto / fora do filtro → trata como Backlog do projeto da task */
+    if (!versionBelongsToSelectedProjects(i.fixed_version)) return true;
     return false;
+  }
+
+  function sprintName(i) {
+    if (isBacklogIssue(i)) return "Backlog";
+    if (i.fixed_version && i.fixed_version.name) return i.fixed_version.name;
+    return "Backlog";
   }
 
   /**
@@ -841,9 +872,20 @@
     return { id: v.id, name: v.name, start: start, due: due };
   }
 
-  function versionAtDate(d) {
-    for (const v of versions) {
-      const p = versionPeriod(v);
+  /** Versão na data — prefere versões do projectId da issue (evita atrelar sprint de outro projeto) */
+  function versionAtDate(d, preferProjectId) {
+    var list = versions;
+    if (preferProjectId != null) {
+      var own = versions.filter(function (v) {
+        return v.project && String(v.project.id) === String(preferProjectId);
+      });
+      if (own.length) list = own;
+    } else {
+      var projIds = selectedProjectIdsList();
+      if (projIds && projIds.length) list = versionsForProjects(projIds);
+    }
+    for (var i = 0; i < list.length; i++) {
+      var p = versionPeriod(list[i]);
       if (p && d >= p.start && d <= p.due) return p;
     }
     return null;
@@ -1594,13 +1636,21 @@ var rows = "";
             if (bandsNow[bi].backlog && mid >= bandsNow[bi].from && mid < bandsNow[bi].from + bandsNow[bi].span) inBacklog = true;
           }
           if (inBacklog) {
+            /* Backlog sintético: só remove fixed_version. NUNCA altera project_id. */
             try {
-              await api("PUT", "/issues/" + id + ".json", { issue: { fixed_version_id: "" } });
+              await api("PUT", "/issues/" + id + ".json", {
+                issue: { fixed_version_id: "" }
+              });
               issue.fixed_version = null;
-              toast("#" + id + " → Backlog (sem sprint)");
+              /* garante que o filtro de Sprint mostre Backlog (senão a task "some") */
+              if (sel.sprint !== null && sel.sprint.indexOf("Backlog") < 0) {
+                sel.sprint = sel.sprint.concat(["Backlog"]);
+              }
+              toast("#" + id + " → Backlog do projeto (versão removida, projeto inalterado)");
+              fillChips();
               applyFilters();
             } catch (err) {
-              toast("Erro: " + err.message, true);
+              toast("Erro ao mover para Backlog: " + err.message, true);
               applyFilters();
             }
             return;
@@ -1615,7 +1665,9 @@ var rows = "";
           if (!d0) { toast("Solte sobre dias de uma sprint", true); applyFilters(); return; }
           var newStart = d0;
           var newDue = d1 >= d0 ? d1 : d0;
-          var ver = versionAtDate(newStart);
+          /* Preferir versão do MESMO projeto da issue — não herdar sprint de outro projeto */
+          var issueProjId = issue.project && issue.project.id != null ? issue.project.id : null;
+          var ver = versionAtDate(newStart, issueProjId);
           var payload = { start_date: fmtYMD(newStart), due_date: fmtYMD(newDue) };
           if (ver) payload.fixed_version_id = ver.id;
 
@@ -1624,10 +1676,15 @@ var rows = "";
             issue.start_date = payload.start_date;
             issue.due_date = payload.due_date;
             if (ver) {
-              issue.fixed_version = { id: ver.id, name: ver.name };
+              issue.fixed_version = {
+                id: ver.id,
+                name: ver.name,
+                project: issue.project ? { id: issue.project.id } : undefined
+              };
               toast("#" + id + " → " + ver.name + " · " + payload.start_date + " … " + payload.due_date);
             } else {
-              toast("#" + id + " → " + payload.start_date + " … " + payload.due_date);
+              /* Sem versão do próprio projeto na data → fica só com datas, sem sprint alheia */
+              toast("#" + id + " → " + payload.start_date + " … " + payload.due_date + " (sem sprint do projeto)");
             }
             applyFilters();
           } catch (err) {
