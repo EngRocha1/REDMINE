@@ -279,17 +279,32 @@
     for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
     return h % (mod || 6);
   }
-  function nextSprintName() {
+  /** Versões pertencentes a um conjunto de project ids (ou todas se projectIds for null) */
+  function versionsForProjects(projectIds) {
+    if (!projectIds || !projectIds.length) return versions.slice();
+    var set = {};
+    projectIds.forEach(function (id) { set[String(id)] = true; });
+    return versions.filter(function (v) {
+      var pid = v.project && v.project.id != null ? String(v.project.id) : null;
+      /* se a API não trouxe project, considera (compatibilidade) */
+      if (pid == null) return true;
+      return !!set[pid];
+    });
+  }
+
+  function nextSprintNameForProject(projectId) {
+    var list = versionsForProjects(projectId != null ? [projectId] : null);
     var max = 0;
-    versions.forEach(function (v) {
+    list.forEach(function (v) {
       var m = String(v.name || "").match(/sprint\s*(\d+)/i);
       if (m) max = Math.max(max, +m[1]);
     });
     return "Sprint " + (max + 1);
   }
-  /** Última sprint "real" (com data) para herdar padrão Mon–Sex + descrição Wxx + sharing tree */
-  function lastSprintTemplate() {
-    var list = versions.slice().filter(function (v) {
+
+  /** Última sprint "real" (com data) do(s) projeto(s) para herdar padrão Mon–Sex + descrição Wxx */
+  function lastSprintTemplate(projectIds) {
+    var list = versionsForProjects(projectIds).filter(function (v) {
       return /sprint\s*\d+/i.test(v.name || "") && v.due_date;
     });
     list.sort(function (a, b) {
@@ -309,10 +324,11 @@
   function fmtBR(d) {
     return String(d.getDate()).padStart(2, "0") + "/" + String(d.getMonth() + 1).padStart(2, "0") + "/" + d.getFullYear();
   }
-  /** Deduz próxima semana útil (seg–sex) a partir da due_date da última sprint */
-  function inferNextSprintMeta() {
-    var last = lastSprintTemplate();
-    var name = nextSprintName();
+  /** Deduz próxima semana útil (seg–sex) a partir da due_date da última sprint do projeto */
+  function inferNextSprintMeta(projectId) {
+    var pids = projectId != null ? [projectId] : null;
+    var last = lastSprintTemplate(pids);
+    var name = nextSprintNameForProject(projectId);
     var start, end, desc, sharing;
     sharing = (last && last.sharing) ? last.sharing : "tree";
     if (last && last.due_date) {
@@ -332,7 +348,6 @@
       end = addDays(start, 4);
       desc = fmtBR(start) + "–" + fmtBR(end) + " | W" + isoWeekNum(start);
     }
-    /* se a última descrição tinha padrão, mantém o estilo */
     if (last && last.description && /\d{2}\/\d{2}/.test(last.description)) {
       desc = fmtBR(start) + "–" + fmtBR(end) + " | W" + isoWeekNum(start);
     }
@@ -341,7 +356,8 @@
       description: desc,
       due_date: fmtYMD(end),
       sharing: sharing,
-      status: "open"
+      status: "open",
+      projectId: projectId
     };
   }
 
@@ -475,22 +491,101 @@
     }
   }
 
+  /** Projetos candidatos para criar sprint (respeita filtro de projetos selecionados) */
+  function candidateProjectsForNewSprint() {
+    var tree = buildProjectTree(allProjects);
+    var opts = [];
+    var seen = {};
+    function addNode(n) {
+      if (!n || seen[n.id]) return;
+      seen[n.id] = true;
+      opts.push({ id: n.id, name: n.name || ("#" + n.id) });
+    }
+    if (sel.projects !== null) {
+      sel.projects.forEach(function (x) {
+        var id = +x;
+        if (isNaN(id) || id < 0) return;
+        var node = tree.byId[id];
+        if (node) addNode(node);
+        else addNode({ id: id, name: "Projeto #" + id });
+      });
+    } else {
+      /* todos / raiz de login */
+      var rootId = getCookie(C_PROJ);
+      if (rootId) {
+        var rootNode = tree.byId[+rootId] || tree.byId[rootId];
+        if (rootNode) {
+          addNode(rootNode);
+          (rootNode.children || []).forEach(addNode);
+        } else {
+          addNode({ id: +rootId || rootId, name: "Projeto login" });
+        }
+      }
+      /* também inclui candidatos já carregados */
+      allProjects.forEach(function (p) {
+        if (p && p.id != null) addNode({ id: p.id, name: p.name });
+      });
+    }
+    /* dedupe por id e ordena por nome */
+    var byId = {};
+    opts.forEach(function (o) { byId[o.id] = o; });
+    return Object.keys(byId).map(function (k) { return byId[k]; })
+      .sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); });
+  }
+
   function openNewSprintDialog() {
-    var meta = inferNextSprintMeta();
+    var candidates = candidateProjectsForNewSprint();
+    if (!candidates.length) {
+      toast("Nenhum projeto disponível para criar sprint. Selecione ao menos um projeto no filtro.", true);
+      return;
+    }
+
+    var chosenProjectId = null;
+    var chosenName = null;
+
+    if (candidates.length === 1) {
+      chosenProjectId = candidates[0].id;
+      chosenName = candidates[0].name;
+    } else {
+      /* Popup simples: lista numerada para o usuário escolher em qual projeto criar */
+      var lines = candidates.map(function (p, i) {
+        return (i + 1) + ") " + p.name + " (id " + p.id + ")";
+      });
+      var answer = window.prompt(
+        "Vários projetos selecionados.\nEm qual projeto a nova Sprint deve ser criada?\n\n" +
+        lines.join("\n") +
+        "\n\nDigite o número da opção:"
+      );
+      if (answer == null) return;
+      var idx = parseInt(String(answer).trim(), 10) - 1;
+      if (isNaN(idx) || idx < 0 || idx >= candidates.length) {
+        toast("Opção inválida", true);
+        return;
+      }
+      chosenProjectId = candidates[idx].id;
+      chosenName = candidates[idx].name;
+    }
+
+    var meta = inferNextSprintMeta(chosenProjectId);
     var name = window.prompt(
-      "Nova sprint (nome):\nSerá criada com datas " + meta.description + "\ne compartilhamento: " + meta.sharing,
+      "Nova sprint no projeto \"" + chosenName + "\":\n" +
+      "Será criada com datas " + meta.description + "\n" +
+      "e compartilhamento: " + meta.sharing +
+      "\n\nNome sugerido (próxima numeração deste projeto):",
       meta.name
     );
     if (name == null) return;
     name = String(name).trim();
     if (!name) { toast("Informe um nome", true); return; }
     meta.name = name;
+    meta.projectId = chosenProjectId;
     createSprint(meta);
   }
+
   async function createSprint(meta) {
-    var projectId = getCookie(C_PROJ);
+    var projectId = meta && meta.projectId != null ? meta.projectId : getCookie(C_PROJ);
     if (!projectId) { toast("Projeto não configurado", true); return; }
-    if (typeof meta === "string") meta = { name: meta, status: "open", sharing: "tree" };
+    if (typeof meta === "string") meta = { name: meta, status: "open", sharing: "tree", projectId: projectId };
     try {
       var payload = {
         version: {
@@ -502,8 +597,19 @@
         }
       };
       await api("POST", "/projects/" + projectId + "/versions.json", payload);
-      versions = (await api("GET", "/projects/" + projectId + "/versions.json")).versions || [];
-      toast("Sprint criada: " + meta.name + (meta.description ? " · " + meta.description : ""));
+
+      /* recarrega versões deste projeto e mescla no array global (sem perder as de outros) */
+      var fresh = (await api("GET", "/projects/" + projectId + "/versions.json")).versions || [];
+      var byId = {};
+      versions.forEach(function (v) { byId[v.id] = v; });
+      fresh.forEach(function (v) {
+        /* garante que a versão saiba a qual projeto pertence */
+        if (!v.project) v.project = { id: +projectId };
+        byId[v.id] = v;
+      });
+      versions = Object.keys(byId).map(function (id) { return byId[id]; });
+
+      toast("Sprint criada em #" + projectId + ": " + meta.name + (meta.description ? " · " + meta.description : ""));
       fillChips();
       applyFilters();
     } catch (err) {
@@ -791,27 +897,33 @@
       { v: "legado", l: "Legado" }, { v: "inf", l: "INF" }
     ], new Set(sel.scope), "scope");
 
-    /* Sprints dinâmicos: versões dos projetos selecionados + nomes presentes nas issues filtráveis */
+    /* Sprints dinâmicos: APENAS versões dos projetos selecionados.
+       Se o projeto selecionado não tiver nenhuma versão, só "Backlog" aparece. */
     var sprints = ["Backlog"];
     var seenSprint = { "Backlog": true };
-    versions.forEach(function (v) {
+    var projIds = null;
+    if (sel.projects !== null) {
+      projIds = [];
+      sel.projects.forEach(function (x) {
+        var n = +x;
+        if (!isNaN(n) && n > 0) projIds.push(n);
+      });
+    }
+    versionsForProjects(projIds).forEach(function (v) {
       var nm = v.name || "";
       if (!nm || seenSprint[nm]) return;
-      /* se há filtro de projetos, só inclui versões cujo project_id (se existir) está selecionado; senão inclui todas */
-      if (sel.projects !== null && v.project && v.project.id != null) {
-        var vid = v.project.id;
-        if (!sel.projects.has(vid) && !sel.projects.has(String(vid))) return;
-      }
       seenSprint[nm] = true;
       sprints.push(nm);
     });
+    /* Também inclui nomes de fixed_version que existem nas issues dos projetos selecionados
+       (caso a versão ainda não tenha sido carregada na lista global) */
     allIssues.forEach(function (i) {
       if (sel.projects !== null) {
         var pid = i.project && i.project.id;
         if (pid == null || (!sel.projects.has(pid) && !sel.projects.has(String(pid)))) return;
       }
       var n = sprintName(i);
-      if (n && !seenSprint[n]) {
+      if (n && n !== "Backlog" && !seenSprint[n]) {
         seenSprint[n] = true;
         sprints.push(n);
       }
@@ -904,7 +1016,15 @@
       if (e && (!max || e > max)) max = e;
       if (s && (!max || s > max)) max = s;
     });
-    versions.forEach(function (v) {
+    var projIdsForRange = null;
+    if (sel.projects !== null) {
+      projIdsForRange = [];
+      sel.projects.forEach(function (x) {
+        var n = +x;
+        if (!isNaN(n) && n > 0) projIdsForRange.push(n);
+      });
+    }
+    versionsForProjects(projIdsForRange).forEach(function (v) {
       if (sel.sprint !== null && sel.sprint.indexOf(v.name) < 0) return;
       var p = versionPeriod(v);
       if (!p) return;
@@ -920,7 +1040,16 @@
   }
 
   function versionBands() {
-    var sorted = versions.slice().filter(function (v) { return v.due_date; }).sort(function (a, b) {
+    /* Apenas versões dos projetos selecionados — se nenhum projeto tiver versão, só Backlog */
+    var projIds = null;
+    if (sel.projects !== null) {
+      projIds = [];
+      sel.projects.forEach(function (x) {
+        var n = +x;
+        if (!isNaN(n) && n > 0) projIds.push(n);
+      });
+    }
+    var sorted = versionsForProjects(projIds).filter(function (v) { return v.due_date; }).sort(function (a, b) {
       return a.due_date < b.due_date ? -1 : 1;
     });
     if (sel.sprint !== null) {
@@ -2341,18 +2470,25 @@ async function fetchIssuesForProject(projectId) {
           }
         }
       } catch (e3) { console.warn("[Gantt] portfolio expand", e3); }
-      /* Versões: projeto raiz + todos os candidatos (dinâmico para múltiplos projetos) */
+      /* Versões: projeto raiz + todos os candidatos (dinâmico para múltiplos projetos)
+         Garante que cada versão saiba a qual project_id pertence (necessário para filtro e criação de sprint) */
       var versionById = {};
       try {
         var rootVers = (await api("GET", "/projects/" + projectId + "/versions.json")).versions || [];
-        rootVers.forEach(function (v) { versionById[v.id] = v; });
+        rootVers.forEach(function (v) {
+          if (!v.project) v.project = { id: +projectId };
+          versionById[v.id] = v;
+        });
       } catch (evRoot) { console.warn("[Gantt] versions root", evRoot); }
       try {
         var candIds = Object.keys(candidateIds);
         for (var cvi = 0; cvi < candIds.length; cvi++) {
           try {
             var cv = (await api("GET", "/projects/" + candIds[cvi] + "/versions.json")).versions || [];
-            cv.forEach(function (v) { if (!versionById[v.id]) versionById[v.id] = v; });
+            cv.forEach(function (v) {
+              if (!v.project) v.project = { id: +candIds[cvi] };
+              if (!versionById[v.id]) versionById[v.id] = v;
+            });
           } catch (evC) { console.warn("[Gantt] versions candidate", candIds[cvi], evC); }
         }
       } catch (evCand) {}
