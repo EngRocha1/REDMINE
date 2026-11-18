@@ -66,7 +66,7 @@
       </div>
       <div class="filter-box minimized" data-filter="status">
         <div class="filter-box-title">
-          <span>Status (Visão)</span>
+          <span>Status (Visão + Kanban)</span>
           <span class="filter-box-actions">
             <button type="button" class="flt-act box-toggle" title="Expandir/Minimizar">▾</button>
             <button type="button" class="flt-act" data-act="all" title="Selecionar todos">☑</button>
@@ -75,19 +75,6 @@
         </div>
         <div class="box-content-scroll">
           <div class="chips" id="chipsStatus"></div>
-        </div>
-      </div>
-      <div class="filter-box minimized" data-filter="menuStatus">
-        <div class="filter-box-title">
-          <span>Status Visíveis</span>
-          <span class="filter-box-actions">
-            <button type="button" class="flt-act box-toggle" title="Expandir/Minimizar">▾</button>
-            <button type="button" class="flt-act" data-act="all" title="Marcar todos">☑</button>
-            <button type="button" class="flt-act" data-act="none" title="Desmarcar todos">☐</button>
-          </span>
-        </div>
-        <div class="box-content-scroll">
-          <div class="menu-checks" id="menuStatusChecks"></div>
         </div>
       </div>
       <div class="filter-box minimized" data-filter="assignee">
@@ -153,7 +140,16 @@
         </div>
       </div>
       <div class="issue-meta" id="issueMeta"></div>
-      <div class="issue-body" id="issueBody">Carregando…</div>
+      <div class="issue-content-split">
+        <div class="issue-body-wrap">
+          <div class="issue-section-title">Descrição</div>
+          <div class="issue-body" id="issueBody">Carregando…</div>
+        </div>
+        <div class="issue-comments-wrap">
+          <div class="issue-section-title">Comentários / Histórico</div>
+          <div class="issue-comments" id="issueComments">Carregando…</div>
+        </div>
+      </div>
       <div class="modal-resize" title="Redimensionar"></div>
     </div>
   </div>

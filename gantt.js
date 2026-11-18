@@ -59,7 +59,7 @@
     try { localStorage.removeItem(LS_FILTERS); } catch (e) {}
   }
   const DAY_W = 48, BACKLOG_DAYS = 7;
-  const DEFAULT_MENU_HIDE = ["Desenvolvimento: Em Deploy", "Fechada"];
+  /* DEFAULT_MENU_HIDE removido — status unificado no filtro Status (Visão + Kanban) */
 
   let allIssues = [], versions = [], statuses = [], projectMembers = [];
   let allProjects = []; /* árvore plana do Redmine */
@@ -89,7 +89,7 @@
     }
   })();
   /* projects: null = todos sob a raiz; Set de ids selecionados */
-  let menuVisible = null;
+  /* menuVisible removido — unificado em sel.status */
 
   function setCookie(n, v, days) {
     const d = new Date(); d.setTime(d.getTime() + (days || 30) * 864e5);
@@ -701,39 +701,15 @@
         }
         fillChips();
         applyFilters();
-      };
-    });
-  }
-
-  function fillMenuChecks() {
-    const el = document.getElementById("menuStatusChecks");
-    const list = statuses.length ? statuses : [
-      { id: 1, name: "Nova" }, { id: 12, name: "Desenvolvimento: Planejamento" },
-      { id: 11, name: "Desenvolvimento: Em Andamento" }, { id: 9, name: "Desenvolvimento: Em Validação" },
-      { id: 16, name: "Desenvolvimento: Em Deploy" }, { id: 13, name: "Em Pagamento" },
-      { id: 4, name: "Resolvida" }, { id: 5, name: "Fechada" }, { id: 6, name: "Rejeitada" }
-    ];
-    if (!menuVisible) {
-      menuVisible = new Set(list.map(function (s) { return s.name; }).filter(function (n) {
-        return DEFAULT_MENU_HIDE.indexOf(n) < 0;
-      }));
-    }
-    el.innerHTML = list.map(function (s) {
-      var checked = menuVisible.has(s.name) ? " checked" : "";
-      return "<label><input type=\"checkbox\" data-sname=\"" + s.name + "\"" + checked + "/> " + s.name + "</label>";
-    }).join("");
-    el.querySelectorAll("input").forEach(function (inp) {
-      inp.onchange = function () {
-        if (inp.checked) menuVisible.add(inp.dataset.sname);
-        else menuVisible.delete(inp.dataset.sname);
-        var km = document.getElementById("kanbanModal");
-        if (km && !km.classList.contains("hidden") && window.__kanbanVersion) {
-          openKanban(window.__kanbanVersion.id, window.__kanbanVersion.name);
+        if (k === "status") {
+          var km = document.getElementById("kanbanModal");
+          if (km && !km.classList.contains("hidden") && window.__kanbanVersion) {
+            openKanban(window.__kanbanVersion.id, window.__kanbanVersion.name);
+          }
         }
       };
     });
   }
-
 
   function renderModDropdown() {
     var el = document.getElementById("modMs");
@@ -815,16 +791,44 @@
       { v: "legado", l: "Legado" }, { v: "inf", l: "INF" }
     ], new Set(sel.scope), "scope");
 
-    var sprints = ["Backlog"].concat(versions.map(function (v) { return v.name; }));
+    /* Sprints dinâmicos: versões dos projetos selecionados + nomes presentes nas issues filtráveis */
+    var sprints = ["Backlog"];
+    var seenSprint = { "Backlog": true };
+    versions.forEach(function (v) {
+      var nm = v.name || "";
+      if (!nm || seenSprint[nm]) return;
+      /* se há filtro de projetos, só inclui versões cujo project_id (se existir) está selecionado; senão inclui todas */
+      if (sel.projects !== null && v.project && v.project.id != null) {
+        var vid = v.project.id;
+        if (!sel.projects.has(vid) && !sel.projects.has(String(vid))) return;
+      }
+      seenSprint[nm] = true;
+      sprints.push(nm);
+    });
     allIssues.forEach(function (i) {
+      if (sel.projects !== null) {
+        var pid = i.project && i.project.id;
+        if (pid == null || (!sel.projects.has(pid) && !sel.projects.has(String(pid)))) return;
+      }
       var n = sprintName(i);
-      if (sprints.indexOf(n) < 0) sprints.push(n);
+      if (n && !seenSprint[n]) {
+        seenSprint[n] = true;
+        sprints.push(n);
+      }
     });
     renderChips("chipsSprint", sprints, sel.sprint === null ? null : new Set(sel.sprint), "sprint");
 
     renderModDropdown();
 
-    var sts = Array.from(new Set(allIssues.map(function (i) { return i.status.name; }))).sort();
+    var stsSet = {};
+    allIssues.forEach(function (i) {
+      if (sel.projects !== null) {
+        var pid = i.project && i.project.id;
+        if (pid == null || (!sel.projects.has(pid) && !sel.projects.has(String(pid)))) return;
+      }
+      if (i.status && i.status.name) stsSet[i.status.name] = true;
+    });
+    var sts = Object.keys(stsSet).sort();
     renderChips("chipsStatus", sts.map(function (s) { return { v: s, l: shortStatus(s) }; }), sel.status === null ? null : new Set(sel.status), "status");
 
     var devs = assigneeOptionsFromIssues();
@@ -837,8 +841,6 @@
       sel.assignee === null ? null : new Set(sel.assignee.map(String)),
       "assignee"
     );
-
-    fillMenuChecks();
   }
 
   function applyFilters() {
@@ -1462,7 +1464,15 @@ var rows = "";
       { id: 11, name: "Desenvolvimento: Em Andamento" }, { id: 9, name: "Desenvolvimento: Em Validação" },
       { id: 16, name: "Desenvolvimento: Em Deploy" }, { id: 13, name: "Em Pagamento" },
       { id: 4, name: "Resolvida" }, { id: 5, name: "Fechada" }, { id: 6, name: "Rejeitada" }
-    ]).filter(function (s) { return !menuVisible || menuVisible.has(s.name); });
+    ]).filter(function (s) {
+      if (sel.status === null) return true;
+      return sel.status.some(function (selS) {
+        var a = String(selS), b = s.name;
+        var as = a.replace(/^Desenvolvimento:\s*/i, "");
+        var bs = b.replace(/^Desenvolvimento:\s*/i, "");
+        return a === b || as === bs || a === bs || as === b;
+      });
+    });
 
     menu.innerHTML = list.map(function (s) {
       return '<button type="button" data-sid="' + s.id + '">' + s.name + "</button>";
@@ -1686,15 +1696,17 @@ var rows = "";
     var titleEl = document.getElementById("issueTitle");
     var metaEl = document.getElementById("issueMeta");
     var bodyEl = document.getElementById("issueBody");
+    var commentsEl = document.getElementById("issueComments");
     var baseUrl = getCookie(C_URL).replace(/\/$/, "");
     enhanceModal("issueCard");
     resetModalPosition("issueCard");
     titleEl.textContent = "#" + issueId + " · carregando…";
     metaEl.innerHTML = "";
     bodyEl.textContent = "Carregando descrição…";
+    if (commentsEl) commentsEl.innerHTML = '<div class="issue-comment-empty">Carregando comentários…</div>';
     show(modal);
     try {
-      var data = await api("GET", "/issues/" + issueId + ".json");
+      var data = await api("GET", "/issues/" + issueId + ".json?include=journals");
       var issue = data.issue || {};
       var local = allIssues.find(function (x) { return x.id === issueId; }) || issue;
       titleEl.textContent = "#" + issueId + " · " + cleanSubject(issue.subject || local.subject || "");
@@ -1717,10 +1729,64 @@ var rows = "";
         /* Textile/plain: preserva quebras e escapa */
         bodyEl.innerHTML = escapeHtml(desc).replace(/\n/g, "<br>");
       }
+
+      /* Comentários / journals ordenados por data de criação (mais antigos primeiro) */
+      if (commentsEl) {
+        var journals = (issue.journals || []).slice().filter(function (j) {
+          return (j.notes && String(j.notes).trim()) || (j.details && j.details.length);
+        });
+        journals.sort(function (a, b) {
+          var ta = a.created_on || "";
+          var tb = b.created_on || "";
+          return ta < tb ? -1 : ta > tb ? 1 : 0;
+        });
+        if (!journals.length) {
+          commentsEl.innerHTML = '<div class="issue-comment-empty">Nenhum comentário ou alteração registrada.</div>';
+        } else {
+          commentsEl.innerHTML = journals.map(function (j) {
+            var author = (j.user && j.user.name) || "Sistema";
+            var dt = j.created_on ? formatJournalDate(j.created_on) : "—";
+            var notes = (j.notes && String(j.notes).trim()) ? j.notes : "";
+            var notesHtml = notes
+              ? (looksLikeHtml(notes) ? safeHtml(notes) : escapeHtml(notes).replace(/\n/g, "<br>"))
+              : "";
+            var detailsHtml = "";
+            if (j.details && j.details.length) {
+              detailsHtml = '<div class="issue-comment-details" style="margin-top:6px;font-size:.75rem;color:var(--muted)">' +
+                j.details.map(function (d) {
+                  var prop = d.name || d.property || "campo";
+                  var oldV = d.old_value != null ? String(d.old_value) : "—";
+                  var newV = d.new_value != null ? String(d.new_value) : "—";
+                  return "<div>• " + escapeHtml(prop) + ": " + escapeHtml(oldV) + " → " + escapeHtml(newV) + "</div>";
+                }).join("") + "</div>";
+            }
+            return '<div class="issue-comment">' +
+              '<div class="issue-comment-head">' +
+                '<span class="issue-comment-author">' + escapeHtml(author) + '</span>' +
+                '<span class="issue-comment-date">' + escapeHtml(dt) + '</span>' +
+              '</div>' +
+              (notesHtml ? '<div class="issue-comment-notes">' + notesHtml + '</div>' : '') +
+              detailsHtml +
+            '</div>';
+          }).join("");
+        }
+      }
     } catch (err) {
       bodyEl.textContent = "Erro ao carregar: " + err.message;
+      if (commentsEl) commentsEl.innerHTML = '<div class="issue-comment-empty">Erro ao carregar comentários.</div>';
       toast("Erro descrição: " + err.message, true);
     }
+  }
+
+  function formatJournalDate(iso) {
+    if (!iso) return "—";
+    try {
+      var d = new Date(iso);
+      if (isNaN(d.getTime())) return iso;
+      var pad = function (n) { return n < 10 ? "0" + n : "" + n; };
+      return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) +
+        " " + pad(d.getHours()) + ":" + pad(d.getMinutes());
+    } catch (e) { return iso; }
   }
 
   function openKanban(versionId, versionName) {
@@ -1734,11 +1800,11 @@ var rows = "";
     enhanceModal("kanbanCard");
     resetModalPosition("kanbanCard");
 
-    // Colunas = EXATAMENTE os status marcados em "Menu — status visíveis" (mesmo vazios)
+    // Colunas = status selecionados no filtro unificado "Status (Visão + Kanban)" (mesmo vazios se selecionados)
     var order = ["Nova", "Desenvolvimento: Planejamento", "Desenvolvimento: Em Andamento", "Desenvolvimento: Em Validação", "Desenvolvimento: Em Deploy", "Em Pagamento", "Resolvida", "Fechada", "Rejeitada"];
     var colNames;
-    if (menuVisible && menuVisible.size > 0) {
-      colNames = Array.from(menuVisible);
+    if (sel.status !== null && sel.status.length > 0) {
+      colNames = sel.status.slice();
     } else if (statuses.length) {
       colNames = statuses.map(function (s) { return s.name; });
     } else {
@@ -1946,22 +2012,6 @@ var rows = "";
       if (!box) return;
       var key = box.dataset.filter;
       var act = btn.dataset.act;
-      if (key === "menuStatus") {
-        var inputs = document.querySelectorAll("#menuStatusChecks input");
-        inputs.forEach(function (inp) {
-          inp.checked = act === "all";
-          if (act === "all") menuVisible.add(inp.dataset.sname);
-          else menuVisible.delete(inp.dataset.sname);
-        });
-        if (act === "all" && !menuVisible.size) {
-          statuses.forEach(function (s) { menuVisible.add(s.name); });
-        }
-        var km = document.getElementById("kanbanModal");
-        if (km && !km.classList.contains("hidden") && window.__kanbanVersion) {
-          openKanban(window.__kanbanVersion.id, window.__kanbanVersion.name);
-        }
-        return;
-      }
       if (key === "scope") {
         if (act === "all") sel.scope = ["all"];
         else sel.scope = ["2.0"];
@@ -2253,9 +2303,9 @@ async function fetchIssuesForProject(projectId) {
         return true;
       });
       /* Portfólio correlato: Legado, MV, MV-Api (ex. #6500), SUGAD — não só irmãos diretos */
+      var candidateIds = {};
       try {
         var RELATED = /(hemopi|legado|inf|\bmv\b|mv-api|mv api|sesapi|sugad|workflow|m0[1-9]|administra|atendimento|doaç|doac|cuidar)/i;
-        var candidateIds = {};
         var rootMeta = allProjects.find(function (p) {
           return String(p.id) === String(projectId) || p.identifier === projectId;
         });
@@ -2291,8 +2341,23 @@ async function fetchIssuesForProject(projectId) {
           }
         }
       } catch (e3) { console.warn("[Gantt] portfolio expand", e3); }
-      versions = (await api("GET", "/projects/" + projectId + "/versions.json")).versions || [];
-      /* safety: issues by each version (pega #6500 mesmo fora da árvore de login) */
+      /* Versões: projeto raiz + todos os candidatos (dinâmico para múltiplos projetos) */
+      var versionById = {};
+      try {
+        var rootVers = (await api("GET", "/projects/" + projectId + "/versions.json")).versions || [];
+        rootVers.forEach(function (v) { versionById[v.id] = v; });
+      } catch (evRoot) { console.warn("[Gantt] versions root", evRoot); }
+      try {
+        var candIds = Object.keys(candidateIds);
+        for (var cvi = 0; cvi < candIds.length; cvi++) {
+          try {
+            var cv = (await api("GET", "/projects/" + candIds[cvi] + "/versions.json")).versions || [];
+            cv.forEach(function (v) { if (!versionById[v.id]) versionById[v.id] = v; });
+          } catch (evC) { console.warn("[Gantt] versions candidate", candIds[cvi], evC); }
+        }
+      } catch (evCand) {}
+      versions = Object.keys(versionById).map(function (id) { return versionById[id]; });
+      /* safety: issues by each version (pega issues mesmo fora da árvore de login) */
       try {
         for (var vx = 0; vx < versions.length; vx++) {
           try {
@@ -2307,7 +2372,7 @@ async function fetchIssuesForProject(projectId) {
             }
           } catch (ev) {}
         }
-        console.log("[Gantt] after version fetch", allIssues.length);
+        console.log("[Gantt] after version fetch", allIssues.length, "versions", versions.length);
       } catch (ev2) {}
 
       try { statuses = (await api("GET", "/issue_statuses.json")).issue_statuses || []; } catch (e) {}
