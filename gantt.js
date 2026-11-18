@@ -2566,15 +2566,20 @@ var rows = "";
         else projArr = Array.from(sel.projects).filter(function (x) { return String(+x) === String(x); }).map(String);
         saveSharedFilters({ projects: projArr });
       })();
-      fillChips();
-      applyFilters();
-      /* atualiza só o texto do trigger sem fechar o painel */
       var txt = el.querySelector(".ms-trigger-text");
       if (txt) {
         var label = sel.projects === null ? "Todos os projetos" :
           (n === 0 ? "Nenhum projeto" : n === 1 ? "1 projeto" : n + " projetos");
         txt.textContent = label;
       }
+      /* Busca issues/versões dos projetos marcados (ex.: CREDSUS) se ainda não carregados */
+      ensureIssuesForSelectedProjects().then(function () {
+        fillChips();
+        applyFilters();
+      }).catch(function () {
+        fillChips();
+        applyFilters();
+      });
     }
     el.querySelectorAll("input[data-pid]").forEach(function (inp) {
       inp.onchange = function (e) {
@@ -2609,7 +2614,10 @@ var rows = "";
     };
   }
 
-async function fetchIssuesForProject(projectId) {
+  /* Projetos cujas issues/versões já foram buscadas nesta sessão */
+  var loadedProjectIds = {};
+
+  async function fetchIssuesForProject(projectId) {
     var issues = [];
     var offset = 0;
     for (;;) {
@@ -2621,6 +2629,72 @@ async function fetchIssuesForProject(projectId) {
       offset += 100;
     }
     return issues;
+  }
+
+  async function fetchAndMergeVersionsForProject(projectId) {
+    try {
+      var list = (await api("GET", "/projects/" + projectId + "/versions.json")).versions || [];
+      var byId = {};
+      versions.forEach(function (v) { byId[v.id] = v; });
+      list.forEach(function (v) {
+        if (!v.project) v.project = { id: +projectId };
+        byId[v.id] = v;
+      });
+      versions = Object.keys(byId).map(function (id) { return byId[id]; });
+    } catch (e) {
+      console.warn("[Gantt] versions project", projectId, e);
+    }
+  }
+
+  /**
+   * Garante issues + versões dos projetos selecionados no filtro (sem hardcode de nomes).
+   * Se o usuário marca CREDSUS e ele ainda não foi carregado, busca agora.
+   */
+  async function ensureIssuesForSelectedProjects() {
+    var ids = [];
+    if (sel.projects === null) {
+      /* "todos": carrega irmãos do portfólio + filhos já listados na árvore */
+      allProjects.forEach(function (p) {
+        if (p && p.id != null) ids.push(+p.id);
+      });
+    } else if (sel.projects.has(-1)) {
+      return; /* nenhum selecionado */
+    } else {
+      sel.projects.forEach(function (x) {
+        var n = +x;
+        if (!isNaN(n) && n > 0) ids.push(n);
+      });
+    }
+    /* dedupe */
+    var uniq = {};
+    ids.forEach(function (id) { uniq[id] = true; });
+    ids = Object.keys(uniq).map(Number);
+
+    var seen = {};
+    allIssues.forEach(function (i) { seen[i.id] = true; });
+    var added = 0;
+    for (var i = 0; i < ids.length; i++) {
+      var pid = ids[i];
+      if (loadedProjectIds[pid]) continue;
+      try {
+        var extra = await fetchIssuesForProject(pid);
+        extra.forEach(function (iss) {
+          if (!seen[iss.id]) {
+            seen[iss.id] = true;
+            allIssues.push(iss);
+            added++;
+          }
+        });
+        await fetchAndMergeVersionsForProject(pid);
+        loadedProjectIds[pid] = true;
+      } catch (e) {
+        console.warn("[Gantt] ensure project", pid, e);
+      }
+    }
+    if (added > 0) {
+      console.log("[Gantt] ensureIssuesForSelectedProjects +", added, "issues; total", allIssues.length);
+    }
+    return added;
   }
   async function loadAll() {
     GLOG.step("loadAll start");
@@ -2652,31 +2726,34 @@ async function fetchIssuesForProject(projectId) {
         seen[i.id] = true;
         return true;
       });
-      /* Portfólio correlato: Legado, MV, MV-Api (ex. #6500), SUGAD — não só irmãos diretos */
+      /* Expansão sem hardcode de nomes: filhos da raiz + irmãos no mesmo portfólio (pai comum) */
       var candidateIds = {};
+      loadedProjectIds[+projectId] = true;
+      loadedProjectIds[String(projectId)] = true;
       try {
-        var RELATED = /(hemopi|legado|inf|\bmv\b|mv-api|mv api|sesapi|sugad|workflow|m0[1-9]|administra|atendimento|doaç|doac|cuidar)/i;
         var rootMeta = allProjects.find(function (p) {
           return String(p.id) === String(projectId) || p.identifier === projectId;
         });
         var portfolioId = rootMeta && rootMeta.parent && rootMeta.parent.id;
         allProjects.forEach(function (p) {
           if (String(p.id) === String(projectId)) return;
-          var nm = p.name || "";
-          if (!RELATED.test(nm)) return;
-          /* filho da raiz, irmão no portfólio, ou filho de projeto correlato (MV → MV-Api) */
+          var nm = p.name || ("#" + p.id);
+          /* filho direto da raiz de login */
           if (p.parent && String(p.parent.id) === String(projectId)) {
             candidateIds[p.id] = nm;
             return;
           }
+          /* irmão no mesmo portfólio (mesmo pai) */
           if (portfolioId && p.parent && String(p.parent.id) === String(portfolioId)) {
             candidateIds[p.id] = nm;
             return;
           }
+          /* neto: filho de um filho da raiz */
           if (p.parent) {
             var par = allProjects.find(function (x) { return String(x.id) === String(p.parent.id); });
-            var parName = (par && par.name) || (p.parent.name || "");
-            if (RELATED.test(parName)) candidateIds[p.id] = nm;
+            if (par && par.parent && String(par.parent.id) === String(projectId)) {
+              candidateIds[p.id] = nm;
+            }
           }
         });
         var ids = Object.keys(candidateIds);
@@ -2686,6 +2763,7 @@ async function fetchIssuesForProject(projectId) {
             extra.forEach(function (i) {
               if (!seen[i.id]) { seen[i.id] = true; allIssues.push(i); }
             });
+            loadedProjectIds[+ids[si]] = true;
           } catch (e2) {
             console.warn("[Gantt] expand", candidateIds[ids[si]], e2);
           }
@@ -2773,12 +2851,13 @@ async function fetchIssuesForProject(projectId) {
         }
       });
       renderProjTree();
+      /* Se o usuário já tinha projetos no filtro (ex. CREDSUS), busca issues deles agora */
+      try { await ensureIssuesForSelectedProjects(); } catch (eEns) {}
       fillChips();
       applyFilters();
       if (filtered.length === 0 && allIssues.length > 0) {
-        console.warn("[Gantt] 0 filtered of", allIssues.length, "— soft reset filters");
-        sel.projects = null; sel.assignee = null; sel.mod = null; sel.status = null; sel.completeness = null;
-        try { localStorage.removeItem("hemopi_shared_filters"); } catch (e) {}
+        console.warn("[Gantt] 0 filtered of", allIssues.length, "— soft reset filters (mantém projetos)");
+        sel.assignee = null; sel.mod = null; sel.status = null; sel.completeness = null; sel.sprint = null;
         fillChips();
         applyFilters();
       }
