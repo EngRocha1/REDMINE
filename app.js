@@ -52,17 +52,17 @@
     ["Nova", "Issue aberta, ainda não iniciada."],
   ];
 
-  const PERIODS = {
-    "Sprint 1": "14–18/09",
-    "Sprint 2": "21–25/09",
-    "Sprint 3": "28/09–02/10",
-    "Sprint 4": "05–09/10",
-    "Sprint 5": "12–16/10",
-    "Sprint 6": "19–23/10",
-    "Sprint 7": "26–30/10",
-    "Sprint 8": "02–06/11",
-    Backlog: "—",
-  };
+  /* Períodos derivados dinamicamente das versões (sem hardcode de datas de sprint) */
+  function periodLabelForVersion(v) {
+    if (!v) return "—";
+    if (v.description && String(v.description).trim()) return String(v.description).trim();
+    if (v.due_date) {
+      var due = v.due_date;
+      var start = v.start_date || "";
+      return start ? start + " → " + due : due;
+    }
+    return "—";
+  }
 
   let charts = {};
 
@@ -272,8 +272,54 @@
     return map[sk] || ["tag-and", sk];
   }
 
-  function sprintName(i) {
-    return (i.fixed_version && i.fixed_version.name) || "Backlog";
+  function isBacklogVersionName(name) {
+    if (!name) return true;
+    var n = String(name).trim().toLowerCase();
+    return n === "backlog" || n === "back-log" || n === "sem sprint" || n === "sem versão";
+  }
+
+  /** Versões disponíveis no contexto do filtro de projetos do dashboard */
+  function versionsForDashFilter(allVersions) {
+    var list = allVersions || window.__lastDashVersions || [];
+    if (!dashProjFilter || dashProjFilter.has(-1)) return list;
+    return list.filter(function (v) {
+      if (!v.project || v.project.id == null) return true;
+      var pid = v.project.id;
+      return dashProjFilter.has(pid) || dashProjFilter.has(String(pid));
+    });
+  }
+
+  /**
+   * Mesmo algoritmo do Gantt:
+   * - sem fixed_version → Backlog
+   * - nome "Backlog" → Backlog
+   * - versão de outro projeto (fora do filtro) → Backlog do projeto da task
+   */
+  function isBacklogIssue(i, allVersions) {
+    if (!(i.fixed_version && i.fixed_version.id != null)) return true;
+    if (isBacklogVersionName(i.fixed_version.name)) return true;
+    if (dashProjFilter && dashProjFilter.size && !dashProjFilter.has(-1)) {
+      var allowed = versionsForDashFilter(allVersions);
+      var hit = allowed.some(function (v) {
+        return String(v.id) === String(i.fixed_version.id);
+      });
+      if (!hit) {
+        /* versão não pertence aos projetos filtrados → Backlog visual */
+        if (i.fixed_version.project && i.fixed_version.project.id != null) {
+          var vpid = i.fixed_version.project.id;
+          if (!dashProjFilter.has(vpid) && !dashProjFilter.has(String(vpid))) return true;
+        } else {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  function sprintName(i, allVersions) {
+    if (isBacklogIssue(i, allVersions)) return "Backlog";
+    if (i.fixed_version && i.fixed_version.name) return i.fixed_version.name;
+    return "Backlog";
   }
 
   function countBy(arr, fn) {
@@ -441,9 +487,11 @@
         txt.textContent = dashProjFilter === null ? "Todos os projetos" :
           (n === 0 ? "Nenhum projeto" : n === 1 ? "1 projeto" : n + " projetos");
       }
-      if (window.__lastDashIssues && window.__lastDashVersions) {
-        renderDashboard(window.__lastDashIssues, window.__lastDashVersions);
-      }
+      ensureDashProjectsLoaded().then(function () {
+        renderDashboard(window.__lastDashIssues || [], window.__lastDashVersions || []);
+      }).catch(function () {
+        renderDashboard(window.__lastDashIssues || [], window.__lastDashVersions || []);
+      });
     }
 
     el.querySelectorAll("input[data-pid]").forEach(function (inp) {
@@ -487,18 +535,23 @@
     if (!el) return;
     function isOn(id) {
       if (!dashDevFilter) return true;
+      if (id === "none") return dashDevFilter.has("none") || dashDevFilter.has(null);
       return dashDevFilter.has(id) || dashDevFilter.has(String(id));
     }
     var nOn = 0;
+    if (isOn("none")) nOn++;
     devList.forEach(function (d) { if (isOn(d.id)) nOn++; });
-    var summary = !devList.length ? "Nenhum dev com tasks" :
-      (!dashDevFilter ? "Todos (" + devList.length + ")" :
-        (nOn === 0 ? "Nenhum" : nOn + " de " + devList.length));
-    var body = devList.map(function (d) {
-      return '<label class="ms-option">' +
-        '<input type="checkbox" data-did="' + d.id + '"' + (isOn(d.id) ? " checked" : "") + "/>" +
-        '<span class="ms-label">' + d.name + " (" + d.done + " entregues)</span></label>";
-    }).join("");
+    var totalOpts = devList.length + 1;
+    var summary = !dashDevFilter ? "Todos (" + totalOpts + ")" :
+      (nOn === 0 ? "Nenhum" : nOn + " de " + totalOpts);
+    var body = '<label class="ms-option">' +
+      '<input type="checkbox" data-did="none"' + (isOn("none") ? " checked" : "") + "/>" +
+      '<span class="ms-label">Sem responsável</span></label>' +
+      devList.map(function (d) {
+        return '<label class="ms-option">' +
+          '<input type="checkbox" data-did="' + d.id + '"' + (isOn(d.id) ? " checked" : "") + "/>" +
+          '<span class="ms-label">' + escapeHtml(d.name) + (d.done != null ? " (" + d.done + " entregues)" : "") + "</span></label>";
+      }).join("");
     el.innerHTML =
       '<button type="button" class="ms-trigger" id="dashDevTrigger">' +
         '<span class="ms-trigger-text">' + summary + "</span>" +
@@ -538,7 +591,13 @@
       boxes.forEach(function (b) { if (b.checked) arr.push(String(b.dataset.did)); });
       if (arr.length === 0) dashDevFilter = new Set([-1]);
       else if (arr.length === boxes.length) dashDevFilter = null;
-      else dashDevFilter = new Set(arr.concat(arr.map(Number)));
+      else {
+        dashDevFilter = new Set();
+        arr.forEach(function (x) {
+          dashDevFilter.add(x);
+          if (x !== "none" && !isNaN(+x)) dashDevFilter.add(+x);
+        });
+      }
       saveSharedFilters({ assignee: dashDevFilter && dashDevFilter.has(-1) ? [] : (dashDevFilter ? arr : null) });
       if (window.__lastDashIssues && window.__lastDashVersions) {
         renderDashboard(window.__lastDashIssues, window.__lastDashVersions);
@@ -569,33 +628,47 @@
   function renderDashboard(issues, versions) {
     window.__lastDashIssues = issues;
     window.__lastDashVersions = versions;
-    if (dashProjFilter && dashProjFilter.size) {
+    /* Filtro projetos: null = todos; Set([-1]) = nenhum; Set(ids) = só esses */
+    if (dashProjFilter && dashProjFilter.has(-1)) {
+      issues = [];
+    } else if (dashProjFilter && dashProjFilter.size) {
       issues = issues.filter(function (i) {
         var pid = i.project && i.project.id;
         if (pid == null) return false;
         return dashProjFilter.has(pid) || dashProjFilter.has(String(pid));
       });
     }
-    const byStatus = countBy(issues, (i) => statusKey(i.status.name));
-    const byMod = countBy(issues, getMod);
-    const bySprint = countBy(issues, sprintName);
-    const sprintStatus = {};
-    issues.forEach((i) => {
-      const sp = sprintName(i);
-      const st = statusKey(i.status.name);
+    /* Filtro desenvolvedor: null = todos (com e sem responsável); "none" = sem responsável */
+    if (dashDevFilter && dashDevFilter.has(-1)) {
+      issues = [];
+    } else if (dashDevFilter && dashDevFilter.size) {
+      issues = issues.filter(function (i) {
+        var aid = i.assigned_to && i.assigned_to.id;
+        var wantNone = dashDevFilter.has("none") || dashDevFilter.has(null);
+        var matchId = aid != null && (dashDevFilter.has(aid) || dashDevFilter.has(String(aid)));
+        var matchNone = wantNone && aid == null;
+        return matchId || matchNone;
+      });
+    }
+
+    var byStatus = countBy(issues, function (i) { return statusKey(i.status.name); });
+    var byMod = countBy(issues, getMod);
+    var bySprint = countBy(issues, function (i) { return sprintName(i, versions); });
+    var sprintStatus = {};
+    issues.forEach(function (i) {
+      var sp = sprintName(i, versions);
+      var st = statusKey(i.status.name);
       if (!sprintStatus[sp]) sprintStatus[sp] = {};
       sprintStatus[sp][st] = (sprintStatus[sp][st] || 0) + 1;
     });
 
-    const total = issues.length;
-    const backlog = bySprint["Backlog"] || 0;
-    /* KPIs: Total + todos os status presentes + Backlog (somatório fecha com total) */
+    var total = issues.length;
+    var backlog = bySprint["Backlog"] || 0;
     var kpiItems = [["Total", total, "info"]];
     ALL_STATUSES.forEach(function (st) {
       var n = byStatus[st] || 0;
       if (n > 0) kpiItems.push([st, n, st === "Em Validação" || st === "Resolvida" ? "ok" : (st === "Rejeitada" ? "warn" : "")]);
     });
-    /* status não mapeados */
     Object.keys(byStatus).forEach(function (st) {
       if (ALL_STATUSES.indexOf(st) < 0 && st !== "—") {
         kpiItems.push([st, byStatus[st], ""]);
@@ -608,78 +681,113 @@
         return '<div class="kpi ' + c + '"><div class="label">' + l + '</div><div class="value">' + v + "</div></div>";
       })
       .join("");
-    var nova = byStatus["Nova"] || 0;
     var valid = byStatus["Em Validação"] || 0;
-    var plan = byStatus["Planejamento"] || 0;
     var done = (byStatus["Resolvida"] || 0) + (byStatus["Fechada"] || 0);
 
-    const verStatus = {};
-    versions.forEach((v) => { verStatus[v.name] = v.status; });
+    var verByName = {};
+    (versions || []).forEach(function (v) { verByName[v.name] = v; });
 
-    const sprintOrder = ["Sprint 1","Sprint 2","Sprint 3","Sprint 4","Sprint 5","Sprint 6","Sprint 7","Sprint 8","Backlog"];
+    /* Ordem dinâmica: sprints presentes nos dados + versões dos projetos filtrados + Backlog no fim */
+    var sprintOrder = [];
+    var seenSp = {};
+    Object.keys(bySprint).forEach(function (s) {
+      if (s !== "Backlog" && !seenSp[s]) { seenSp[s] = true; sprintOrder.push(s); }
+    });
+    versionsForDashFilter(versions).forEach(function (v) {
+      var nm = v.name || "";
+      if (nm && !isBacklogVersionName(nm) && !seenSp[nm]) {
+        seenSp[nm] = true;
+        sprintOrder.push(nm);
+      }
+    });
+    sprintOrder.sort(function (a, b) {
+      var va = verByName[a], vb = verByName[b];
+      var da = (va && va.due_date) || "9999";
+      var db = (vb && vb.due_date) || "9999";
+      if (da !== db) return da < db ? -1 : 1;
+      return String(a).localeCompare(String(b));
+    });
+    sprintOrder.push("Backlog");
+
     document.getElementById("sprintCards").innerHTML = sprintOrder
-      .map((s) => {
-        const n = bySprint[s] || 0;
-        const st = sprintStatus[s] || {};
+      .map(function (s) {
+        var n = bySprint[s] || 0;
+        var st = sprintStatus[s] || {};
         if (s === "Backlog") {
-          return '<div class="sc backlog"><h3>Backlog</h3><div class="period">não alocado</div><div class="num" style="color:#fcd34d">' + n + '</div><div class="breakdown">Nova ' + (st["Nova"] || 0) + "</div></div>";
+          return '<div class="sc backlog"><h3>Backlog</h3><div class="period">sem versão / versão de outro projeto</div><div class="num" style="color:#fcd34d">' + n + '</div><div class="breakdown">Nova ' + (st["Nova"] || 0) + "</div></div>";
         }
-        const vs = verStatus[s] || "open";
-        const badge = vs === "closed" ? "fechada" : "aberta";
-        const bc = vs === "closed" ? "#86efac" : "#93c5fd";
+        var ver = verByName[s];
+        var vs = (ver && ver.status) || "open";
+        var badge = vs === "closed" ? "fechada" : "aberta";
+        var bc = vs === "closed" ? "#86efac" : "#93c5fd";
         var parts = [];
         ALL_STATUSES.forEach(function (k) {
-          var v = st[k] || 0;
-          if (v) parts.push(k.replace("Desenvolvimento: ", "").replace("Em ", "") + " " + v);
+          var vv = st[k] || 0;
+          if (vv) parts.push(k.replace("Desenvolvimento: ", "").replace("Em ", "") + " " + vv);
         });
-        return '<div class="sc"><h3>' + s + ' <span style="font-size:.65rem;color:' + bc + '">· ' + badge + '</span></h3><div class="period">' + (PERIODS[s] || "") + ' · seg–sex</div><div class="num">' + n + '</div><div class="breakdown">' + (parts.join(" · ") || "—") + "</div></div>";
+        return '<div class="sc"><h3>' + escapeHtml(s) + ' <span style="font-size:.65rem;color:' + bc + '">· ' + badge + '</span></h3><div class="period">' + escapeHtml(periodLabelForVersion(ver)) + '</div><div class="num">' + n + '</div><div class="breakdown">' + (parts.join(" · ") || "—") + "</div></div>";
       })
       .join("");
 
-    document.getElementById("banner").innerHTML =
-      "<strong>Sprints (seg–sex)</strong> · Resolvida = conclusão visual do squad · Backlog: <strong style='color:#fcd34d'>" +
-      backlog + "</strong> · Em Validação: <strong style='color:#86efac'>" + valid +
-      "</strong> · Resolvidas: <strong>" + done + "</strong>.";
+    var metaEl = document.getElementById("dashFilterMeta");
+    if (metaEl) metaEl.textContent = total + " tasks · Backlog " + backlog;
 
-    const statusCols = ALL_STATUSES.slice();
-    let mx = '<table class="matrix"><thead><tr><th>Sprint</th>' + statusCols.map((c) => "<th>" + c + "</th>").join("") + "<th>Total</th></tr></thead><tbody>";
-    sprintOrder.forEach((s) => {
-      const st = sprintStatus[s] || {};
-      mx += "<tr><td>" + s + "</td>" + statusCols.map((c) => "<td>" + (st[c] || 0) + "</td>").join("") + "<td><strong>" + (bySprint[s] || 0) + "</strong></td></tr>";
+    document.getElementById("banner").innerHTML =
+      "<strong>Filtros alinhados ao Gantt</strong> · Backlog (mesmo algoritmo): <strong style='color:#fcd34d'>" +
+      backlog + "</strong> · Em Validação: <strong style='color:#86efac'>" + valid +
+      "</strong> · Resolvidas/Fechadas: <strong>" + done + "</strong> · Total filtrado: <strong>" + total + "</strong>.";
+
+    var statusCols = ALL_STATUSES.slice();
+    var mx = '<table class="matrix"><thead><tr><th>Sprint</th>' + statusCols.map(function (c) { return "<th>" + c + "</th>"; }).join("") + "<th>Total</th></tr></thead><tbody>";
+    sprintOrder.forEach(function (s) {
+      var st = sprintStatus[s] || {};
+      mx += "<tr><td>" + escapeHtml(s) + "</td>" + statusCols.map(function (c) { return "<td>" + (st[c] || 0) + "</td>"; }).join("") + "<td><strong>" + (bySprint[s] || 0) + "</strong></td></tr>";
     });
     mx += "</tbody></table>";
     document.getElementById("matrix").innerHTML = mx;
 
-    const modsOrder = ["M01","M02","M03","M04","M05","M06","M07","M08","M09","INF","LEG","OUT"];
-    const spPri = Object.fromEntries(sprintOrder.map((s, i) => [s, i]));
-    const modPri = Object.fromEntries(modsOrder.map((m, i) => [m, i]));
-    const sorted = issues.slice().sort((a, b) => {
-      const sa = spPri[sprintName(a)] ?? 99;
-      const sb = spPri[sprintName(b)] ?? 99;
+    var modsOrder = ["M01","M02","M03","M04","M05","M06","M07","M08","M09","INF","LEG","OUT"];
+    var spPri = {};
+    sprintOrder.forEach(function (s, i) { spPri[s] = i; });
+    var modPri = {};
+    modsOrder.forEach(function (m, i) { modPri[m] = i; });
+    var sorted = issues.slice().sort(function (a, b) {
+      var sa = spPri[sprintName(a, versions)];
+      var sb = spPri[sprintName(b, versions)];
+      if (sa == null) sa = 99;
+      if (sb == null) sb = 99;
       if (sa !== sb) return sa - sb;
-      return (modPri[getMod(a)] ?? 99) - (modPri[getMod(b)] ?? 99) || b.id - a.id;
+      var ma = modPri[getMod(a)]; if (ma == null) ma = 99;
+      var mb = modPri[getMod(b)]; if (mb == null) mb = 99;
+      return ma - mb || b.id - a.id;
     });
 
-    const baseUrl = getCookie(C_URL).replace(/\/$/, "");
+    var baseUrl = getCookie(C_URL).replace(/\/$/, "");
     document.querySelector("#tbl tbody").innerHTML = sorted
-      .map((i) => {
-        const mod = getMod(i);
-        const f = ["M01","M02","M03","INF","LEG"].includes(mod) ? mod : mod.startsWith("M") ? "EP" : mod;
-        const [tc, tl] = statusTag(i.status.name);
-        const sp = sprintName(i);
-        const spf = sp.replace(/ /g, "");
-        const subj = (i.subject || "").replace(/\[HEMOPI\]\s*/g, "");
-        return '<tr data-f="' + f + '" data-mod="' + mod + '" data-st="' + statusKey(i.status.name) + '" data-sp="' + spf + '"><td><a href="' + baseUrl + "/issues/" + i.id + '" target="_blank">#' + i.id + "</a></td><td>" + sp + "</td><td>" + mod + "</td><td>" + escapeHtml(subj) + '</td><td><span class="tag ' + tc + '">' + tl + "</span></td><td>" + escapeHtml((i.assigned_to && i.assigned_to.name) || "—") + "</td><td>" + (i.start_date || "—") + "</td><td>" + (i.due_date || "—") + "</td></tr>";
+      .map(function (i) {
+        var mod = getMod(i);
+        var f = ["M01","M02","M03","INF","LEG"].indexOf(mod) >= 0 ? mod : (mod.indexOf("M") === 0 ? "EP" : mod);
+        var tag = statusTag(i.status.name);
+        var tc = tag[0], tl = tag[1];
+        var sp = sprintName(i, versions);
+        var spf = sp.replace(/ /g, "");
+        var subj = (i.subject || "").replace(/\[[^\]]+\]\s*/g, "");
+        return '<tr data-f="' + f + '" data-mod="' + mod + '" data-st="' + statusKey(i.status.name) + '" data-sp="' + spf + '"><td><a href="' + baseUrl + "/issues/" + i.id + '" target="_blank">#' + i.id + "</a></td><td>" + escapeHtml(sp) + "</td><td>" + escapeHtml(mod) + "</td><td>" + escapeHtml(subj) + '</td><td><span class="tag ' + tc + '">' + tl + "</span></td><td>" + escapeHtml((i.assigned_to && i.assigned_to.name) || "—") + "</td><td>" + (i.start_date || "—") + "</td><td>" + (i.due_date || "—") + "</td></tr>";
       })
       .join("");
 
-    const filters = [
-      ["all","Todos"],["M01","M01"],["M02","M02"],["M03","M03"],["EP","M04–09"],
-      ["LEG","Legado"],["INF","INF"],["sp:Backlog","Backlog"],["sp:Sprint5","Sprint 5"],
-      ["sp:Sprint3","Sprint 3"],["st:Em Validação","Em Validação"],["st:Resolvida","Resolvida"],
-    ];
+    /* Chips de tabela dinâmicos a partir dos dados filtrados */
+    var filters = [["all", "Todos"], ["sp:Backlog", "Backlog"]];
+    sprintOrder.forEach(function (s) {
+      if (s !== "Backlog") filters.push(["sp:" + s.replace(/ /g, ""), s]);
+    });
+    Object.keys(byStatus).forEach(function (st) {
+      if (st && st !== "—") filters.push(["st:" + st, st]);
+    });
     document.getElementById("filters").innerHTML = filters
-      .map(([k, lab], idx) => '<button class="' + (idx === 0 ? "active" : "") + '" data-k="' + k + '">' + lab + "</button>")
+      .map(function (pair, idx) {
+        return '<button class="' + (idx === 0 ? "active" : "") + '" data-k="' + escapeHtml(pair[0]) + '">' + escapeHtml(pair[1]) + "</button>";
+      })
       .join("");
     document.querySelectorAll("#filters button").forEach((btn) => {
       btn.onclick = () => {
@@ -751,7 +859,8 @@
 
     try {
       var sprintLabels = sprintOrder.map(function (s) {
-        var per = PERIODS[s] || "";
+        if (s === "Backlog") return s;
+        var per = periodLabelForVersion(verByName[s]);
         return per && per !== "—" ? [s, per] : s;
       });
       var sprintDatasets = ALL_STATUSES.map(function (st) {
@@ -781,7 +890,8 @@
                 title: function (items) {
                   var i = items[0] && items[0].dataIndex;
                   var s = sprintOrder[i];
-                  var per = PERIODS[s];
+                  if (s === "Backlog") return s;
+                  var per = periodLabelForVersion(verByName[s]);
                   return per && per !== "—" ? s + " (" + per + ")" : s;
                 }
               }
@@ -942,14 +1052,72 @@ const now = new Date().toLocaleString("pt-BR");
   let dashDevFilter = null;
   let dashProjFilter = null;
   let allProjectsDash = [];
+  var loadedProjectIdsDash = {};
   (function initSharedFromLS() {
     try {
       var sf = loadSharedFilters();
-      if (sf.assignee) dashDevFilter = new Set(sf.assignee.concat(sf.assignee.map(Number)));
-      if (sf.projects) dashProjFilter = new Set(sf.projects.concat(sf.projects.map(Number)));
+      if (sf.assignee && sf.assignee.length) {
+        dashDevFilter = new Set(sf.assignee.concat(sf.assignee.map(Number)));
+      } else if (Array.isArray(sf.assignee) && sf.assignee.length === 0) {
+        dashDevFilter = new Set([-1]);
+      }
+      if (sf.projects && sf.projects.length) {
+        dashProjFilter = new Set(sf.projects.concat(sf.projects.map(Number)));
+      } else if (Array.isArray(sf.projects) && sf.projects.length === 0) {
+        dashProjFilter = new Set([-1]);
+      }
     } catch (e) {}
   })();
 
+  async function mergeVersionsDash(projectId, versionById) {
+    try {
+      var list = await fetchVersions(projectId);
+      list.forEach(function (v) {
+        if (!v.project) v.project = { id: +projectId };
+        versionById[v.id] = v;
+      });
+    } catch (e) {
+      console.warn("[Dash] versions", projectId, e);
+    }
+  }
+
+  /** Carrega issues+versões dos projetos do filtro se ainda não estiverem em memória */
+  async function ensureDashProjectsLoaded() {
+    var ids = [];
+    if (!dashProjFilter || dashProjFilter.has(-1)) {
+      if (dashProjFilter && dashProjFilter.has(-1)) return 0;
+      /* todos: não força carga de centenas; usa o que já veio do loadData */
+      return 0;
+    }
+    dashProjFilter.forEach(function (x) {
+      var n = +x;
+      if (!isNaN(n) && n > 0) ids.push(n);
+    });
+    var issues = window.__lastDashIssues || [];
+    var versions = window.__lastDashVersions || [];
+    var seen = {};
+    issues.forEach(function (i) { seen[i.id] = true; });
+    var versionById = {};
+    versions.forEach(function (v) { versionById[v.id] = v; });
+    var added = 0;
+    for (var i = 0; i < ids.length; i++) {
+      var pid = ids[i];
+      if (loadedProjectIdsDash[pid]) continue;
+      try {
+        var extra = await fetchAllIssues(pid);
+        extra.forEach(function (iss) {
+          if (!seen[iss.id]) { seen[iss.id] = true; issues.push(iss); added++; }
+        });
+        await mergeVersionsDash(pid, versionById);
+        loadedProjectIdsDash[pid] = true;
+      } catch (e) {
+        console.warn("[Dash] ensure project", pid, e);
+      }
+    }
+    window.__lastDashIssues = issues;
+    window.__lastDashVersions = Object.keys(versionById).map(function (id) { return versionById[id]; });
+    return added;
+  }
 
   async function loadData() {
     const loading = document.getElementById("loading");
@@ -973,6 +1141,10 @@ const now = new Date().toLocaleString("pt-BR");
       }
       renderDashProjFilter();
       var issues = await fetchAllIssues(projectId);
+      loadedProjectIdsDash = {};
+      loadedProjectIdsDash[+projectId] = true;
+      loadedProjectIdsDash[String(projectId)] = true;
+      var versionById = {};
       try {
         var seen = {};
         issues.forEach(function (i) { seen[i.id] = true; });
@@ -981,36 +1153,37 @@ const now = new Date().toLocaleString("pt-BR");
             if (!seen[i.id]) { seen[i.id] = true; issues.push(i); }
           });
         }
-        /* Projetos correlatos no portfólio: HEMOPI filhos, Legado, MV e subprojetos (ex.: MV-Api #6500) */
-        var RELATED = /(hemopi|legado|inf|\bmv\b|mv-api|mv api|sesapi|sugad|workflow)/i;
+        /* Expansão por árvore (sem regex de nomes): filhos + irmãos do portfólio */
         var root = allProjectsDash.find(function (p) {
           return String(p.id) === String(projectId) || p.identifier === projectId;
         });
         var parentId = root && root.parent && root.parent.id;
         var candidateIds = {};
         allProjectsDash.forEach(function (p) {
-          var nm = p.name || "";
+          var nm = p.name || ("#" + p.id);
           var pid = p.id;
           if (String(pid) === String(projectId)) return;
-          /* filho direto da raiz de login */
-          if (p.parent && String(p.parent.id) === String(projectId) && RELATED.test(nm)) {
+          if (p.parent && String(p.parent.id) === String(projectId)) {
             candidateIds[pid] = nm;
+            return;
           }
-          /* irmão no portfólio */
-          if (parentId && p.parent && String(p.parent.id) === String(parentId) && RELATED.test(nm)) {
+          if (parentId && p.parent && String(p.parent.id) === String(parentId)) {
             candidateIds[pid] = nm;
+            return;
           }
-          /* sob MV / SUGAD / sesapi (ex.: projeto 430 MV-Api) */
-          if (RELATED.test(nm) && p.parent) {
+          if (p.parent) {
             var par = allProjectsDash.find(function (x) { return String(x.id) === String(p.parent.id); });
-            var parName = (par && par.name) || (p.parent.name || "");
-            if (RELATED.test(parName)) candidateIds[pid] = nm;
+            if (par && par.parent && String(par.parent.id) === String(projectId)) {
+              candidateIds[pid] = nm;
+            }
           }
         });
         var ids = Object.keys(candidateIds);
         for (var si = 0; si < ids.length; si++) {
           try {
             addIssues(await fetchAllIssues(ids[si]));
+            loadedProjectIdsDash[+ids[si]] = true;
+            await mergeVersionsDash(ids[si], versionById);
           } catch (e2) {
             console.warn("[Dash] expand project", candidateIds[ids[si]], e2);
           }
@@ -1018,8 +1191,29 @@ const now = new Date().toLocaleString("pt-BR");
       } catch (e3) {
         console.warn("[Dash] portfolio expand", e3);
       }
-      var versions = await fetchVersions(projectId);
-      renderDashboard(issues, versions);
+      await mergeVersionsDash(projectId, versionById);
+      var versions = Object.keys(versionById).map(function (id) { return versionById[id]; });
+      if (!versions.length) {
+        try { versions = await fetchVersions(projectId); } catch (e) { versions = []; }
+      }
+      window.__lastDashIssues = issues;
+      window.__lastDashVersions = versions;
+      /* Se filtro compartilhado já apontava projetos específicos, garante carga */
+      try { await ensureDashProjectsLoaded(); } catch (eEns) {}
+      renderDashboard(window.__lastDashIssues, window.__lastDashVersions);
+      /* reconstrói filtro de dev com base no conjunto completo */
+      try {
+        var devMap = {};
+        (window.__lastDashIssues || []).forEach(function (i) {
+          if (i.assigned_to && i.assigned_to.id != null) {
+            devMap[i.assigned_to.id] = i.assigned_to.name;
+          }
+        });
+        var devList = Object.keys(devMap).map(function (id) {
+          return { id: +id, name: devMap[id] };
+        }).sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); });
+        renderDashDevFilter(devList);
+      } catch (eDev) {}
     } catch (e) {
       alert("Falha ao carregar Redmine.\n" + e.message + "\n\nSe for CORS, rode: npm install && npm run proxy → http://localhost:8787");
       console.error(e);
