@@ -2701,9 +2701,8 @@ var rows = "";
     var loading = document.getElementById("loading");
     show(loading);
     try {
-      var projectId = getCookie(C_PROJ);
-      if (!projectId) throw new Error("Projeto não informado");
-      /* árvore de projetos (para filtro multi + MV / módulos) */
+      if (!getCookie(C_URL) || !getCookie(C_KEY)) throw new Error("Sessão incompleta (URL + API key)");
+      /* Entrada leve: só metadados de projetos. Issues/versões sob demanda no filtro. */
       try {
         var projs = [];
         var poff = 0;
@@ -2717,113 +2716,16 @@ var rows = "";
       } catch (e) {
         console.warn("[Gantt] projects", e);
         allProjects = [];
+        throw new Error("Falha ao listar projetos. Verifique URL e API key.");
       }
-      /* issues: raiz + subprojetos */
-      var issues = await fetchIssuesForProject(projectId);
+      allIssues = [];
+      versions = [];
+      loadedProjectIds = {};
       var seen = {};
-      allIssues = issues.filter(function (i) {
-        if (seen[i.id]) return false;
-        seen[i.id] = true;
-        return true;
-      });
-      /* Expansão sem hardcode de nomes: filhos da raiz + irmãos no mesmo portfólio (pai comum) */
-      var candidateIds = {};
-      loadedProjectIds[+projectId] = true;
-      loadedProjectIds[String(projectId)] = true;
-      try {
-        var rootMeta = allProjects.find(function (p) {
-          return String(p.id) === String(projectId) || p.identifier === projectId;
-        });
-        var portfolioId = rootMeta && rootMeta.parent && rootMeta.parent.id;
-        allProjects.forEach(function (p) {
-          if (String(p.id) === String(projectId)) return;
-          var nm = p.name || ("#" + p.id);
-          /* filho direto da raiz de login */
-          if (p.parent && String(p.parent.id) === String(projectId)) {
-            candidateIds[p.id] = nm;
-            return;
-          }
-          /* irmão no mesmo portfólio (mesmo pai) */
-          if (portfolioId && p.parent && String(p.parent.id) === String(portfolioId)) {
-            candidateIds[p.id] = nm;
-            return;
-          }
-          /* neto: filho de um filho da raiz */
-          if (p.parent) {
-            var par = allProjects.find(function (x) { return String(x.id) === String(p.parent.id); });
-            if (par && par.parent && String(par.parent.id) === String(projectId)) {
-              candidateIds[p.id] = nm;
-            }
-          }
-        });
-        var ids = Object.keys(candidateIds);
-        for (var si = 0; si < ids.length; si++) {
-          try {
-            var extra = await fetchIssuesForProject(ids[si]);
-            extra.forEach(function (i) {
-              if (!seen[i.id]) { seen[i.id] = true; allIssues.push(i); }
-            });
-            loadedProjectIds[+ids[si]] = true;
-          } catch (e2) {
-            console.warn("[Gantt] expand", candidateIds[ids[si]], e2);
-          }
-        }
-      } catch (e3) { console.warn("[Gantt] portfolio expand", e3); }
-      /* Versões: projeto raiz + todos os candidatos (dinâmico para múltiplos projetos)
-         Garante que cada versão saiba a qual project_id pertence (necessário para filtro e criação de sprint) */
-      var versionById = {};
-      try {
-        var rootVers = (await api("GET", "/projects/" + projectId + "/versions.json")).versions || [];
-        rootVers.forEach(function (v) {
-          if (!v.project) v.project = { id: +projectId };
-          versionById[v.id] = v;
-        });
-      } catch (evRoot) { console.warn("[Gantt] versions root", evRoot); }
-      try {
-        var candIds = Object.keys(candidateIds);
-        for (var cvi = 0; cvi < candIds.length; cvi++) {
-          try {
-            var cv = (await api("GET", "/projects/" + candIds[cvi] + "/versions.json")).versions || [];
-            cv.forEach(function (v) {
-              if (!v.project) v.project = { id: +candIds[cvi] };
-              if (!versionById[v.id]) versionById[v.id] = v;
-            });
-          } catch (evC) { console.warn("[Gantt] versions candidate", candIds[cvi], evC); }
-        }
-      } catch (evCand) {}
-      versions = Object.keys(versionById).map(function (id) { return versionById[id]; });
-      /* safety: issues by each version (pega issues mesmo fora da árvore de login) */
-      try {
-        for (var vx = 0; vx < versions.length; vx++) {
-          try {
-            var voff = 0;
-            for (;;) {
-              var vd = await api("GET", "/issues.json?fixed_version_id=" + versions[vx].id + "&status_id=*&limit=100&offset=" + voff);
-              (vd.issues || []).forEach(function (i) {
-                if (!seen[i.id]) { seen[i.id] = true; allIssues.push(i); }
-              });
-              if (!(vd.issues || []).length || (vd.issues || []).length < 100) break;
-              voff += 100;
-            }
-          } catch (ev) {}
-        }
-        console.log("[Gantt] after version fetch", allIssues.length, "versions", versions.length);
-      } catch (ev2) {}
 
       try { statuses = (await api("GET", "/issue_statuses.json")).issue_statuses || []; } catch (e) {}
       projectMembers = [];
-      try {
-        var memOff = 0;
-        for (;;) {
-          var mem = await api("GET", "/projects/" + projectId + "/memberships.json?limit=100&offset=" + memOff);
-          var rows = mem.memberships || [];
-          rows.forEach(function (row) {
-            if (row.user) projectMembers.push({ id: row.user.id, name: row.user.name });
-          });
-          if (rows.length < 100) break;
-          memOff += 100;
-        }
-      } catch (e) { console.warn("[Gantt] memberships", e); }
+      /* memberships sob demanda quando houver projeto selecionado */
       window.__ganttAllIssues = allIssues;
       window.__ganttVersions = versions;
       /* synthetic dates for undated issues */
@@ -2850,8 +2752,11 @@ var rows = "";
           iss.due_date = d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
         }
       });
+      /* Sem seleção de projeto → não puxa issues (entrada leve) */
+      if (sel.projects === null) {
+        sel.projects = new Set([-1]);
+      }
       renderProjTree();
-      /* Se o usuário já tinha projetos no filtro (ex. CREDSUS), busca issues deles agora */
       try { await ensureIssuesForSelectedProjects(); } catch (eEns) {}
       fillChips();
       applyFilters();
@@ -2860,6 +2765,9 @@ var rows = "";
         sel.assignee = null; sel.mod = null; sel.status = null; sel.completeness = null; sel.sprint = null;
         fillChips();
         applyFilters();
+      }
+      if (!allIssues.length) {
+        toast("Selecione projetos no filtro para carregar tasks", false);
       }
     } catch (e) {
       toast("Falha: " + e.message, true);
@@ -2911,7 +2819,8 @@ var rows = "";
     btnCookie.onclick = function () {
       setCookie(COOKIE_OK, "1", 365);
       hide(document.getElementById("cookieBanner"));
-      if (getCookie(C_KEY) && getCookie(C_URL) && getCookie(C_PROJ)) goApp();
+      if (getCookie(C_KEY) && getCookie(C_URL)) goApp();
+      else window.location.href = "index.html";
       else goLogin();
     };
   }
@@ -2980,7 +2889,7 @@ var rows = "";
     };
   }
 
-  if (!getCookie(COOKIE_OK) || !getCookie(C_KEY) || !getCookie(C_URL) || !getCookie(C_PROJ)) {
+  if (!getCookie(COOKIE_OK) || !getCookie(C_KEY) || !getCookie(C_URL)) {
     goLogin();
   } else {
     hide(document.getElementById("cookieBanner"));

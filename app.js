@@ -1268,8 +1268,12 @@
     }
 
 const now = new Date().toLocaleString("pt-BR");
-    document.getElementById("hdrMeta").textContent = "Sprints + backlog · " + getCookie(C_EMAIL) + " · " + now;
-    document.getElementById("footLeft").textContent = "Fonte: Redmine REST · projeto " + getCookie(C_PROJ) + " + subprojetos · " + total + " issues";
+    var nProj = 0;
+    if (dashProjFilter && !dashProjFilter.has(-1)) {
+      dashProjFilter.forEach(function (x) { if (+x > 0 && String(+x) === String(x)) nProj++; });
+    }
+    document.getElementById("hdrMeta").textContent = total + " issues · " + (nProj || "filtro") + " proj · " + now;
+    document.getElementById("footLeft").textContent = "Redmine Lens · API REST · " + total + " issues filtradas";
     document.getElementById("footRight").textContent = "Atualizado " + now + " · cookies locais · sem chave no código";
   }
 
@@ -1347,8 +1351,10 @@ const now = new Date().toLocaleString("pt-BR");
     const loading = document.getElementById("loading");
     show(loading);
     try {
-      const projectId = getCookie(C_PROJ);
-      if (!projectId) throw new Error("ID do projeto não informado. Faça login novamente.");
+      if (!getCookie(C_URL) || !getCookie(C_KEY)) {
+        throw new Error("Sessão incompleta. Informe URL e API key.");
+      }
+      /* Entrada leve: só lista de projetos (metadados). Issues sob demanda no filtro. */
       try {
         var projs = [];
         var poff = 0;
@@ -1362,70 +1368,28 @@ const now = new Date().toLocaleString("pt-BR");
       } catch (ep) {
         console.warn("[Dash] projects", ep);
         allProjectsDash = [];
+        throw new Error("Não foi possível listar projetos. Verifique URL e API key.\n" + (ep.message || ep));
       }
-      renderDashProjFilter();
-      var issues = await fetchAllIssues(projectId);
       loadedProjectIdsDash = {};
-      loadedProjectIdsDash[+projectId] = true;
-      loadedProjectIdsDash[String(projectId)] = true;
-      var versionById = {};
-      try {
-        var seen = {};
-        issues.forEach(function (i) { seen[i.id] = true; });
-        function addIssues(list) {
-          (list || []).forEach(function (i) {
-            if (!seen[i.id]) { seen[i.id] = true; issues.push(i); }
-          });
-        }
-        /* Expansão por árvore (sem regex de nomes): filhos + irmãos do portfólio */
-        var root = allProjectsDash.find(function (p) {
-          return String(p.id) === String(projectId) || p.identifier === projectId;
-        });
-        var parentId = root && root.parent && root.parent.id;
-        var candidateIds = {};
-        allProjectsDash.forEach(function (p) {
-          var nm = p.name || ("#" + p.id);
-          var pid = p.id;
-          if (String(pid) === String(projectId)) return;
-          if (p.parent && String(p.parent.id) === String(projectId)) {
-            candidateIds[pid] = nm;
-            return;
-          }
-          if (parentId && p.parent && String(p.parent.id) === String(parentId)) {
-            candidateIds[pid] = nm;
-            return;
-          }
-          if (p.parent) {
-            var par = allProjectsDash.find(function (x) { return String(x.id) === String(p.parent.id); });
-            if (par && par.parent && String(par.parent.id) === String(projectId)) {
-              candidateIds[pid] = nm;
-            }
-          }
-        });
-        var ids = Object.keys(candidateIds);
-        for (var si = 0; si < ids.length; si++) {
-          try {
-            addIssues(await fetchAllIssues(ids[si]));
-            loadedProjectIdsDash[+ids[si]] = true;
-            await mergeVersionsDash(ids[si], versionById);
-          } catch (e2) {
-            console.warn("[Dash] expand project", candidateIds[ids[si]], e2);
-          }
-        }
-      } catch (e3) {
-        console.warn("[Dash] portfolio expand", e3);
+      window.__lastDashIssues = [];
+      window.__lastDashVersions = [];
+
+      /* Restaura filtro de projetos só se o usuário já tinha seleção válida */
+      var sf = loadSharedFilters();
+      if (sf.projects && sf.projects.length) {
+        dashProjFilter = new Set(sf.projects.concat(sf.projects.map(Number)));
+      } else {
+        /* Nenhum projeto selecionado na entrada — evita carga massiva */
+        dashProjFilter = new Set([-1]);
       }
-      await mergeVersionsDash(projectId, versionById);
-      var versions = Object.keys(versionById).map(function (id) { return versionById[id]; });
-      if (!versions.length) {
-        try { versions = await fetchVersions(projectId); } catch (e) { versions = []; }
+
+      renderDashProjFilter();
+
+      if (dashProjFilter && !dashProjFilter.has(-1) && dashProjFilter.size) {
+        try { await ensureDashProjectsLoaded(); } catch (eEns) {}
       }
-      window.__lastDashIssues = issues;
-      window.__lastDashVersions = versions;
-      /* Se filtro compartilhado já apontava projetos específicos, garante carga */
-      try { await ensureDashProjectsLoaded(); } catch (eEns) {}
-      renderDashboard(window.__lastDashIssues, window.__lastDashVersions);
-      /* reconstrói filtro de dev com base no conjunto completo */
+
+      renderDashboard(window.__lastDashIssues || [], window.__lastDashVersions || []);
       try {
         var devMap = {};
         (window.__lastDashIssues || []).forEach(function (i) {
@@ -1438,11 +1402,22 @@ const now = new Date().toLocaleString("pt-BR");
         }).sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); });
         renderDashDevFilter(devList);
       } catch (eDev) {}
+
+      var meta = document.getElementById("hdrMeta");
+      if (meta) {
+        meta.textContent = (allProjectsDash.length || 0) + " projetos visíveis · selecione no filtro para carregar issues";
+      }
+      var banner = document.getElementById("banner");
+      if (banner && (!window.__lastDashIssues || !window.__lastDashIssues.length)) {
+        banner.innerHTML = "<strong>Sessão conectada</strong> · escolha um ou mais <strong>Projetos</strong> no filtro para carregar entregas (entrada leve, sem puxar tudo de uma vez).";
+      }
     } catch (e) {
       alert("Falha ao carregar Redmine.\n" + e.message + "\n\nSe for CORS, rode: npm install && npm run proxy → http://localhost:8787");
       console.error(e);
     } finally {
       hide(loading);
+      var btn = document.getElementById("btnLogin");
+      if (btn) btn.classList.remove("is-loading");
     }
   }
 
@@ -1460,27 +1435,51 @@ const now = new Date().toLocaleString("pt-BR");
   document.getElementById("btnAcceptCookies").onclick = () => {
     setCookie(COOKIE_OK, "1", 365);
     hide(document.getElementById("cookieBanner"));
-    if (getCookie(C_KEY) && getCookie(C_URL) && getCookie(C_PROJ)) goDash();
+    if (getCookie(C_KEY) && getCookie(C_URL)) goDash();
     else goLogin();
   };
 
-  document.getElementById("btnLogin").onclick = () => {
-    const email = document.getElementById("inEmail").value.trim();
-    const url = document.getElementById("inUrl").value.trim().replace(/\/$/, "");
-    const key = document.getElementById("inKey").value.trim();
-    const proj = document.getElementById("inProject").value.trim();
-    const err = document.getElementById("loginError");
-    err.textContent = "";
-    if (!validEmail(email)) { err.textContent = "Informe um e-mail válido."; return; }
-    if (!url) { err.textContent = "Informe a URL do Redmine."; return; }
-    if (!key) { err.textContent = "Informe a API key."; return; }
-    if (!proj) { err.textContent = "Informe o ID do projeto raiz."; return; }
-    setCookie(C_EMAIL, email, 30);
+  function doLogin(ev) {
+    if (ev) ev.preventDefault();
+    var urlEl = document.getElementById("inUrl");
+    var keyEl = document.getElementById("inKey");
+    var url = (urlEl && urlEl.value || "").trim().replace(/\/$/, "");
+    var key = (keyEl && keyEl.value || "").trim();
+    var err = document.getElementById("loginError");
+    var btn = document.getElementById("btnLogin");
+    if (err) err.textContent = "";
+    if (!url) { if (err) err.textContent = "Informe a URL do Redmine."; return; }
+    if (!/^https?:\/\//i.test(url)) { if (err) err.textContent = "URL deve começar com http:// ou https://"; return; }
+    if (!key) { if (err) err.textContent = "Informe a API key."; return; }
+    if (btn) btn.classList.add("is-loading");
     setCookie(C_URL, url, 30);
     setCookie(C_KEY, key, 30);
-    setCookie(C_PROJ, proj, 30);
+    /* Sem e-mail e sem projeto na entrada — sessão leve */
+    try { delCookie(C_PROJ); } catch (e) {}
+    try { delCookie(C_EMAIL); } catch (e) {}
+    /* limpa filtros sticky de projeto para não forçar carga pesada */
+    try {
+      var sf = loadSharedFilters();
+      sf.projects = [];
+      localStorage.setItem(LS_FILTERS, JSON.stringify(sf));
+    } catch (e2) {}
+    dashProjFilter = new Set([-1]);
     goDash();
-  };
+  }
+
+  var loginForm = document.getElementById("loginForm");
+  if (loginForm) loginForm.addEventListener("submit", doLogin);
+  var btnLogin = document.getElementById("btnLogin");
+  if (btnLogin && !loginForm) btnLogin.onclick = doLogin;
+
+  var btnToggleKey = document.getElementById("btnToggleKey");
+  if (btnToggleKey) {
+    btnToggleKey.onclick = function () {
+      var keyEl = document.getElementById("inKey");
+      if (!keyEl) return;
+      keyEl.type = keyEl.type === "password" ? "text" : "password";
+    };
+  }
 
   document.getElementById("btnLogout").onclick = () => { clearAuth(); goLogin(); };
   document.getElementById("btnRefresh").onclick = () => loadData();
@@ -1489,7 +1488,7 @@ const now = new Date().toLocaleString("pt-BR");
     show(document.getElementById("cookieBanner"));
     hide(document.getElementById("loginView"));
     hide(document.getElementById("dashView"));
-  } else if (getCookie(C_KEY) && getCookie(C_URL) && getCookie(C_PROJ)) {
+  } else if (getCookie(C_KEY) && getCookie(C_URL)) {
     goDash();
   } else {
     goLogin();

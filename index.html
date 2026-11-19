@@ -17,20 +17,56 @@
 </div>
 
 <div id="loginView" class="login-wrap hidden">
+  <div class="login-bg" aria-hidden="true">
+    <div class="login-orb login-orb-a"></div>
+    <div class="login-orb login-orb-b"></div>
+    <div class="login-orb login-orb-c"></div>
+    <div class="login-grid"></div>
+  </div>
   <div class="login-card">
-    <h1>HEMOPI <span>·</span> Redmine</h1>
-    <p class="muted">Dashboard executivo · credenciais só em cookies</p>
-    <label>E-mail válido</label>
-    <input id="inEmail" type="email" placeholder="ex.: voce@orgao.gov.br" autocomplete="username" required/>
-    <label>URL do Redmine</label>
-    <input id="inUrl" type="url" placeholder="ex.: https://redmine.exemplo.gov.br" autocomplete="off" required/>
-    <label>API Key</label>
-    <input id="inKey" type="password" placeholder="ex.: cole aqui sua chave de API" autocomplete="new-password" required/>
-    <label>ID do projeto raiz</label>
-    <input id="inProject" type="text" placeholder="ex.: 414" autocomplete="off" required/>
-    <p id="loginError" class="error"></p>
-    <button id="btnLogin" class="btn primary block">Entrar</button>
-    <p class="hint">Nenhum dado sensível fica no código ou no Git. A API key é gravada só em cookie local deste navegador. Use Logout para apagar.</p>
+    <div class="login-brand">
+      <div class="login-logo" aria-hidden="true">
+        <svg viewBox="0 0 48 48" width="48" height="48" fill="none">
+          <rect x="4" y="4" width="40" height="40" rx="12" stroke="url(#lg)" stroke-width="2"/>
+          <path d="M14 30V18h6.5c3.2 0 5.2 1.6 5.2 4.1 0 2.6-2 4.2-5.2 4.2H18v3.7H14zm4-6.5h2.2c1.4 0 2.2-.7 2.2-1.7s-.8-1.7-2.2-1.7H18v3.4zM28 30l4.2-12h4.1L40.5 30h-4.1l-.7-2.2h-3.9L31.1 30H28zm5.2-5.2h2.6l-1.3-4-1.3 4z" fill="url(#lg)"/>
+          <defs>
+            <linearGradient id="lg" x1="8" y1="8" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#06b6d4"/><stop offset="1" stop-color="#3b82f6"/>
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+      <h1>Redmine <span>Lens</span></h1>
+      <p class="login-tagline">Camada executiva sobre a API REST do Redmine</p>
+    </div>
+    <div class="login-features">
+      <span class="login-chip">Gantt multi-projeto</span>
+      <span class="login-chip">Kanban + filtros</span>
+      <span class="login-chip">Só cookies locais</span>
+    </div>
+    <form id="loginForm" class="login-form" autocomplete="on">
+      <div class="field">
+        <label for="inUrl">URL do Redmine</label>
+        <div class="field-input">
+          <span class="field-ico" aria-hidden="true">🔗</span>
+          <input id="inUrl" type="url" placeholder="https://redmine.seudominio.gov.br" autocomplete="url" required/>
+        </div>
+      </div>
+      <div class="field">
+        <label for="inKey">API Key</label>
+        <div class="field-input">
+          <span class="field-ico" aria-hidden="true">🔑</span>
+          <input id="inKey" type="password" placeholder="Sua chave de API do Redmine" autocomplete="current-password" required/>
+          <button type="button" class="field-toggle" id="btnToggleKey" title="Mostrar/ocultar">👁</button>
+        </div>
+      </div>
+      <p id="loginError" class="error" role="alert"></p>
+      <button type="submit" id="btnLogin" class="btn-login">
+        <span class="btn-login-label">Conectar à API</span>
+        <span class="btn-login-shine" aria-hidden="true"></span>
+      </button>
+    </form>
+    <p class="login-hint">Entrada leve: nenhum projeto é carregado até você filtrar. Credenciais ficam só neste navegador.</p>
   </div>
 </div>
 
