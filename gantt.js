@@ -2821,7 +2821,6 @@ var rows = "";
       hide(document.getElementById("cookieBanner"));
       if (getCookie(C_KEY) && getCookie(C_URL)) goApp();
       else window.location.href = "index.html";
-      else goLogin();
     };
   }
   var btnLogout = document.getElementById("btnLogout");
