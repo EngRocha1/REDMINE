@@ -78,6 +78,44 @@
     </div>
   </section>
 
+  <section class="kpis" id="kpis"></section>
+  <section class="sprint-cards" id="sprintCards"></section>
+
+  <!-- Visão de entregáveis / prazos (não depende de responsável) -->
+  <section class="card" style="margin-bottom:16px" id="deliverySection">
+    <h2>Entregas e prazos</h2>
+    <p class="muted" style="font-size:.78rem;margin:0 0 12px">Indicadores de fluxo e prazo — úteis com ou sem responsável atribuído</p>
+    <div class="kpis" id="deliveryKpis" style="margin-bottom:14px"></div>
+    <div class="grid2" style="margin-bottom:14px">
+      <div class="card" style="box-shadow:none;border:1px solid var(--border, #2d3a4f)">
+        <h2 style="font-size:.9rem">Envelhecimento (abertas)</h2>
+        <div class="chart-box" style="height:240px"><canvas id="chartAging"></canvas></div>
+      </div>
+      <div class="card" style="box-shadow:none;border:1px solid var(--border, #2d3a4f)">
+        <h2 style="font-size:.9rem">Prazo (due date)</h2>
+        <div class="chart-box" style="height:240px"><canvas id="chartDeadline"></canvas></div>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="card" style="box-shadow:none;border:1px solid var(--border, #2d3a4f)">
+        <h2 style="font-size:.9rem">Pipeline de status</h2>
+        <div class="chart-box" style="height:240px"><canvas id="chartPipeline"></canvas></div>
+      </div>
+      <div class="card" style="box-shadow:none;border:1px solid var(--border, #2d3a4f)">
+        <h2 style="font-size:.9rem">Saúde por projeto</h2>
+        <div class="chart-box" style="height:240px"><canvas id="chartProjHealth"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="grid2">
+    <div class="card"><h2>Status geral</h2><div class="chart-box"><canvas id="chartStatus"></canvas></div></div>
+    <div class="card"><h2>Issues por módulo</h2><div class="chart-box"><canvas id="chartMod"></canvas></div></div>
+  </div>
+  <div class="card" style="margin-bottom:16px"><h2>Tasks por sprint</h2><div class="chart-box" style="height:260px"><canvas id="chartSprint"></canvas></div></div>
+  <div class="card" style="margin-bottom:16px"><h2>Matriz sprint × status</h2><div id="matrix"></div></div>
+
+  <!-- Visão de pessoal -->
   <section class="card" style="margin-bottom:16px">
     <h2>Produtividade por desenvolvedor</h2>
     <p class="muted" style="font-size:.78rem;margin:0 0 10px">Barras = entregas (Resolvida + Fechada) · linha tracejada = média da equipe · números sempre visíveis</p>
@@ -87,16 +125,6 @@
     <div class="card"><h2>Carga atual (abertas)</h2><div class="chart-box"><canvas id="chartLoad"></canvas></div></div>
     <div class="card"><h2>Comparativo vs média</h2><div id="prodTable" class="prod-table"></div></div>
   </div>
-
-  <section class="kpis" id="kpis"></section>
-  <section class="sprint-cards" id="sprintCards"></section>
-
-  <div class="grid2">
-    <div class="card"><h2>Status geral</h2><div class="chart-box"><canvas id="chartStatus"></canvas></div></div>
-    <div class="card"><h2>Issues por módulo</h2><div class="chart-box"><canvas id="chartMod"></canvas></div></div>
-  </div>
-  <div class="card" style="margin-bottom:16px"><h2>Tasks por sprint</h2><div class="chart-box" style="height:260px"><canvas id="chartSprint"></canvas></div></div>
-  <div class="card" style="margin-bottom:16px"><h2>Matriz sprint × status</h2><div id="matrix"></div></div>
 
   <div class="card">
     <h2>Lista de issues</h2>

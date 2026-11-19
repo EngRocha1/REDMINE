@@ -625,6 +625,223 @@
     };
   }
 
+  function daysBetween(a, b) {
+    if (!a || !b) return null;
+    var ms = b.getTime() - a.getTime();
+    return Math.floor(ms / 864e5);
+  }
+
+  function parseIssueDate(s) {
+    if (!s) return null;
+    var d = new Date(String(s).slice(0, 10) + "T12:00:00");
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  function isOpenIssue(i) {
+    var sk = statusKey(i.status && i.status.name);
+    return sk !== "Resolvida" && sk !== "Fechada" && sk !== "Rejeitada";
+  }
+
+  /**
+   * Painel executivo de entregáveis:
+   * aging, prazo, pipeline, saúde por projeto — sem depender de responsável.
+   * Precedente de mercado: vendor delivery / MSP — on-time, aging, throughput, WIP.
+   */
+  function renderDeliveryAnalytics(issues, versions) {
+    var today = new Date();
+    today.setHours(12, 0, 0, 0);
+
+    var open = issues.filter(isOpenIssue);
+    var done = issues.filter(function (i) {
+      var sk = statusKey(i.status && i.status.name);
+      return sk === "Resolvida" || sk === "Fechada";
+    });
+    var rejected = issues.filter(function (i) {
+      return statusKey(i.status && i.status.name) === "Rejeitada";
+    });
+
+    /* Aging buckets for open issues (from created_on or start_date) */
+    var aging = { "0–7d": 0, "8–14d": 0, "15–30d": 0, "31–60d": 0, ">60d": 0, "s/ data": 0 };
+    open.forEach(function (i) {
+      var ref = parseIssueDate(i.start_date) || parseIssueDate(i.created_on);
+      if (!ref) { aging["s/ data"]++; return; }
+      var age = daysBetween(ref, today);
+      if (age == null || age < 0) age = 0;
+      if (age <= 7) aging["0–7d"]++;
+      else if (age <= 14) aging["8–14d"]++;
+      else if (age <= 30) aging["15–30d"]++;
+      else if (age <= 60) aging["31–60d"]++;
+      else aging[">60d"]++;
+    });
+
+    /* Deadline: on track / due soon / overdue / no due */
+    var deadline = { "No prazo": 0, "Vence em 7d": 0, "Atrasada": 0, "Sem due date": 0 };
+    open.forEach(function (i) {
+      var due = parseIssueDate(i.due_date);
+      if (!due) { deadline["Sem due date"]++; return; }
+      var d = daysBetween(today, due);
+      if (d == null) { deadline["Sem due date"]++; return; }
+      if (d < 0) deadline["Atrasada"]++;
+      else if (d <= 7) deadline["Vence em 7d"]++;
+      else deadline["No prazo"]++;
+    });
+
+    var total = issues.length || 1;
+    var pctDone = Math.round((done.length / total) * 100);
+    var pctOpen = Math.round((open.length / total) * 100);
+    var overdueN = deadline["Atrasada"] || 0;
+    var noDueN = deadline["Sem due date"] || 0;
+    var backlogN = issues.filter(function (i) { return isBacklogIssue(i, versions); }).length;
+
+    var kpisEl = document.getElementById("deliveryKpis");
+    if (kpisEl) {
+      kpisEl.innerHTML = [
+        ["Abertas", open.length, ""],
+        ["Concluídas", done.length, "ok"],
+        ["% Concluído", pctDone + "%", pctDone >= 50 ? "ok" : ""],
+        ["Atrasadas", overdueN, overdueN ? "warn" : "ok"],
+        ["Sem due date", noDueN, noDueN ? "warn" : ""],
+        ["Backlog", backlogN, backlogN ? "warn" : ""],
+        ["Rejeitadas", rejected.length, rejected.length ? "warn" : ""]
+      ].map(function (row) {
+        return '<div class="kpi ' + row[2] + '"><div class="label">' + row[0] + '</div><div class="value">' + row[1] + "</div></div>";
+      }).join("");
+    }
+
+    var agingLabels = Object.keys(aging);
+    var agingData = agingLabels.map(function (k) { return aging[k]; });
+    if (document.getElementById("chartAging")) {
+      charts.aging = new Chart(document.getElementById("chartAging"), {
+        type: "bar",
+        data: {
+          labels: agingLabels,
+          datasets: [{
+            data: agingData,
+            backgroundColor: ["#22c55e", "#84cc16", "#eab308", "#f97316", "#ef4444", "#64748b"],
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: "#94a3b8" }, grid: { display: false } },
+            y: { ticks: { color: "#94a3b8" }, grid: { color: "#2d3a4f" }, beginAtZero: true }
+          }
+        },
+        plugins: [valueLabelsPlugin]
+      });
+    }
+
+    var dlLabels = Object.keys(deadline);
+    if (document.getElementById("chartDeadline")) {
+      charts.deadline = new Chart(document.getElementById("chartDeadline"), {
+        type: "doughnut",
+        data: {
+          labels: dlLabels,
+          datasets: [{
+            data: dlLabels.map(function (k) { return deadline[k]; }),
+            backgroundColor: ["#22c55e", "#eab308", "#ef4444", "#64748b"],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: "bottom", labels: { color: "#94a3b8", boxWidth: 12 } } }
+        },
+        plugins: [valueLabelsPlugin]
+      });
+    }
+
+    /* Pipeline: all statuses present (WIP view) */
+    var pipeLabels = [];
+    var pipeData = [];
+    ALL_STATUSES.forEach(function (st) {
+      var n = issues.filter(function (i) { return statusKey(i.status && i.status.name) === st; }).length;
+      if (n > 0) { pipeLabels.push(st); pipeData.push(n); }
+    });
+    Object.keys(countBy(issues, function (i) { return statusKey(i.status && i.status.name); })).forEach(function (st) {
+      if (pipeLabels.indexOf(st) < 0) {
+        var n = issues.filter(function (i) { return statusKey(i.status && i.status.name) === st; }).length;
+        if (n > 0) { pipeLabels.push(st); pipeData.push(n); }
+      }
+    });
+    if (document.getElementById("chartPipeline")) {
+      charts.pipeline = new Chart(document.getElementById("chartPipeline"), {
+        type: "bar",
+        data: {
+          labels: pipeLabels,
+          datasets: [{
+            data: pipeData,
+            backgroundColor: pipeLabels.map(function (s) { return STATUS_COLORS[s] || "#475569"; }),
+            borderRadius: 6
+          }]
+        },
+        options: {
+          indexAxis: "y",
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: "#94a3b8" }, grid: { color: "#2d3a4f" }, beginAtZero: true },
+            y: { ticks: { color: "#94a3b8", font: { size: 10 } }, grid: { display: false } }
+          }
+        },
+        plugins: [valueLabelsPlugin]
+      });
+    }
+
+    /* Saúde por projeto: open / done / overdue stacked */
+    var byProj = {};
+    issues.forEach(function (i) {
+      var pname = (i.project && i.project.name) || "Sem projeto";
+      var pid = i.project && i.project.id != null ? i.project.id : pname;
+      if (!byProj[pid]) byProj[pid] = { name: pname, open: 0, done: 0, overdue: 0, backlog: 0 };
+      if (isBacklogIssue(i, versions)) byProj[pid].backlog++;
+      if (!isOpenIssue(i)) {
+        if (statusKey(i.status && i.status.name) === "Rejeitada") { /* skip from done */ }
+        else byProj[pid].done++;
+      } else {
+        byProj[pid].open++;
+        var due = parseIssueDate(i.due_date);
+        if (due && daysBetween(today, due) < 0) byProj[pid].overdue++;
+      }
+    });
+    var projList = Object.keys(byProj).map(function (k) { return byProj[k]; })
+      .sort(function (a, b) { return (b.open + b.done) - (a.open + a.done); })
+      .slice(0, 12);
+    if (document.getElementById("chartProjHealth")) {
+      charts.projHealth = new Chart(document.getElementById("chartProjHealth"), {
+        type: "bar",
+        data: {
+          labels: projList.map(function (p) {
+            var n = p.name || "";
+            return n.length > 22 ? n.slice(0, 20) + "…" : n;
+          }),
+          datasets: [
+            { label: "Abertas", data: projList.map(function (p) { return p.open; }), backgroundColor: "#3b82f6", stack: "h" },
+            { label: "Concluídas", data: projList.map(function (p) { return p.done; }), backgroundColor: "#22c55e", stack: "h" },
+            { label: "Atrasadas", data: projList.map(function (p) { return p.overdue; }), backgroundColor: "#ef4444", stack: "h" }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: "bottom", labels: { color: "#94a3b8", boxWidth: 12 } }
+          },
+          scales: {
+            x: { stacked: true, ticks: { color: "#94a3b8", maxRotation: 45, font: { size: 10 } }, grid: { display: false } },
+            y: { stacked: true, ticks: { color: "#94a3b8" }, grid: { color: "#2d3a4f" }, beginAtZero: true }
+          }
+        },
+        plugins: [valueLabelsPlugin]
+      });
+    }
+  }
+
   function renderDashboard(issues, versions) {
     window.__lastDashIssues = issues;
     window.__lastDashVersions = versions;
@@ -810,6 +1027,13 @@
     Object.keys(charts || {}).forEach(function (k) { try { charts[k].destroy(); } catch (e) {} });
     charts = {};
     const col = { nova: "#3b82f6", valid: "#22c55e", plan: "#a78bfa", done: "#94a3b8" };
+
+    /* —— Entregas e prazos (independente de assignee) —— */
+    try {
+      renderDeliveryAnalytics(issues, versions);
+    } catch (eDel) {
+      console.warn("[Dash] delivery analytics", eDel);
+    }
 
     try {
       var stLabels = ALL_STATUSES.filter(function (s) { return (byStatus[s] || 0) > 0; });
